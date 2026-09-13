@@ -1,1 +1,197 @@
-// Write your overrides
+.layout-wrapper {
+  background: rgb(var(--v-theme-background));
+}
+
+.layout-page-content {
+  padding-block: 1.25rem;
+}
+
+.layout-nav-type-vertical .layout-navbar,
+.layout-navbar {
+  border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  box-shadow: none !important;
+}
+
+.layout-vertical-nav {
+  border-inline-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  box-shadow: none !important;
+}
+
+.layout-vertical-nav .nav-header {
+  padding-inline: 1.25rem;
+}
+
+.layout-vertical-nav .nav-link a,
+.layout-vertical-nav .nav-group-label {
+  border-radius: 0.75rem;
+  margin-inline: 0.65rem;
+}
+
+.layout-footer {
+  display: none;
+}
+
+.v-card {
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+.v-btn {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.v-field {
+  border-radius: 0.75rem !important;
+}
+
+.v-chip {
+  font-weight: 500;
+}
+
+.v-data-table {
+  .v-data-table__th {
+    background: rgba(var(--v-theme-primary), 0.04);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .v-data-table__tr:hover td {
+    background: rgba(var(--v-theme-primary), 0.03);
+  }
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-block-end: 1.25rem;
+}
+
+.page-header__title {
+  margin: 0;
+  color: rgb(var(--v-theme-on-background));
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 2rem;
+}
+
+.page-header__subtitle {
+  margin: 0.25rem 0 0;
+  color: rgba(var(--v-theme-on-background), var(--v-medium-emphasis-opacity));
+  font-size: 0.9375rem;
+}
+
+.motabaa-auth {
+  display: flex;
+  min-block-size: calc(var(--vh, 1vh) * 100);
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at top, rgba(91, 44, 145, 0.18), transparent 44%),
+    rgb(var(--v-theme-background));
+}
+
+.motabaa-auth__card {
+  width: min(100%, 26.5rem);
+  padding: 2.25rem 1.75rem 1.75rem;
+  border: 1px solid rgba(var(--v-border-color), 0.12);
+  border-radius: 1.35rem;
+  background: rgb(var(--v-theme-surface));
+}
+
+.motabaa-auth__card--wide {
+  width: min(100%, 34rem);
+}
+
+.motabaa-auth__logo {
+  display: flex;
+  justify-content: center;
+  margin-block-end: 1.25rem;
+}
+
+.motabaa-auth__logo img,
+.motabaa-auth__logo svg {
+  inline-size: 168px;
+  max-inline-size: 100%;
+}
+
+.motabaa-auth__title {
+  margin: 0 0 0.35rem;
+  color: rgb(var(--v-theme-on-surface));
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 2rem;
+  text-align: center;
+}
+
+.motabaa-auth__subtitle {
+  margin: 0 0 1.5rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+.motabaa-auth__footer {
+  margin-block-start: 1.25rem;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+
+.shortcut-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1.15rem 1.2rem;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 1rem;
+  background: rgb(var(--v-theme-surface));
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.shortcut-card:hover {
+  border-color: rgba(var(--v-theme-primary), 0.35);
+  background: rgba(var(--v-theme-primary), 0.04);
+}
+
+.shortcut-card__icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgba(var(--v-theme-primary), 0.1);
+  color: rgb(var(--v-theme-primary));
+}
+
+.shortcut-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.shortcut-card__subtitle {
+  margin: 0.2rem 0 0;
+  color: rgba(var(--v-theme-on-background), var(--v-medium-emphasis-opacity));
+  font-size: 0.875rem;
+}
+
+.v-theme--dark .motabaa-auth {
+  background:
+    radial-gradient(circle at top, rgba(155, 122, 216, 0.2), transparent 46%),
+    rgb(var(--v-theme-background));
+}

@@ -19,11 +19,17 @@ export default {
     color: 'primary',
   },
   VBtn: {
-    // set v-btn default color to primary
     color: 'primary',
+    rounded: true,
+    elevation: 0,
   },
   VChip: {
     size: 'small',
+    rounded: 'lg',
+  },
+  VCard: {
+    elevation: 0,
+    rounded: 'lg',
   },
   VExpansionPanel: {
     expandIcon: 'tabler-chevron-right',

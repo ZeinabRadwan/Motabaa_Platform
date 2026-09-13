@@ -46,6 +46,7 @@ const preview = ref(false)
 const previewData = ref([])
 const previewLoading = ref(false)
 const importLoading = ref(false)
+const filtersOpen = ref(false)
 
 
 const loading = ref(false)
@@ -360,6 +361,22 @@ const cancelImport = () => {
   preview.value = false;
   importLoading.value = false;
 }
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (Array.isArray(selectedRoles.value) ? selectedRoles.value.length : selectedRoles.value)
+    count++
+  if (selectedStatus.value && selectedStatus.value !== 'active')
+    count++
+  if (selectedDepartment.value)
+    count++
+  if (selectedWorkShift.value)
+    count++
+  if (selectedHrAlert.value)
+    count++
+
+  return count
+})
 </script>
 
 <template>
@@ -395,84 +412,24 @@ const cancelImport = () => {
         </VCard>
       </VCol> -->
       <VCol cols="12">
+        <div class="page-header">
+          <div>
+            <h1 class="page-header__title">
+              {{ $t('Users') }}
+            </h1>
+            <p class="page-header__subtitle">
+              {{ $t('user_list_subtitle') }}
+            </p>
+          </div>
+          <VBtn
+            v-if="can('edit_users','edit_users')"
+            prepend-icon="tabler-plus"
+            @click="()=> router.push(route.query.to ? String(route.query.to) : '/user/add')"
+          >
+            {{ $t('Add User') }}
+          </VBtn>
+        </div>
         <VCard>
-          <!-- 👉 Filters -->
-          <VCardText>
-            <VRow>
-              <!-- 👉 Select Role -->
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedRoles"
-                  :label="$t('Roles')"
-                  :items="roles"
-                  :item-title="'name'"
-                  :item-value="'id'"
-                  clearable
-                  chips
-                  multiple
-                  clear-icon="tabler-x"
-                />
-              </VCol>
-              
-              <!-- 👉 Select Status -->
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedStatus"
-                  :label="$t('Active')"
-                  :items="statusItems()"
-                  clearable
-                  clear-icon="tabler-x"
-                  
-                >
-                </AppSelect>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedDepartment"
-                  :label="$t('Department')"
-                  :items="departmentItems()"
-                  clearable
-                  clear-icon="tabler-x"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedWorkShift"
-                  :label="$t('employee_affairs.work_shift')"
-                  :items="workShiftItems()"
-                  clearable
-                  clear-icon="tabler-x"
-                />
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedHrAlert"
-                  :label="$t('employee_affairs.hr_alert')"
-                  :items="hrAlertItems()"
-                  clearable
-                  clear-icon="tabler-x"
-                />
-              </VCol>
-            </VRow>
-          </VCardText>
-
-          <VDivider />
-
           <VCardText class="d-flex flex-wrap py-4 gap-4">
             <div class="me-3 d-flex gap-3">
               <AppSelect
@@ -489,7 +446,6 @@ const cancelImport = () => {
             <VSpacer />
 
             <div class="justify-end d-flex align-center flex-wrap gap-4">
-              <!-- 👉 Search  -->
               <div style="inline-size: 16rem;">
                 <AppAutocomplete
                   :model-value="searchQuery"
@@ -504,9 +460,26 @@ const cancelImport = () => {
                 />
               </div>
 
+              <VBtn
+                variant="tonal"
+                color="default"
+                prepend-icon="tabler-filter"
+                @click="filtersOpen = !filtersOpen"
+              >
+                {{ $t('Filters') }}
+                <VChip
+                  v-if="activeFilterCount"
+                  size="x-small"
+                  color="primary"
+                  class="ms-2"
+                >
+                  {{ activeFilterCount }}
+                </VChip>
+              </VBtn>
+
               <VMenu v-if="can('edit_users','edit_users')">
                 <template #activator="{ props }">
-                <VBtn color="success" v-bind="props" :loading="previewLoading">
+                <VBtn variant="tonal" color="default" v-bind="props" :loading="previewLoading">
                     {{ $t('data') }}
                 </VBtn>
                 </template>
@@ -515,16 +488,82 @@ const cancelImport = () => {
                 <VListItem @click="fileUploadfun()"><VIcon icon="tabler-cloud-upload" /> {{ $t('import_data') }}</VListItem>
                 </VList>
               </VMenu>
-              <!-- 👉 Add user button -->
-              <VBtn
-                v-if="can('edit_users','edit_users')"
-                prepend-icon="tabler-plus"
-                @click="()=> router.push(route.query.to ? String(route.query.to) : '/user/add')"
-              >
-                {{ $t('Add User') }}
-              </VBtn>
             </div>
           </VCardText>
+
+          <VExpandTransition>
+            <div v-show="filtersOpen">
+              <VDivider />
+              <VCardText>
+                <VRow>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-model="selectedRoles"
+                      :label="$t('Roles')"
+                      :items="roles"
+                      :item-title="'name'"
+                      :item-value="'id'"
+                      clearable
+                      chips
+                      multiple
+                      clear-icon="tabler-x"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-model="selectedStatus"
+                      :label="$t('Active')"
+                      :items="statusItems()"
+                      clearable
+                      clear-icon="tabler-x"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-model="selectedDepartment"
+                      :label="$t('Department')"
+                      :items="departmentItems()"
+                      clearable
+                      clear-icon="tabler-x"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-model="selectedWorkShift"
+                      :label="$t('employee_affairs.work_shift')"
+                      :items="workShiftItems()"
+                      clearable
+                      clear-icon="tabler-x"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-model="selectedHrAlert"
+                      :label="$t('employee_affairs.hr_alert')"
+                      :items="hrAlertItems()"
+                      clearable
+                      clear-icon="tabler-x"
+                    />
+                  </VCol>
+                </VRow>
+              </VCardText>
+            </div>
+          </VExpandTransition>
 
           <VDivider />
 

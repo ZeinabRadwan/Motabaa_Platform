@@ -169,31 +169,24 @@ watchServerTableFetch(fetchCenters, {
     <VRow>
 
       <VCol cols="12">
+        <div class="page-header">
+          <div>
+            <h1 class="page-header__title">
+              {{ $t('Centers') }}
+            </h1>
+            <p class="page-header__subtitle">
+              {{ $t('center_list_subtitle') }}
+            </p>
+          </div>
+          <VBtn
+            v-if="can('edit_centers', 'edit_centers')"
+            prepend-icon="tabler-plus"
+            @click="()=> router.push(route.query.to ? String(route.query.to) : '/centers/put/0')"
+          >
+            {{ $t('centers.add_center') }}
+          </VBtn>
+        </div>
         <VCard>
-          <!-- 👉 Filters -->
-          <VCardText>
-            <VRow>
-
-              <!-- 👉 Select Status -->
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedStatus"
-                  :label="$t('Active')"
-                  :items="statusItems()"
-                  clearable
-                  clear-icon="tabler-x"
-                  class="pa-1"
-                >
-                </AppSelect>
-              </VCol>
-            </VRow>
-          </VCardText>
-
-          <VDivider />
-
           <VCardText class="d-flex flex-wrap py-4 gap-4">
             <div class="me-3 d-flex gap-3">
               <AppSelect
@@ -211,7 +204,15 @@ watchServerTableFetch(fetchCenters, {
             <VSpacer />
 
             <div class="justify-end d-flex align-center flex-wrap gap-4">
-              <!-- 👉 Search  -->
+              <div style="inline-size: 12rem;">
+                <AppSelect
+                  v-model="selectedStatus"
+                  :label="$t('Active')"
+                  :items="statusItems()"
+                  clearable
+                  clear-icon="tabler-x"
+                />
+              </div>
               <div style="inline-size: 20rem;">
                 <AppTextField
                   v-model="searchQuery"
@@ -219,15 +220,6 @@ watchServerTableFetch(fetchCenters, {
                   density="compact"
                 />
               </div>
-              
-              <!-- 👉 Add user button -->
-              <VBtn
-                v-if="can('edit_centers', 'edit_centers')"
-                prepend-icon="tabler-plus"
-                @click="()=> router.push(route.query.to ? String(route.query.to) : '/centers/put/0')"
-              >
-                {{ $t('centers.add_center') }}
-              </VBtn>
             </div>
           </VCardText>
 

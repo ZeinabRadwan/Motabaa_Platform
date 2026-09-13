@@ -46,6 +46,7 @@ const preview = ref(false)
 const previewData = ref([])
 const previewLoading = ref(false)
 const importLoading = ref(false)
+const filtersOpen = ref(false)
 
 
 const typesDisability = ref([]);
@@ -378,95 +379,46 @@ const cancelImport = () => {
   importLoading.value = false;
 }
 
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (specialist.value)
+    count++
+  if (Array.isArray(disability.value) ? disability.value.length : disability.value)
+    count++
+  if (Array.isArray(selectedServiceitems.value) ? selectedServiceitems.value.length : selectedServiceitems.value)
+    count++
+  if (selectedInsurance.value)
+    count++
+  if (selectedStatus.value && selectedStatus.value !== 'active')
+    count++
+
+  return count
+})
+
 </script>
 
 <template>
   <section>
     <VRow  v-if="!preview">
       <VCol cols="12">
+        <div class="page-header">
+          <div>
+            <h1 class="page-header__title">
+              {{ $t('Cases') }}
+            </h1>
+            <p class="page-header__subtitle">
+              {{ $t('case_list_subtitle') }}
+            </p>
+          </div>
+          <VBtn
+            v-if="can('edit_cases','edit_cases')"
+            prepend-icon="tabler-plus"
+            @click="()=> router.push(route.query.to ? String(route.query.to) : '/cases/add')"
+          >
+            {{ $t('Add Case') }}
+          </VBtn>
+        </div>
         <VCard>
-          <!-- 👉 Filters -->
-          <VCardText>
-            <VRow>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppAutocomplete
-                    v-model="specialist"
-                    :items="assignedStaffItems"
-                    :loading="loading.staff"
-                    :label="$t('specialists_or_teachers')"
-                    :no-data-text="$t('autocomplete.no_results')"
-                    clear-icon="tabler-x"
-                    clearable
-                  >
-                  </AppAutocomplete>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                    v-model="disability"
-                    clearable
-                    multiple
-                    chips
-                    :loading="loading.disabilities"
-                    :items="typesDisability"
-                    :label="$t('Types of disability')"
-                  >
-                  </AppSelect>
-              </VCol>
-              <!-- 👉 Select Role -->
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedServiceitems"
-                  :label="$t('Services provided')"
-                  :items="serviceitems"
-                  :loading="loading.services"
-                  clearable
-                  multiple
-                  chips
-                  clear-icon="tabler-x"
-                />
-              </VCol>
-              <!-- 👉 Select Plan -->
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-model="selectedInsurance"
-                  :label="$t('case type')"
-                  :items="insuranceItems()"
-                  clearable
-                  clear-icon="tabler-x"
-                />
-              </VCol>
-              <!-- 👉 Select Status -->
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <AppSelect
-                  v-if="can('admin_cases','admin_cases')"
-                  v-model="selectedStatus"
-                  :label="$t('Active')"
-                  :items="statusItems()"
-                  clearable
-                  clear-icon="tabler-x"
-                >
-                </AppSelect>
-              </VCol>
-            </VRow>
-          </VCardText>
-
-          <VDivider />
-
           <VCardText class="d-flex flex-wrap py-4 gap-4">
             <div class="me-3 d-flex gap-3">
               <AppSelect
@@ -483,7 +435,6 @@ const cancelImport = () => {
             <VSpacer />
 
             <div class="justify-end d-flex align-center flex-wrap gap-4">
-              <!-- 👉 Search  -->
               <div style="inline-size: 20rem;">
                 <AppAutocomplete
                   :model-value="searchQuery"
@@ -498,9 +449,26 @@ const cancelImport = () => {
                 />
               </div>
 
+              <VBtn
+                variant="tonal"
+                color="default"
+                prepend-icon="tabler-filter"
+                @click="filtersOpen = !filtersOpen"
+              >
+                {{ $t('Filters') }}
+                <VChip
+                  v-if="activeFilterCount"
+                  size="x-small"
+                  color="primary"
+                  class="ms-2"
+                >
+                  {{ activeFilterCount }}
+                </VChip>
+              </VBtn>
+
               <VMenu v-if="can('edit_cases','edit_cases')">
                 <template #activator="{ props }">
-                <VBtn color="success" v-bind="props" :loading="previewLoading">
+                <VBtn variant="tonal" color="default" v-bind="props" :loading="previewLoading">
                     {{ $t('data') }}
                 </VBtn>
                 </template>
@@ -509,16 +477,89 @@ const cancelImport = () => {
                 <VListItem @click="fileUploadfun()"><VIcon icon="tabler-cloud-upload" /> {{ $t('import_data') }}</VListItem>
                 </VList>
               </VMenu>
-              <!-- 👉 Add user button -->
-              <VBtn
-                v-if="can('edit_cases','edit_cases')"
-                prepend-icon="tabler-plus"
-                @click="()=> router.push(route.query.to ? String(route.query.to) : '/cases/add')"
-              >
-                {{ $t('Add Case') }}
-              </VBtn>
             </div>
           </VCardText>
+
+          <VExpandTransition>
+            <div v-show="filtersOpen">
+              <VDivider />
+              <VCardText>
+                <VRow>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppAutocomplete
+                        v-model="specialist"
+                        :items="assignedStaffItems"
+                        :loading="loading.staff"
+                        :label="$t('specialists_or_teachers')"
+                        :no-data-text="$t('autocomplete.no_results')"
+                        clear-icon="tabler-x"
+                        clearable
+                      >
+                      </AppAutocomplete>
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                        v-model="disability"
+                        clearable
+                        multiple
+                        chips
+                        :loading="loading.disabilities"
+                        :items="typesDisability"
+                        :label="$t('Types of disability')"
+                      >
+                      </AppSelect>
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-model="selectedServiceitems"
+                      :label="$t('Services provided')"
+                      :items="serviceitems"
+                      :loading="loading.services"
+                      clearable
+                      multiple
+                      chips
+                      clear-icon="tabler-x"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-model="selectedInsurance"
+                      :label="$t('case type')"
+                      :items="insuranceItems()"
+                      clearable
+                      clear-icon="tabler-x"
+                    />
+                  </VCol>
+                  <VCol
+                    cols="12"
+                    sm="4"
+                  >
+                    <AppSelect
+                      v-if="can('admin_cases','admin_cases')"
+                      v-model="selectedStatus"
+                      :label="$t('Active')"
+                      :items="statusItems()"
+                      clearable
+                      clear-icon="tabler-x"
+                    >
+                    </AppSelect>
+                  </VCol>
+                </VRow>
+              </VCardText>
+            </div>
+          </VExpandTransition>
 
           <VDivider />
 
@@ -657,6 +698,19 @@ const cancelImport = () => {
                   </VList>
                 </VMenu>
               </VBtn>
+            </template>
+
+            <template #no-data>
+              <div class="d-flex flex-column align-center justify-center py-12 text-center">
+                <VIcon
+                  icon="tabler-users"
+                  size="42"
+                  class="mb-3 text-disabled"
+                />
+                <p class="text-body-1 mb-0">
+                  {{ $t('no_cases') }}
+                </p>
+              </div>
             </template>
 
             <!-- pagination -->

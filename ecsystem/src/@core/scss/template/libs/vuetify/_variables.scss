@@ -10,7 +10,7 @@ $typography-body-1-line-height: 1.375rem;
 
 @forward "../../../base/libs/vuetify/variables"  with (
   $body-font-family: $font-family-custom !default,
-  $border-radius-root: 6px !default,
+  $border-radius-root: 12px !default,
 
   // 👉 Global border radius
   $rounded: (
@@ -219,7 +219,7 @@ $typography-body-1-line-height: 1.375rem;
   $card-text-line-height:1.5 !default,
   $card-item-padding: 24px !default,
   $card-subtitle-opacity: 1 !default,
-  $card-elevation: 7 !default,
+  $card-elevation: 0 !default,
 
   // 👉 Expansion panel
   $expansion-panel-title-padding: 15px 18px !default,
