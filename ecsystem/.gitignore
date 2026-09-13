@@ -1,0 +1,38 @@
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
+.env
+dist.zip
+
+/cypress/videos/
+/cypress/screenshots/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/*.code-snippets
+!.vscode/tours
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.yarn
+
+# Generated icon and editor tooling files
+src/@iconify/icons-bundle.js
+.eslintrc-auto-import.json
+components.d.ts
+auto-imports.d.ts

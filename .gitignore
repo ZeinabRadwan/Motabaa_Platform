@@ -1,0 +1,49 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# PHP / Laravel
+**/vendor/
+**/node_modules/
+ecservice/public/hot
+ecservice/public/storage
+ecservice/public/build
+ecservice/storage/*.key
+ecservice/storage/logs/*
+ecservice/storage/framework/cache/data/*
+ecservice/storage/framework/sessions/*
+ecservice/storage/framework/views/*
+!ecservice/storage/logs/.gitkeep
+!ecservice/storage/framework/cache/data/.gitkeep
+!ecservice/storage/framework/sessions/.gitkeep
+!ecservice/storage/framework/views/.gitkeep
+.phpunit.result.cache
+.phpunit.cache
+
+# Frontend build
+ecsystem/dist/
+ecsystem/dist-ssr/
+*.local
+
+# Logs and OS
+*.log
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Nested repo leftovers (do not publish other remotes' git dirs)
+**/.git.bak/
+**/.git.nested/
+
+# Archives / local dumps
+*.zip
