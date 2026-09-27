@@ -1,0 +1,99 @@
+@use '@/styles/athar-dashboard-tokens.scss' as athar;
+
+.dashboard-kpi-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(10.5rem, 1fr);
+  gap: 0.875rem;
+  overflow-x: auto;
+  padding-block-end: 0.15rem;
+  scrollbar-width: thin;
+
+  @media (min-width: 960px) {
+    grid-auto-flow: unset;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+}
+
+.dashboard-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-block-size: 8.5rem;
+  block-size: 100%;
+  padding: 1rem 1rem 0.85rem;
+  border: none;
+  border-radius: athar.$athar-radius-md;
+  background: athar.$athar-surface;
+  box-shadow: 0 1px 3px rgba(11, 45, 77, 0.06);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 14px rgba(11, 45, 77, 0.08);
+    transform: translateY(-1px);
+  }
+}
+
+.dashboard-kpi-card__head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  min-block-size: 2rem;
+}
+
+.dashboard-kpi-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.125rem;
+  block-size: 2.125rem;
+  border-radius: 8px;
+  color: #087ed9;
+  background: athar.$athar-light-blue;
+}
+
+.dashboard-kpi-card__label {
+  margin: 0;
+  flex: 1;
+  min-inline-size: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: athar.$athar-muted;
+}
+
+.dashboard-kpi-card__value {
+  margin: 0;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  font-size: clamp(1.625rem, 2.4vw, 2rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #061f38;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-kpi-card__sparkline {
+  margin-block-start: auto;
+  opacity: 0.92;
+}
+
+.v-theme--dark {
+  .dashboard-kpi-card {
+    background: rgb(var(--v-theme-surface));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  }
+
+  .dashboard-kpi-card__label {
+    color: rgba(var(--v-theme-on-surface), 0.58);
+  }
+
+  .dashboard-kpi-card__value {
+    color: rgba(var(--v-theme-on-surface), 0.94);
+  }
+}

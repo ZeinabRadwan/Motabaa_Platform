@@ -105,7 +105,7 @@ const returnToAdmin = async () => {
   inline-size: 100%;
   padding: 0.5rem 0.65rem;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   cursor: pointer;
   text-align: start;

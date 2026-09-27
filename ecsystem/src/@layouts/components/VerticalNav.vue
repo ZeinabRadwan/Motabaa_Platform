@@ -11,6 +11,7 @@ VerticalNavSectionTitle,
 import { config } from '@layouts/config'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useSessionStore } from '@/stores/useSessionStore'
+import VerticalNavPreferences from '@/layouts/components/VerticalNavPreferences.vue'
 import VerticalNavUserFooter from '@/layouts/components/VerticalNavUserFooter.vue'
 import { resolveSidebarLogoSrc } from '@/utils/branding'
 
@@ -165,6 +166,7 @@ const handleNavScroll = evt => {
       v-if="showSidebarUserFooter"
       class="athar-nav-footer"
     >
+      <VerticalNavPreferences />
       <VerticalNavUserFooter />
     </div>
   </Component>

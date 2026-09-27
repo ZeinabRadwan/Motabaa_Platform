@@ -1,0 +1,14 @@
+@use '@/styles/athar-dashboard-tokens.scss' as athar;
+
+.dashboard-disabilities-chart {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.dashboard-disabilities-chart__body {
+  flex: 1 1 auto;
+  padding: 0.65rem 0.85rem 0.85rem 1rem;
+  min-block-size: 0;
+}

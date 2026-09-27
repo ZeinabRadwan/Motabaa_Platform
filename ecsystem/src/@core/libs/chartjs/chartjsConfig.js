@@ -133,6 +133,272 @@ export const getHorizontalBarChartConfig = themeColors => {
   }
 }
 
+/** Horizontal bar — Athar dashboard goal types */
+export const getAtharGoalsTypesChartConfig = (themeColors, suggestedMax) => {
+  const { borderColor, labelColor, legendColor } = colorVariables(themeColors)
+
+  return {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 450 },
+    elements: {
+      bar: {
+        borderRadius: 8,
+        borderSkipped: false,
+      },
+    },
+    layout: {
+      padding: { top: 4, right: 8, left: 4, bottom: 0 },
+    },
+    scales: {
+      x: {
+        min: 0,
+        suggestedMax: suggestedMax || undefined,
+        grid: {
+          drawTicks: false,
+          drawBorder: false,
+          color: borderColor,
+        },
+        ticks: {
+          color: legendColor,
+          precision: 0,
+          font: { size: 11 },
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+          drawBorder: false,
+        },
+        ticks: {
+          color: labelColor,
+          font: { size: 12, weight: '500' },
+          autoSkip: false,
+        },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b2d4d',
+        titleFont: { size: 12 },
+        bodyFont: { size: 13 },
+        padding: 10,
+        cornerRadius: 8,
+      },
+    },
+  }
+}
+
+export function atharGoalTypeBarColors(count) {
+  const shades = [
+    '#087ed9',
+    '#123b66',
+    '#066bb8',
+    '#0b2d4d',
+    '#3d97e3',
+    '#0759a5',
+  ]
+
+  return Array.from({ length: count }, (_, index) => shades[index % shades.length])
+}
+
+/** Donut — Athar dashboard goal type distribution */
+export const getAtharDoughnutChartConfig = themeColors => {
+  const { legendColor } = colorVariables(themeColors)
+
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '72%',
+    layout: {
+      padding: 4,
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b2d4d',
+        titleFont: { size: 12 },
+        bodyFont: { size: 13 },
+        padding: 10,
+        cornerRadius: 8,
+        callbacks: {
+          label(context) {
+            const value = context.parsed ?? context.raw
+
+            return String(value ?? '')
+          },
+        },
+      },
+    },
+  }
+}
+
+/** Filled line / area — Athar dashboard time series (daily) */
+export const getAtharAreaLineChartConfig = (themeColors, suggestedMax) => {
+  const { borderColor, legendColor } = colorVariables(themeColors)
+
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+          drawBorder: false,
+        },
+        ticks: {
+          color: legendColor,
+          maxRotation: 0,
+          autoSkip: true,
+          maxTicksLimit: 8,
+          font: { size: 11 },
+        },
+      },
+      y: {
+        min: 0,
+        suggestedMax: suggestedMax || undefined,
+        grid: {
+          borderColor,
+          drawBorder: false,
+          color: borderColor,
+          tickLength: 0,
+        },
+        ticks: {
+          color: legendColor,
+          precision: 0,
+          maxTicksLimit: 5,
+          font: { size: 11 },
+        },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b2d4d',
+        titleFont: { size: 12 },
+        bodyFont: { size: 13 },
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+      },
+    },
+  }
+}
+
+/** Line only (no fill) — Athar navy trend */
+export const getAtharLineTrendChartConfig = (themeColors, suggestedMax) => {
+  const { borderColor, legendColor } = colorVariables(themeColors)
+
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+      mode: 'index',
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+          drawBorder: false,
+        },
+        ticks: {
+          color: legendColor,
+          maxRotation: 0,
+          font: { size: 11 },
+        },
+      },
+      y: {
+        min: 0,
+        suggestedMax: suggestedMax || undefined,
+        grid: {
+          drawBorder: false,
+          color: borderColor,
+          tickLength: 0,
+        },
+        ticks: {
+          color: legendColor,
+          precision: 0,
+          maxTicksLimit: 5,
+          font: { size: 11 },
+        },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b2d4d',
+        titleFont: { size: 12 },
+        bodyFont: { size: 13 },
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
+      },
+    },
+  }
+}
+
+/** Vertical bars — Athar dashboard monthly totals */
+export const getAtharMonthlyBarChartConfig = (themeColors, suggestedMax) => {
+  const { borderColor, legendColor } = colorVariables(themeColors)
+
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 450 },
+    elements: {
+      bar: {
+        borderRadius: 8,
+        borderSkipped: false,
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+          drawBorder: false,
+        },
+        ticks: {
+          color: legendColor,
+          maxRotation: 0,
+          font: { size: 11 },
+        },
+      },
+      y: {
+        min: 0,
+        suggestedMax: suggestedMax || undefined,
+        grid: {
+          drawBorder: false,
+          color: borderColor,
+          tickLength: 0,
+        },
+        ticks: {
+          color: legendColor,
+          precision: 0,
+          maxTicksLimit: 5,
+          font: { size: 11 },
+        },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b2d4d',
+        titleFont: { size: 12 },
+        bodyFont: { size: 13 },
+        padding: 10,
+        cornerRadius: 8,
+      },
+    },
+  }
+}
+
 // 👉 Line Chart Config
 export const getLineChartConfig = themeColors => {
   const { borderColor, labelColor, legendColor } = colorVariables(themeColors)

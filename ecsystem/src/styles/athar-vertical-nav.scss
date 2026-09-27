@@ -8,9 +8,10 @@
   --athar-nav-active-bg: #eaf5ff;
   --athar-nav-hover-bg: rgba(234, 245, 255, 0.55);
   --athar-nav-border: #eef2f6;
-  --athar-nav-bg: #fff;
+  --athar-nav-bg: #fafbfd;
   --athar-nav-surface: #fff;
-  --athar-nav-shadow: 0 0 20px rgba(30, 80, 120, 0.04);
+  --athar-nav-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
+  --athar-nav-item-radius: 12px;
   --athar-nav-expand-duration: 0.32s;
   --athar-nav-arrow-duration: 0.28s;
 
@@ -27,11 +28,12 @@
     flex-direction: column;
     align-items: stretch;
     gap: 0;
-    padding-block: 1.25rem 1rem;
+    padding-block: 1.35rem 1.1rem;
     padding-inline: 1.25rem;
     min-block-size: auto;
     margin-inline: 0;
     position: relative;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, transparent 100%);
   }
 
   .athar-nav-header__row {
@@ -113,13 +115,14 @@
 
   .nav-link > a,
   .nav-group > .nav-group-label {
-    block-size: 2.625rem;
-    margin-block-end: 0.2rem;
-    border-radius: 10px;
+    block-size: 2.75rem;
+    margin-block-end: 0.25rem;
+    border-radius: var(--athar-nav-item-radius);
     color: var(--athar-nav-text);
     font-weight: 500;
-    padding-inline: 0.75rem !important;
+    padding-inline: 0.85rem !important;
     margin-inline: 0 !important;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 
     &::before {
       opacity: 0 !important;
@@ -192,23 +195,12 @@
   .nav-link > .router-link-active,
   .nav-link > .router-link-exact-active {
     background: var(--athar-nav-active-bg) !important;
-    box-shadow: none !important;
+    box-shadow: inset 0 0 0 1px rgba(8, 127, 217, 0.14) !important;
     color: var(--athar-nav-primary-dark) !important;
+    font-weight: 600;
 
     .nav-item-icon {
       color: var(--athar-nav-primary) !important;
-    }
-
-    &::after {
-      content: "";
-      position: absolute;
-      inset-block-start: 50%;
-      inset-inline-start: 0;
-      inline-size: 3px;
-      block-size: 55%;
-      border-radius: 0 4px 4px 0;
-      background: var(--athar-nav-primary);
-      transform: translateY(-50%);
     }
   }
 
@@ -225,18 +217,76 @@
       margin-inline: 0.5rem;
     }
 
-    .nav-link > .router-link-active::after,
-    .nav-link > .router-link-exact-active::after {
-      inset-inline-start: 2px;
-      block-size: 65%;
-    }
   }
 
   .athar-nav-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
     flex-shrink: 0;
     border-block-start: 1px solid var(--athar-nav-border);
-    padding: 0.75rem;
+    padding: 0.85rem;
     margin-block-start: auto;
+    background: linear-gradient(0deg, rgba(255, 255, 255, 0.6) 0%, transparent 100%);
+  }
+
+  .athar-nav-prefs {
+    padding-block-end: 0.35rem;
+    border-block-end: 1px solid var(--athar-nav-border);
+  }
+
+  .athar-nav-prefs__toggles {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+  }
+
+  .athar-nav-prefs__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.375rem;
+    block-size: 2.375rem;
+    padding: 0;
+    border: 1px solid var(--athar-nav-border);
+    border-radius: 10px;
+    background: var(--athar-nav-surface);
+    color: #1f2d3d;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+
+    .v-icon {
+      color: var(--athar-nav-primary);
+      transition: color 0.2s ease;
+    }
+
+    &:hover {
+      border-color: rgba(8, 127, 217, 0.3);
+      background: var(--athar-nav-hover-bg);
+      box-shadow: 0 2px 8px rgba(8, 127, 217, 0.1);
+    }
+
+    &:active {
+      transform: scale(0.96);
+    }
+
+    &--active {
+      border-color: rgba(8, 127, 217, 0.35);
+      background: var(--athar-nav-active-bg);
+      box-shadow: inset 0 0 0 1px rgba(8, 127, 217, 0.14);
+    }
+  }
+
+  .athar-nav-user__trigger {
+    border-radius: var(--athar-nav-item-radius);
+    border: 1px solid transparent;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      border-color: rgba(8, 127, 217, 0.12);
+      box-shadow: 0 4px 14px rgba(8, 127, 217, 0.08);
+    }
   }
 
   .athar-nav-user__trigger:hover {
@@ -262,9 +312,17 @@
   --athar-nav-active-bg: rgba(8, 127, 217, 0.18);
   --athar-nav-hover-bg: rgba(8, 127, 217, 0.1);
   --athar-nav-border: rgba(255, 255, 255, 0.08);
-  --athar-nav-bg: #1a2332;
-  --athar-nav-surface: #222d3d;
-  --athar-nav-shadow: 0 0 24px rgba(0, 0, 0, 0.35);
+  --athar-nav-bg: #151c28;
+  --athar-nav-surface: #1e2836;
+  --athar-nav-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+
+  .athar-nav-header {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
+  }
+
+  .athar-nav-footer {
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.15) 0%, transparent 100%);
+  }
 
   .nav-link > .router-link-active,
   .nav-link > .router-link-exact-active {
@@ -289,6 +347,13 @@
 
   .athar-nav-collapse {
     display: none;
+  }
+
+  .athar-nav-prefs__toggles {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
   }
 }
 
