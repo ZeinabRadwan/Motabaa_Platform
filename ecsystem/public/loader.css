@@ -2,15 +2,9 @@
   --athar-loader-blue-deep: #024282;
   --athar-loader-blue-bright: #00a3ff;
   --athar-loader-surface: #eef2f7;
-  --athar-loader-glass-border: rgba(255, 255, 255, 0.72);
-  --athar-loader-glass-bg: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.78) 0%,
-    rgba(255, 255, 255, 0.38) 48%,
-    rgba(255, 255, 255, 0.52) 100%
-  );
-  --athar-loader-glow: 0 0 48px rgba(0, 163, 255, 0.22), 0 0 96px rgba(2, 66, 130, 0.12),
-    0 12px 40px rgba(15, 23, 42, 0.08);
+  --athar-loader-glass-border: transparent;
+  --athar-loader-glass-bg: transparent;
+  --athar-loader-glow: 0 0 40px rgba(0, 163, 255, 0.18), 0 0 72px rgba(2, 66, 130, 0.1);
 }
 
 body {
@@ -109,15 +103,14 @@ html.athar-initial-loading {
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--athar-loader-glass-bg);
-  border: 1px solid var(--athar-loader-glass-border);
-  box-shadow: var(--athar-loader-glow);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  box-shadow: none;
   animation: athar-glass-loader-breathe 2.8s ease-in-out infinite;
 }
 
 .athar-glass-loader__logo {
-  inline-size: 68%;
+  inline-size: 72%;
+  filter: drop-shadow(0 0 40px rgba(0, 163, 255, 0.18)) drop-shadow(0 0 72px rgba(2, 66, 130, 0.1));
   block-size: auto;
   object-fit: contain;
 }

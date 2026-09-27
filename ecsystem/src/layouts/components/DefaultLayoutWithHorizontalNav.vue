@@ -12,7 +12,6 @@ import NavbarShortcuts from '@/layouts/components/NavbarShortcuts.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
 import ImpersonationBanner from '@/layouts/components/ImpersonationBanner.vue'
-import UserProfile from '@/layouts/components/UserProfile.vue'
 import { HorizontalNavLayout } from '@layouts'
 import { resolveSidebarLogoSrc, sidebarLogoWidth } from '@/utils/branding'
 
@@ -52,7 +51,6 @@ const sidebarLogoSize = computed(() => sidebarLogoWidth(sessionStore.userData))
       <NavbarShortcuts class="me-1" />
       <NavBarNotifications class="me-2" />
       <ImpersonationBanner />
-      <UserProfile />
     </template>
 
     <!-- 👉 Pages -->

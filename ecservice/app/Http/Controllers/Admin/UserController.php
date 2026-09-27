@@ -175,14 +175,19 @@ class UserController extends Controller
             $center = $currentUser->centers[0]->id;
         }
 
-        $userData = User::with(['roles', 'centers'])
-        ->whereHas('centers', function ($query) use ($center) {
-            $query->where('centers.id', $center);
-        })
-        ->withTrashed()
-        ->find($user);
+        if ($currentUser->id == $user && ! $center) {
+            $userData = User::with(['roles', 'centers'])->withTrashed()->find($user);
+        }
+        else {
+            $userData = User::with(['roles', 'centers'])
+                ->whereHas('centers', function ($query) use ($center) {
+                    $query->where('centers.id', $center);
+                })
+                ->withTrashed()
+                ->find($user);
+        }
 
-        if($userData)
+        if ($userData)
             $userData = UserResource::forSession($userData);
         else
             $userData = null;
@@ -272,6 +277,10 @@ class UserController extends Controller
     }
 
     public function update(PutRequest $request, User $user) {
+        $currentUser = auth()->user();
+        if ($currentUser->id != $user->id && ! can('edit_users')) {
+            return response()->json(['errors' => ['error' => [__("validation.You don't have permission to access this page.")]]], 422);
+        }
 
         $input = $request->validated();
         if (!User::hasWorkShiftColumn()) {
@@ -302,6 +311,11 @@ class UserController extends Controller
     }
 
     public function change_password(PutRequest $request, User $user){
+        $currentUser = auth()->user();
+        if ($currentUser->id != $user->id && ! canAny(['admin_users', 'access_centers', 'admin_centers'])) {
+            return response()->json(['errors' => ['error' => [__("validation.You don't have permission to access this page.")]]], 422);
+        }
+
         $input = $request->validated();
         $user->update([
             'password' => bcrypt($input['password']),

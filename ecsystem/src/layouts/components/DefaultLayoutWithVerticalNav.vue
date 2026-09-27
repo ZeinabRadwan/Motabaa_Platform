@@ -9,8 +9,6 @@ import NavBarI18n from '@/layouts/components/NavBarI18n.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
 import ImpersonationBanner from '@/layouts/components/ImpersonationBanner.vue'
-import UserProfile from '@/layouts/components/UserProfile.vue'
-
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
 
@@ -48,7 +46,6 @@ const pageKey = computed(() => `${sessionStore.userData?.id || 'anon'}:${session
         <!-- <NavbarShortcuts class="me-1" /> -->
         <!-- <NavBarNotifications class="me-2" /> -->
         <ImpersonationBanner />
-        <UserProfile />
       </div>
     </template>
 

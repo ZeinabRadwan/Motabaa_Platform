@@ -11,7 +11,8 @@ VerticalNavSectionTitle,
 import { config } from '@layouts/config'
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
 import { useSessionStore } from '@/stores/useSessionStore'
-import { resolveSidebarLogoSrc, sidebarLogoWidth } from '@/utils/branding'
+import VerticalNavUserFooter from '@/layouts/components/VerticalNavUserFooter.vue'
+import { resolveSidebarLogoSrc } from '@/utils/branding'
 
 const sessionStore = useSessionStore()
 
@@ -47,13 +48,11 @@ provide(injectionKeyIsVerticalNavHovered, isHovered)
 const {
   isVerticalNavCollapsed: isCollapsed,
   isLessThanOverlayNavBreakpoint,
-  isVerticalNavMini,
   isAppRtl,
 } = useLayouts()
 
-const hideTitleAndIcon = isVerticalNavMini(windowWidth, isHovered)
 const sidebarLogoSrc = computed(() => resolveSidebarLogoSrc(sessionStore.centerData, sessionStore.userData))
-const sidebarLogoSize = computed(() => sidebarLogoWidth(sessionStore.userData))
+const showSidebarUserFooter = computed(() => !!sessionStore.userData?.id)
 
 const resolveNavItemComponent = item => {
   if ('heading' in item)
@@ -93,46 +92,52 @@ const handleNavScroll = evt => {
     ]"
   >
     <!-- 👉 Header -->
-    <div class="nav-header">
+    <div class="nav-header athar-nav-header">
       <slot name="nav-header">
-        <RouterLink
-          to="/"
-          class="app-logo d-flex align-center gap-x-3 app-title-wrapper w-100"
-        >
-          <img
-            :src="sidebarLogoSrc"
-            alt=""
-            :style="{ lineHeight: 0, width: sidebarLogoSize }"
+        <div class="athar-nav-header__row">
+          <RouterLink
+            to="/"
+            class="app-logo athar-nav-logo-wrap d-flex align-center app-title-wrapper"
           >
-        </RouterLink>
-        <!-- 👉 Vertical nav actions -->
-        <!-- Show toggle collapsible in >md and close button in <md -->
-        <template v-if="!isLessThanOverlayNavBreakpoint(windowWidth)">
-          <Component
-            :is="config.app.iconRenderer || 'div'"
-            v-show="isCollapsed && !hideTitleAndIcon"
-            class="header-action"
-            v-bind="config.icons.verticalNavUnPinned"
-            @click="isCollapsed = !isCollapsed"
-          />
-          <Component
-            :is="config.app.iconRenderer || 'div'"
-            v-show="!isCollapsed && !hideTitleAndIcon"
-            class="header-action"
-            v-bind="config.icons.verticalNavPinned"
-            @click="isCollapsed = !isCollapsed"
-          />
-        </template>
-        <template v-else>
-          <Component
-            :is="config.app.iconRenderer || 'div'"
-            class="header-action"
-            v-bind="config.icons.close"
-            @click="toggleIsOverlayNavActive(false)"
-          />
-        </template>
+            <img
+              :src="sidebarLogoSrc"
+              alt="Athar"
+              class="athar-nav-logo"
+            >
+          </RouterLink>
+          <template v-if="!isLessThanOverlayNavBreakpoint(windowWidth)">
+            <button
+              type="button"
+              class="header-action athar-nav-collapse"
+              :aria-label="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+              @click="isCollapsed = !isCollapsed"
+            >
+              <Component
+                :is="config.app.iconRenderer || 'div'"
+                v-bind="isCollapsed ? config.icons.verticalNavUnPinned : config.icons.verticalNavPinned"
+              />
+            </button>
+          </template>
+          <template v-else>
+            <button
+              type="button"
+              class="header-action athar-nav-collapse"
+              aria-label="Close menu"
+              @click="toggleIsOverlayNavActive(false)"
+            >
+              <Component
+                :is="config.app.iconRenderer || 'div'"
+                v-bind="config.icons.close"
+              />
+            </button>
+          </template>
+        </div>
       </slot>
     </div>
+    <div
+      class="athar-nav-header-divider"
+      aria-hidden="true"
+    />
     <slot name="before-nav-items">
       <div class="vertical-nav-items-shadow" />
     </slot>
@@ -155,6 +160,13 @@ const handleNavScroll = evt => {
         />
       </PerfectScrollbar>
     </slot>
+
+    <div
+      v-if="showSidebarUserFooter"
+      class="athar-nav-footer"
+    >
+      <VerticalNavUserFooter />
+    </div>
   </Component>
 </template>
 

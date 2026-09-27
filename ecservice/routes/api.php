@@ -218,6 +218,12 @@ Route::get('/fix', function () {
 
 Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
 
+    Route::prefix('account')->group(function () {
+        Route::get('/profile', [App\Http\Controllers\Account\ProfileController::class, 'show']);
+        Route::post('/profile', [App\Http\Controllers\Account\ProfileController::class, 'update']);
+        Route::put('/password', [App\Http\Controllers\Account\ProfileController::class, 'updatePassword']);
+    });
+
     Route::prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\UserController::class, 'index']);
         Route::post('/import', [App\Http\Controllers\Admin\UserController::class, 'import']);

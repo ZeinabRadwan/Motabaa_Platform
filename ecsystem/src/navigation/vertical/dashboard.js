@@ -5,7 +5,7 @@ export const buildDashboard = (userAbilities = []) => {
   if (abilities.some(item => item.action === 'admin' && item.subject === 'admin')) {
     urls.push({
       title: 'Dashboards',
-      icon: { icon: 'tabler-smart-home' },
+      icon: { icon: 'tabler-home' },
       to: 'dashboards-analytics',
       action: 'admin',
       subject: 'admin',
@@ -15,7 +15,7 @@ export const buildDashboard = (userAbilities = []) => {
   else if (abilities.some(item => item.action === 'manager' && item.subject === 'manager')) {
     urls.push({
       title: 'Dashboards',
-      icon: { icon: 'tabler-smart-home' },
+      icon: { icon: 'tabler-home' },
       to: 'dashboards-analytics',
       action: 'manager',
       subject: 'manager',
@@ -25,7 +25,7 @@ export const buildDashboard = (userAbilities = []) => {
   else if (abilities.some(item => item.action === 'specialist' && item.subject === 'specialist')) {
     urls.push({
       title: 'Dashboards',
-      icon: { icon: 'tabler-smart-home' },
+      icon: { icon: 'tabler-home' },
       to: 'dashboards-specialist',
       action: 'specialist',
       subject: 'specialist',
@@ -35,7 +35,7 @@ export const buildDashboard = (userAbilities = []) => {
   else if (abilities.some(item => item.action === 'teacher' && item.subject === 'teacher')) {
     urls.push({
       title: 'Dashboards',
-      icon: { icon: 'tabler-smart-home' },
+      icon: { icon: 'tabler-home' },
       to: 'dashboards-teacher',
       action: 'teacher',
       subject: 'teacher',
@@ -45,7 +45,7 @@ export const buildDashboard = (userAbilities = []) => {
   else if (abilities.some(item => item.action === 'parent' && item.subject === 'parent')) {
     urls.push({
       title: 'Dashboards',
-      icon: { icon: 'tabler-smart-home' },
+      icon: { icon: 'tabler-home' },
       to: 'dashboards-parent',
       action: 'parent',
       subject: 'parent',
@@ -55,7 +55,7 @@ export const buildDashboard = (userAbilities = []) => {
   else if (abilities.some(item => item.action === 'default' && item.subject === 'default')) {
     urls.push({
       title: 'Dashboards',
-      icon: { icon: 'tabler-smart-home' },
+      icon: { icon: 'tabler-home' },
       to: 'dashboards-default',
       action: 'default',
       subject: 'default',

@@ -4,7 +4,7 @@
 .layout-nav-type-vertical {
   // 👉 Layout Vertical nav
   .layout-vertical-nav {
-    @include mixins.elevation(2);
+    @include mixins.elevation(0);
 
     .nav-header {
       .app-logo {
