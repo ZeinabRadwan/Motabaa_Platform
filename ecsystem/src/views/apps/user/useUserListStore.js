@@ -166,7 +166,7 @@ export const useUserListStore = defineStore('UserListStore', {
     },
 
     async fetchImage(id, params=null) {
-      return await axios.get(`/users/fetch_image/${id}`, { params })
+      return await axios.get(`/users/fetch_image/${id}`, { params, silentForbidden: true })
     },
 
     fetchImageWhileWaiting(id, params=null) {

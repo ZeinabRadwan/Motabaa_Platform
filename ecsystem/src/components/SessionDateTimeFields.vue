@@ -1,8 +1,17 @@
 <script setup>
 import i18n from '@/plugins/i18n'
 import { requiredValidator } from '@validators'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 
 const props = defineProps({
+  date: {
+    type: String,
+    default: null,
+  },
+  time: {
+    type: String,
+    default: null,
+  },
   disableFrom: {
     type: String,
     default: '',
@@ -13,8 +22,17 @@ const props = defineProps({
   },
 })
 
-const date = defineModel('date', { type: String })
-const time = defineModel('time', { type: String })
+const emit = defineEmits(['update:date', 'update:time'])
+
+const date = computed({
+  get: () => props.date,
+  set: value => emit('update:date', value),
+})
+
+const time = computed({
+  get: () => props.time,
+  set: value => emit('update:time', value),
+})
 
 const colSpan = computed(() => props.stacked ? 12 : 4)
 
@@ -60,7 +78,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <VRow>
+  <VRow v-if="!isParentUser()">
     <VCol
       cols="12"
       :sm="colSpan"

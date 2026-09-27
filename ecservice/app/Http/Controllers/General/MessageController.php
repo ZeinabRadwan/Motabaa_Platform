@@ -37,7 +37,15 @@ class MessageController extends Controller
         $messages = Message::with($with)
         ->when(
             $request->goal_id,
-            fn ($q) => $q->where('goal_id',$request->goal_id)
+            function ($q) use ($request, $user) {
+                $goal = Goal::with('case')->find($request->goal_id);
+                if (!$goal || !$goal->case || !SCase::userCanAccessCase($user, $goal->case)) {
+                    $q->whereRaw('0 = 1');
+
+                    return;
+                }
+                $q->where('goal_id', $request->goal_id);
+            }
         )
         ->when(
             $request->meeting_room_id,
@@ -175,14 +183,33 @@ class MessageController extends Controller
             }
         } catch (\Throwable $th) {}
 
-        if($request->hasFile('image')) {
-            $message->saveFile($input['image'], 'image');
-        }
-        else if($request->hasFile('file')) {
-            $message->saveFile($input['file'], 'file');
-        }
-        else if($request->hasFile('video')) {
-            $message->saveFile($input['video'], 'video');
+        try {
+            if($request->hasFile('image') || $request->hasFile('file') || $request->hasFile('video')) {
+                ini_set('max_execution_time', '600');
+            }
+            if($request->hasFile('image')) {
+                $message->saveFile($input['image'], 'image');
+            }
+            else if($request->hasFile('file')) {
+                $message->saveFile($input['file'], 'file');
+            }
+            else if($request->hasFile('video')) {
+                $message->saveFile($input['video'], 'video');
+            }
+        } catch (\Throwable $e) {
+            \Log::error('Message attachment upload failed', [
+                'message_id' => $message->id,
+                'error' => $e->getMessage(),
+            ]);
+            $field = $request->hasFile('video') ? 'video' : ($request->hasFile('image') ? 'image' : 'file');
+            $message->deleteFolder();
+            $message->delete();
+
+            return response()->json([
+                'errors' => [
+                    $field => [__('File upload failed.')],
+                ],
+            ], 422);
         }
 
         return success();

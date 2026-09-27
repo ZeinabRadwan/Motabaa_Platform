@@ -261,9 +261,9 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
     });
 
     Route::prefix('cases')->group(function () {
-        Route::get('/', [App\Http\Controllers\General\SCaseController::class, 'index'])->middleware(['permission:access_cases|admin_cases']);
-        Route::get('/select-items', [App\Http\Controllers\General\SCaseController::class, 'selectItems'])->middleware(['permission:access_cases|admin_cases']);
-        Route::get('/assigned-staff', [App\Http\Controllers\General\SCaseController::class, 'assignedStaff'])->middleware(['permission:access_cases|admin_cases']);
+        Route::get('/', [App\Http\Controllers\General\SCaseController::class, 'index'])->middleware(['permission:'.App\Support\CaseListAccess::listPermissionMiddleware()]);
+        Route::get('/select-items', [App\Http\Controllers\General\SCaseController::class, 'selectItems'])->middleware(['permission:'.App\Support\CaseListAccess::listPermissionMiddleware()]);
+        Route::get('/assigned-staff', [App\Http\Controllers\General\SCaseController::class, 'assignedStaff'])->middleware(['permission:'.App\Support\CaseListAccess::allScopePermissionMiddleware()]);
         Route::post('/import', [App\Http\Controllers\General\SCaseController::class, 'import']);
         Route::get('/{case}/show', [App\Http\Controllers\General\SCaseController::class, 'show'])->name('case.show');
         Route::post('/{case}/files', [App\Http\Controllers\General\SCaseController::class, 'files'])->name('case.files');
@@ -356,9 +356,22 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
         Route::get('/file/{message}', [App\Http\Controllers\General\MessageController::class, 'file']);
     });
 
+    Route::prefix('center-activities')->group(function () {
+        Route::get('/', [App\Http\Controllers\General\CenterActivityController::class, 'index']);
+        Route::get('/parent-feed', [App\Http\Controllers\General\CenterActivityEntryController::class, 'parentFeed']);
+        Route::get('/{activity}/show', [App\Http\Controllers\General\CenterActivityController::class, 'show']);
+        Route::put('/put/{activity?}', [App\Http\Controllers\General\CenterActivityController::class, 'put']);
+        Route::delete('/{id}', [App\Http\Controllers\General\CenterActivityController::class, 'delete']);
+        Route::get('/{activity}/entries', [App\Http\Controllers\General\CenterActivityEntryController::class, 'index']);
+        Route::post('/{activity}/entries/add', [App\Http\Controllers\General\CenterActivityEntryController::class, 'put']);
+        Route::delete('/entries/{entry}', [App\Http\Controllers\General\CenterActivityEntryController::class, 'delete']);
+        Route::get('/entries/file/{entry}', [App\Http\Controllers\General\CenterActivityEntryController::class, 'file']);
+    });
+
     Route::prefix('questionnaires')->middleware(['module:questionnaires'])->group(function () {
         Route::get('/', [App\Http\Controllers\General\QuestionnaireController::class, 'index']);
         Route::post('/put', [App\Http\Controllers\General\QuestionnaireController::class, 'put'])->name('questionnaire.put');
+        Route::get('/task', [App\Http\Controllers\General\QuestionnaireController::class, 'questionnaireTask']);
         Route::post('/task', [App\Http\Controllers\General\QuestionnaireController::class, 'questionnaireTask']);
         Route::delete('/{id}', [App\Http\Controllers\General\QuestionnaireController::class, 'delete']);
         Route::patch('/{id}', [App\Http\Controllers\General\QuestionnaireController::class, 'restore']);

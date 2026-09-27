@@ -6,6 +6,9 @@ return [
 
     'file_system_key' => env('LARAVEL_FILE_SYSTEM_KEY'),
 
+    // Optional override when APP_URL is still localhost on LIVE (e.g. stale config:cache).
+    'api_url' => env('API_URL'),
+
     'dev' => [
         'phone' => env('DEV_PHONE'),
         'phone_2' => env('DEV2_PHONE'),

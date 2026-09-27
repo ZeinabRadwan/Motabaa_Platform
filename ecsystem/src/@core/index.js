@@ -28,8 +28,8 @@ export const defineThemeConfig = userConfig => {
         enableI18n: userConfig.app.enableI18n,
         theme: ref(localStorageTheme || userConfig.app.theme),
         isRtl: ref(userConfig.app.isRtl),
-        skin: ref(userConfig.app.skin || localStorageSkin),
-        routeTransition: ref(userConfig.app.routeTransition || localStorageTransition),
+        skin: ref(localStorageSkin || userConfig.app.skin),
+        routeTransition: ref(localStorageTransition || userConfig.app.routeTransition),
         iconRenderer: userConfig.app.iconRenderer,
       },
       navbar: {

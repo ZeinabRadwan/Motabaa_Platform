@@ -14,7 +14,7 @@ class GoalEvaluationStepResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        $payload = [
             'id' => $this->id,
             'goal_id' => $this->goal_id,
             'goal' => $this->goal,
@@ -25,5 +25,11 @@ class GoalEvaluationStepResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
+
+        if (isParentUser($request->user())) {
+            unset($payload['date'], $payload['time']);
+        }
+
+        return $payload;
     }
 }

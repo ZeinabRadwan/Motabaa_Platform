@@ -50,11 +50,30 @@ class OptimizeProductionCommand extends Command
         $opcache = function_exists('opcache_get_status') ? @opcache_get_status(false) : false;
         $opcacheOn = is_array($opcache) && !empty($opcache['opcache_enabled']);
 
+        $appUrl = (string) config('app.url');
+        $localhostAppUrl = (bool) preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?/?$#i', $appUrl);
+        $bunnyReady = function_exists('bunnyDeliveryConfigured') && bunnyDeliveryConfigured();
+        $bunnyPrimary = function_exists('usesBunnyStorage') && usesBunnyStorage();
+
         return [
             [
                 'APP_DEBUG',
                 config('app.debug') ? 'true (unsafe for LIVE)' : 'false',
                 'Set APP_DEBUG=false on api.motabaah.com only',
+            ],
+            [
+                'APP_URL',
+                $appUrl,
+                $localhostAppUrl
+                    ? 'Fix APP_URL=https://api.motabaah.com then php artisan config:cache (media URLs use localhost otherwise)'
+                    : 'OK',
+            ],
+            [
+                'Media storage',
+                $bunnyPrimary ? 'bunnycdn' : (string) config('motabaa.files.storage', '(unset)'),
+                $bunnyReady
+                    ? ($bunnyPrimary ? 'Bunny delivery active' : 'Set UPLAOD_FILE_STORAGE=bunnycdn on LIVE')
+                    : 'Configure BUNNYCDN_* and UPLAOD_FILE_STORAGE=bunnycdn',
             ],
             [
                 'Cache driver',

@@ -2,7 +2,11 @@
 import { applyUserSession } from '@core/utils/impersonation'
 import { useSessionStore } from '@/stores/useSessionStore'
 import axios from '@axios'
+import { useGenerateImageVariant } from '@core/composable/useGenerateImageVariant'
+import authV2MaskDark from '@images/pages/misc-mask-dark.png'
+import authV2MaskLight from '@images/pages/misc-mask-light.png'
 import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
+import { BUNDLED_LOGIN_SIDE_IMAGE } from '@/utils/branding-login'
 import {
   getRememberedEmail,
   isRememberMeEnabled,
@@ -15,6 +19,7 @@ import {
 } from '@validators'
 import { VForm } from 'vuetify/components/VForm'
 
+const authThemeMask = useGenerateImageVariant(authV2MaskLight, authV2MaskDark)
 const isPasswordVisible = ref(false)
 const route = useRoute()
 const router = useRouter()
@@ -75,68 +80,123 @@ const onSubmit = () => {
 </script>
 
 <template>
-  <div class="motabaa-auth">
-    <div class="motabaa-auth__card">
-      <div class="motabaa-auth__logo">
-        <VNodeRenderer :nodes="themeConfig.app.login_logo" />
-      </div>
-      <h1 class="motabaa-auth__title">
-        {{ $t('Welcome Back') }}
-      </h1>
-      <p class="motabaa-auth__subtitle">
-        {{ $t('login_subtitle') }}
-      </p>
-      <VForm
-        ref="refVForm"
-        @submit.prevent="onSubmit"
+  <VRow
+    no-gutters
+    class="auth-wrapper bg-surface"
+  >
+
+    <VCol
+      cols="12"
+      lg="4"
+      class="auth-card-v2 d-flex align-center justify-center"
+    >
+      <VCard
+        flat
+        :max-width="500"
+        class="mt-12 mt-sm-0 pa-4"
       >
-        <AppTextField
-          v-model="email"
-          class="mb-4"
-          :label="$t('Email/Phone Number')"
-          type="email"
-          dir="ltr"
-          autofocus
-          :rules="[requiredValidator]"
-          :error-messages="errors.email"
-        />
-        <AppTextField
-          v-model="password"
-          class="mb-2"
-          dir="ltr"
-          :label="$t('Password')"
-          :rules="[requiredValidator]"
-          :type="isPasswordVisible ? 'text' : 'password'"
-          :error-messages="errors.password"
-          :append-inner-icon="isPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
-          @click:append-inner="isPasswordVisible = !isPasswordVisible"
-        />
-        <div class="d-flex align-center flex-wrap justify-space-between mb-6">
-          <VCheckbox
-            v-model="rememberMe"
-            :label="$t('Remember me')"
-          />
-          <RouterLink
-            class="text-primary"
-            :to="{ name: 'forgot-password' }"
+      <VCardItem class="justify-center">
+          <template #prepend>
+            <div class="d-flex">
+              <VNodeRenderer :nodes="themeConfig.app.login_logo" />
+            </div>
+          </template>
+        </VCardItem>
+        <VCardText>
+          <h5 class="text-h4 mb-1">
+            {{ $t('Welcome Back') }}
+          </h5>
+        </VCardText>
+        <VCardText>
+          <VForm
+            ref="refVForm"
+            @submit.prevent="onSubmit"
           >
-            {{ $t('Forgot Password?') }}
-          </RouterLink>
+            <VRow>
+              <!-- email -->
+              <VCol cols="12">
+                <AppTextField
+                  v-model="email"
+                  :label="$t('Email/Phone Number')"
+                  type="email"
+                  dir="ltr"
+                  autofocus
+                  :rules="[requiredValidator]"
+                />
+              </VCol>
+
+              <!-- password -->
+              <VCol cols="12">
+                <AppTextField
+                  v-model="password"
+                  dir="ltr"
+                  :label="$t('Password')"
+                  :rules="[requiredValidator]"
+                  :type="isPasswordVisible ? 'text' : 'password'"
+                  :error-messages="errors.password"
+                  :append-inner-icon="isPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
+                  @click:append-inner="isPasswordVisible = !isPasswordVisible"
+                />
+
+                <div class="d-flex align-center flex-wrap justify-space-between mt-2 mb-1">
+                  <VCheckbox
+                    v-model="rememberMe"
+                    :label="$t('Remember me')"
+                  />
+                  <RouterLink
+                    class="text-primary ms-2 mb-1"
+                    :to="{ name: 'forgot-password' }"
+                  >
+                    {{ $t('Forgot Password?') }}
+                  </RouterLink>
+                </div>
+
+                <VCol
+                  cols="12"
+                  class="d-flex align-center mb-4"
+                >
+                  <VDivider />
+                </VCol>
+                
+                <VBtn
+                  block
+                  type="submit"
+                >
+                  {{ $t('Login') }}
+                </VBtn>
+              </VCol>
+            </VRow>
+          </VForm>
+        </VCardText>
+      </VCard>
+    </VCol>
+    
+    <VCol
+      lg="8"
+      class="d-none d-lg-flex"
+    >
+      <div class="position-relative bg-background rounded-lg w-100 ma-8 me-0">
+        <div class="d-flex align-center justify-center w-100 h-100">
+          <VImg
+            max-width="1000"
+            :src="BUNDLED_LOGIN_SIDE_IMAGE"
+            class="auth-illustration mt-16 mb-2"
+          />
         </div>
-        <VBtn
-          block
-          size="large"
-          type="submit"
-        >
-          {{ $t('Login') }}
-        </VBtn>
-      </VForm>
-      <p class="motabaa-auth__footer">
-        {{ $t('copyright', { year: new Date().getFullYear() }) }}
-      </p>
-    </div>
-  </div>
+
+        <VImg
+          max-width="1000"
+          :src="authThemeMask"
+          class="auth-footer-mask"
+        />
+      </div>
+    </VCol>
+  </VRow>
 </template>
+
+<style lang="scss">
+@use "@core/scss/template/pages/page-auth.scss";
+</style>
 
 <route lang="yaml">
 meta:

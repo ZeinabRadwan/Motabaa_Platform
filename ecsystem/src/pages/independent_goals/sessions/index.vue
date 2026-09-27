@@ -25,6 +25,7 @@ import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {messagesApi} from "@/plugins/apis/messagesReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
+import { canRunIndependentSessions, filterIndependentSessionHeaders, goalAutocompleteTitle, isParentUser } from '@core/utils/staffSessionVisibility'
 import { useTheme } from 'vuetify'
 
 
@@ -67,10 +68,6 @@ const casesItem = ref([]);
 const selectedCase = ref(null);
 const selectedTerm = ref(null);
 const itemsTerm = ref(null);
-const selectedFrom = ref(null);
-const selectedTo = ref(null);
-const sessionsCountMin = ref(null);
-const sessionsCountMax = ref(null);
 const teacherItems = ref([])
 const teacher = ref(returnIdUserIfNotAdmin() ?? null)
 const date = ref(null)
@@ -126,10 +123,6 @@ const goalsFilterKey = computed(() => [
   teacher.value,
   selectedCase.value,
   selectedTerm.value,
-  selectedFrom.value,
-  selectedTo.value,
-  sessionsCountMin.value,
-  sessionsCountMax.value,
 ].join('|'))
 
 watch(goalsFilterKey, () => {
@@ -166,10 +159,6 @@ const searchGoals = params => goalsReqest.selectItems({
   case_id: selectedCase.value,
   term_id: selectedTerm.value,
   category: 'independent',
-  date_from: selectedFrom.value,
-  date_to: selectedTo.value,
-  sessions_count_min: sessionsCountMin.value,
-  sessions_count_max: sessionsCountMax.value,
 }).then(response => {
   goals.value = response.data.data ?? []
   return response
@@ -219,15 +208,11 @@ const searchCases = params => casesReqest.selectItems({
   return response
 })
 
-if(!canDoes('parent')) {
+if(!isParentUser()) {
   isDraggable.value = true
 }
 
-const goalItemTitle = item => {
-  const title = `${item.title} (${item.sessions_count ?? 0})`
-
-  return selectedCase.value || !item.case?.name ? title : `${item.case.name} — ${title}`
-}
+const goalItemTitle = item => goalAutocompleteTitle(item, { selectedCase: selectedCase.value })
 
 const translatedHeaders = () => {
   let headers = [
@@ -263,7 +248,7 @@ const translatedHeaders = () => {
     },
   ]
 
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     headers.push({
       title: 'Actions',
       key: 'actions',
@@ -272,12 +257,10 @@ const translatedHeaders = () => {
     })
   }
 
-  let translatedHeaders = headers.map(header => ({
+  return filterIndependentSessionHeaders(headers).map(header => ({
     ...header,
     title: i18n.global.t(header.title),
   }));
-
-  return translatedHeaders;
 }
 
 const selectedGoal = (value) => {
@@ -301,7 +284,7 @@ const sendMeesage = (data, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -312,7 +295,7 @@ const deleteMessage = (id, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -457,7 +440,7 @@ const sessionTimeLabel = value => {
           <VCardText>
             <VRow>
               <VCol
-                v-if="!returnIdUserIfNotAdmin() && !canDoes('parent')"
+                v-if="!returnIdUserIfNotAdmin() && !isParentUser()"
                 cols="12"
                 sm="4"
               >
@@ -502,58 +485,6 @@ const sessionTimeLabel = value => {
               </VCol>
               <VCol
                 cols="12"
-                sm="4"
-              >
-                <VLabel class="mb-1">{{ $t('date') }}</VLabel>
-                <VRow>
-                  <VCol cols="6">
-                    <AppDateTimePicker
-                      v-model="selectedFrom"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('from')"
-                    />
-                  </VCol>
-                  <VCol cols="6">
-                    <AppDateTimePicker
-                      v-model="selectedTo"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('to')"
-                    />
-                  </VCol>
-                </VRow>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <VLabel class="mb-1">{{ $t('goals.sessions_count') }}</VLabel>
-                <VRow>
-                  <VCol cols="6">
-                    <AppTextField
-                      v-model="sessionsCountMin"
-                      type="number"
-                      min="0"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('from')"
-                    />
-                  </VCol>
-                  <VCol cols="6">
-                    <AppTextField
-                      v-model="sessionsCountMax"
-                      type="number"
-                      min="0"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('to')"
-                    />
-                  </VCol>
-                </VRow>
-              </VCol>
-              <VCol
-                cols="12"
                 sm="8"
               >
                 <AppAutocomplete
@@ -595,7 +526,7 @@ const sessionTimeLabel = value => {
             <VSpacer />
 
             <div class="justify-end d-flex align-center flex-wrap gap-4">
-              <VBtn v-if="can('edit_independent-sessions','edit_independent-sessions')" @click="evaluationStepDialog()" :disabled="selectedGoals == '' || selectedGoals == null">
+              <VBtn v-if="canRunIndependentSessions()" @click="evaluationStepDialog()" :disabled="selectedGoals == '' || selectedGoals == null">
                 {{ $t('independent.add_assessment') }}
               </VBtn>
             </div>
@@ -649,7 +580,7 @@ const sessionTimeLabel = value => {
             <!-- Actions -->
             <template #item.actions="{ item }">
 
-              <IconBtn v-if="can('edit_independent-sessions','edit_independent-sessions')" :title="$t('Edit')" @click="evaluationStepDialog(item.raw)">
+              <IconBtn v-if="canRunIndependentSessions()" :title="$t('Edit')" @click="evaluationStepDialog(item.raw)">
                 <VIcon icon="tabler-edit" />
               </IconBtn>
 
@@ -700,7 +631,7 @@ const sessionTimeLabel = value => {
           </VDataTableServer>
           <!-- SECTION -->
     </VCard>
-    <MessageSend v-if="selectedGoals != null && selectedGoals != '' && (can('edit_independent-sessions','edit_independent-sessions') || canDoes('parent'))" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
+    <MessageSend v-if="selectedGoals != null && selectedGoals != '' && (canRunIndependentSessions() || isParentUser())" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
     <div>
       <Message 
         v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_independent-sessions','admin_independent-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>

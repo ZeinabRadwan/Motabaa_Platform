@@ -14,6 +14,8 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
 
+const TheCustomizer = defineAsyncComponent(() => import('@core/components/TheCustomizer.vue'))
+
 const { appRouteTransition, isLessThanOverlayNavBreakpoint } = useThemeConfig()
 const { width: windowWidth } = useWindowSize()
 const route = useRoute()
@@ -67,5 +69,7 @@ const pageKey = computed(() => `${sessionStore.userData?.id || 'anon'}:${session
       <Footer />
     </template>
 
+    <!-- 👉 Customizer -->
+    <TheCustomizer />
   </VerticalNavLayout>
 </template>

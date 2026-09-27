@@ -91,12 +91,23 @@ class Message extends Model
 
     public function skipsAttachmentLookup(): bool
     {
-        return $this->isSystemMessage()
-            || ($this->image_path === '' && $this->file_path === '' && $this->video_path === '');
+        if ($this->isSystemMessage()) {
+            return true;
+        }
+
+        // Empty string = confirmed no attachment (new rows). NULL = legacy/unbackfilled — still resolve.
+        return $this->image_path === ''
+            && $this->file_path === ''
+            && $this->video_path === '';
+    }
+
+    protected function storedPathIsMissing(string $column): bool
+    {
+        return $this->getAttribute($column) === '';
     }
 
     public function urlFile(){
-        if ($this->isSystemMessage() || $this->file_path === '') {
+        if ($this->isSystemMessage() || $this->storedPathIsMissing('file_path')) {
             return null;
         }
 
@@ -109,7 +120,7 @@ class Message extends Model
     }
 
     public function urlImage(){
-        if ($this->isSystemMessage() || $this->image_path === '') {
+        if ($this->isSystemMessage() || $this->storedPathIsMissing('image_path')) {
             return null;
         }
 
@@ -117,7 +128,7 @@ class Message extends Model
     }
 
     public function urlVideo(){
-        if ($this->isSystemMessage() || $this->video_path === '') {
+        if ($this->isSystemMessage() || $this->storedPathIsMissing('video_path')) {
             return null;
         }
 

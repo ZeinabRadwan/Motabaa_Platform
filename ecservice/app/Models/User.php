@@ -189,6 +189,25 @@ class User extends Authenticatable
         $this->attributes['work_shift'] = self::normalizeWorkShift($value);
     }
 
+    public function scopeMatchingWorkShift($query, $shift)
+    {
+        if (!self::hasWorkShiftColumn()) {
+            return $query;
+        }
+
+        $normalized = self::normalizeWorkShift($shift);
+        if (!in_array($normalized, [self::SHIFT_MORNING, self::SHIFT_EVENING], true)) {
+            return $query;
+        }
+
+        $column = $this->getTable().'.work_shift';
+
+        return $query->where(function ($inner) use ($column, $normalized) {
+            $inner->where($column, $normalized)
+                ->orWhere($column, self::SHIFT_BOTH);
+        });
+    }
+
     public function workShiftValues(): array
     {
         return match ($this->work_shift) {

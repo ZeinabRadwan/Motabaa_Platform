@@ -17,11 +17,19 @@ const props = defineProps({
 const { width: windowWidth } = useWindowSize()
 const { isVerticalNavMini, dynamicI18nProps } = useLayouts()
 const hideTitleAndBadge = isVerticalNavMini(windowWidth)
+
+const isVisible = computed(() => {
+  if (Array.isArray(props.item.actionsAny) && props.item.actionsAny.length) {
+    return props.item.actionsAny.some(action => can(action, action))
+  }
+
+  return can(props.item.action, props.item.subject)
+})
 </script>
 
 <template>
   <li
-    v-if="can(item.action, item.subject)"
+    v-if="isVisible"
     class="nav-link"
     :class="{ disabled: item.disable }"
   >

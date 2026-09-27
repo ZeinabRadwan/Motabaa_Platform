@@ -14,38 +14,44 @@ import UserTabBillingsPlans from '@/views/apps/user/view/UserTabBillingsPlans.vu
 import UserTabConnections from '@/views/apps/user/view/UserTabConnections.vue'
 import UserTabNotifications from '@/views/apps/user/view/UserTabNotifications.vue'
 import UserTabSecurity from '@/views/apps/user/view/UserTabSecurity.vue'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 
 const casesReqest = casesApi()
 const route = useRoute()
 const userData = ref()
 const userTab = ref(null)
 
-const tabs = [
-  {
-    icon: 'tabler-user',
-    title: 'بيانات الحالة',
-  },
-  {
-    icon: 'tabler-message',
-    title: 'تعليقات',
-  },
-  {
-    icon: 'tabler-calendar-check',
-    title: 'الحضور',
-  },
-  {
-    icon: 'tabler-currency-dollar',
-    title: 'الرسوم الدراسية',
-  },
-  {
-    icon: 'tabler-file-description',
-    title: 'المرفقات',
-  },
-  {
-    icon: 'tabler-file-description',
-    title: 'الإحصائيات',
-  },
-]
+const tabs = computed(() => {
+  const items = [
+    {
+      icon: 'tabler-user',
+      title: 'بيانات الحالة',
+    },
+    {
+      icon: 'tabler-message',
+      title: 'تعليقات',
+    },
+    {
+      icon: 'tabler-calendar-check',
+      title: 'الحضور',
+      staffOnly: true,
+    },
+    {
+      icon: 'tabler-currency-dollar',
+      title: 'الرسوم الدراسية',
+    },
+    {
+      icon: 'tabler-file-description',
+      title: 'المرفقات',
+    },
+    {
+      icon: 'tabler-file-description',
+      title: 'الإحصائيات',
+    },
+  ]
+
+  return items.filter(tab => !(tab.staffOnly && isParentUser()))
+})
 
 casesReqest.fetchCase(Number(route.params.id)).then(response => {
   userData.value = response.data.data
@@ -98,7 +104,7 @@ casesReqest.fetchCase(Number(route.params.id)).then(response => {
           <CaseMessages :case-data="userData" />
         </VWindowItem>
 
-        <VWindowItem>
+        <VWindowItem v-if="!isParentUser()">
           <CaseAttendances :case-data="userData" />
         </VWindowItem>
 

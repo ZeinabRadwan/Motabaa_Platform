@@ -14,57 +14,63 @@ import UserTabBillingsPlans from '@/views/apps/user/view/UserTabBillingsPlans.vu
 import UserTabConnections from '@/views/apps/user/view/UserTabConnections.vue'
 import UserTabNotifications from '@/views/apps/user/view/UserTabNotifications.vue'
 import UserTabSecurity from '@/views/apps/user/view/UserTabSecurity.vue'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 
 const casesReqest = casesApi()
 const route = useRoute()
 const userData = ref()
-const userTab = ref(null)
 
-if(route.params.tab && route.params.tab == 'info') {
-  userTab.value = 0
-}
-else if(route.params.tab && route.params.tab == 'messages') {
-  userTab.value = 1
-}
-else if(route.params.tab && route.params.tab == 'attendance') {
-  userTab.value = 2
-}
-else if(route.params.tab && route.params.tab == 'payments') {
-  userTab.value = 3
-}
-else if(route.params.tab && route.params.tab == 'files') {
-  userTab.value = 4
-}
-else if(route.params.tab && route.params.tab == 'statistics') {
-  userTab.value = 5
-}
-
-const tabs = [
+const tabDefinitions = [
   {
+    id: 'info',
     icon: 'tabler-user',
     title: 'بيانات الحالة',
   },
   {
+    id: 'messages',
     icon: 'tabler-message',
     title: 'تعليقات',
   },
   {
+    id: 'attendance',
     icon: 'tabler-calendar-check',
     title: 'الحضور',
+    staffOnly: true,
   },
   {
+    id: 'payments',
     icon: 'tabler-currency-dollar',
     title: 'الرسوم الدراسية',
   },
   {
+    id: 'files',
     icon: 'tabler-file-description',
     title: 'المرفقات',
   },
   {
+    id: 'statistics',
     icon: 'tabler-file-description',
     title: 'الإحصائيات',
   },
 ]
+
+const tabs = computed(() => tabDefinitions.filter(tab => !(tab.staffOnly && isParentUser())))
+
+const resolveTabIndex = tabParam => {
+  const param = tabParam || 'info'
+  if (param === 'attendance' && isParentUser()) {
+    return 0
+  }
+  const idx = tabs.value.findIndex(tab => tab.id === param)
+
+  return idx >= 0 ? idx : 0
+}
+
+const userTab = ref(resolveTabIndex(route.params.tab))
+
+watch(() => route.params.tab, tabParam => {
+  userTab.value = resolveTabIndex(tabParam)
+})
 
 casesReqest.fetchCase(Number(route.params.id)).then(response => {
   userData.value = response.data.data
@@ -117,7 +123,7 @@ casesReqest.fetchCase(Number(route.params.id)).then(response => {
           <CaseMessages :case-data="userData" />
         </VWindowItem>
 
-        <VWindowItem>
+        <VWindowItem v-if="!isParentUser()">
           <CaseAttendances :case-data="userData" />
         </VWindowItem>
 

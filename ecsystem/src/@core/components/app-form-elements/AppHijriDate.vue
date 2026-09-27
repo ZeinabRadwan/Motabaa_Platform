@@ -18,7 +18,7 @@
 
     const today = new Date()
     const currentHijri = toHijri(today.getFullYear(), today.getMonth() + 1, today.getDate())
-    const startYear = 1400
+    const startYear = 1300
     const currentYear = currentHijri.hy + 2
 
     const hijri_months ={ 

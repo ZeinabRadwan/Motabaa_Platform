@@ -97,6 +97,15 @@ class Term extends Model
         }
 
         if ($this->assignsAllUsers()) {
+            $user = auth()->user();
+            $canExpandStaff = self::canManageAllCenterTerms($user, $this->center_id)
+                || ($user && $user->can('edit_qualifying-classes'));
+            if (!$canExpandStaff) {
+                $this->resolvedAssignedUsersCache = $this->relationLoaded('users') ? $this->users : collect();
+
+                return $this->resolvedAssignedUsersCache;
+            }
+
             $this->resolvedAssignedUsersCache = self::assignableStaffQuery($this->center_id)
                 ->with('roles:id,name,default_name')
                 ->orderBy('users.name')
@@ -464,15 +473,16 @@ class Term extends Model
 
     public static function resolveCenterId($user, $requestedCenterId = null)
     {
-        if ($requestedCenterId && ($user->isInCenter($requestedCenterId) || self::canViewPastTerms($user))) {
-            return $requestedCenterId;
+        $requested = (int) $requestedCenterId;
+        if ($requested > 0 && $user && ($user->isInCenter($requested) || self::canViewPastTerms($user))) {
+            return $requested;
         }
 
-        if ($user->centers && count($user->centers)) {
-            return $user->centers[0]->id;
+        if ($user && $user->centers && $user->centers->isNotEmpty()) {
+            return (int) $user->centers->first()->id;
         }
 
-        return $requestedCenterId ?: null;
+        return null;
     }
 
     public static function currentForCenter($centerId): ?self

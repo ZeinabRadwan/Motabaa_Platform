@@ -19,9 +19,9 @@ export const termsApi = defineStore('terms', {
     },
 
     // 👉 fetch single Term
-    fetchTerm(id) {
+    fetchTerm(id, config = {}) {
       return new Promise((resolve, reject) => {
-        axios.get(`/terms/${id}/show?center_id=`+Number(localStorage.getItem('center'))).then(response => resolve(response)).catch(error => reject(error))
+        axios.get(`/terms/${id}/show?center_id=`+Number(localStorage.getItem('center')), config).then(response => resolve(response)).catch(error => reject(error))
       })
     },
 

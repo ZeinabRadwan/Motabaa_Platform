@@ -45,6 +45,16 @@ export function purgeExpiredSession() {
   if (typeof window === 'undefined')
     return
 
+  // New tabs do not inherit sessionStorage. A still-valid local session
+  // (especially admin impersonating a parent) must not look like a closed browser.
+  const hasToken = !!localStorage.getItem('accessToken')
+  const impersonating = !!localStorage.getItem('impersonatorSession')
+  if (hasToken && (impersonating || window.opener)) {
+    sessionStorage.setItem(SESSION_ALIVE_KEY, '1')
+
+    return
+  }
+
   if (localStorage.getItem(SESSION_ONLY_KEY) === '1' && sessionStorage.getItem(SESSION_ALIVE_KEY) !== '1')
     clearAuthSessionStorage()
 }

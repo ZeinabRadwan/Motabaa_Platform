@@ -697,7 +697,6 @@ const transferGoal = () => {
             <template #item.behavioral_goal="{ item }">
               <div class="align-center">
                 <RouterLink
-                  target="_blank"
                   :to="{ name: 'independent_goals-sessions-case-term-goal', params: { case: route.params.case, term: route.params.term, goal: item.raw.id } }"
                   class="font-weight-medium user-list-name"
                 >

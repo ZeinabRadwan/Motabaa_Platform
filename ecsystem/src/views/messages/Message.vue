@@ -6,15 +6,27 @@ kFormatter,
 } from '@core/utils/formatters'
 import moment from '@/plugins/moment'
 import {messagesApi} from "@/plugins/apis/messagesReqest"
+import { centerActivitiesApi } from '@/plugins/apis/centerActivitiesRequest'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 
 const messagesReqest = messagesApi()
 const userListStore = useUserListStore()
 const emit = defineEmits();
-const props = defineProps(['message', 'canDelete']);
+const props = defineProps(['message', 'canDelete', 'isCenterActivityEntry']);
 var isDeleteDialogVisible = ref(false)
 
-const { message, canDelete } = toRefs(props);
+const { message, canDelete, isCenterActivityEntry } = toRefs(props);
+
+const uploadTimestamp = computed(() => {
+  if (!message.value?.created_at)
+    return ''
+
+  if (isCenterActivityEntry?.value)
+    return moment(message.value.created_at).locale(i18n.global.locale.value).format('DD/MM/YYYY - h:mm a')
+
+  return moment(message.value.created_at).locale(i18n.global.locale.value).format('D MMMM YYYY - h:mm a')
+})
 
 const openNewTab = (url) => {
   window.open(url, '_blank');
@@ -47,8 +59,13 @@ const attachmentsResolved = Object.prototype.hasOwnProperty.call(message.value, 
   || Object.prototype.hasOwnProperty.call(message.value, 'image')
   || Object.prototype.hasOwnProperty.call(message.value, 'video')
 
+const entryFileStore = isCenterActivityEntry?.value ? centerActivitiesApi() : messagesReqest
+const fetchAttachment = isCenterActivityEntry?.value
+  ? id => entryFileStore.fetchEntryFile(id)
+  : id => messagesReqest.fetchFile(id)
+
 if (!sysMessageTypes.includes(message.value.type) && !hasAttachedMedia && !attachmentsResolved) {
-  messagesReqest.fetchFile(Number(message.value.id)).then(response => {
+  fetchAttachment(Number(message.value.id)).then(response => {
 
     if(response.data.data) {
 
@@ -64,6 +81,7 @@ if (!sysMessageTypes.includes(message.value.type) && !hasAttachedMedia && !attac
         message.value.video = response.data.data.file
       }
     }
+  }).catch(() => {
   })
 }
 
@@ -72,6 +90,7 @@ if (message.value.user && message.value.user.picture === undefined) {
     if(response.data.data) {
       message.value.user.picture = response.data.data
     }
+  }).catch(() => {
   })
 }
 
@@ -107,15 +126,35 @@ if (message.value.user && message.value.user.picture === undefined) {
                     {{message.user.name}}
                   </RouterLink>
                 </h6>
-                <p class="mb-0 text-sm">
-                  {{message.user.roles.map(item => item.name).join(', ')}} <span :style="{color: (message.parents_can_see==1) ? 'green' : '#9CA0BB'}">{{ (message.log_work==1) ? '(فعاليات الجلسة)' : '(تعليق)' }}</span>
+                <p
+                  v-if="!isCenterActivityEntry"
+                  class="mb-0 text-sm"
+                >
+                  {{message.user.roles.map(item => item.name).join(', ') }}
+                  <span
+                    :style="{color: (message.parents_can_see==1) ? 'green' : '#9CA0BB'}"
+                  >{{ (message.log_work==1) ? '(فعاليات الجلسة)' : '(تعليق)' }}</span>
+                </p>
+                <p
+                  v-else
+                  class="mb-0 text-sm"
+                >
+                  {{ message.user.roles.map(item => item.name).join(', ') }}
+                  <span
+                    v-if="!isParentUser()"
+                    class="d-block"
+                    :style="{color: (message.parents_can_see==1) ? 'green' : '#9CA0BB'}"
+                  >
+                    {{ $t('messages.parents can see') }}: {{ message.parents_can_see==1 ? $t('Yes') : $t('No') }}
+                  </span>
                 </p>
               </div>
             </div>
           </VCol>
           <VCol cols="6" class="justify-end d-flex">
             <p class="mb-0 text-sm">
-              {{moment(message.created_at).locale(i18n.global.locale.value).fromNow()}}
+              <span v-if="isCenterActivityEntry" class="d-block">{{ $t('center_activities.uploaded_at') }}: {{ uploadTimestamp }}</span>
+              <span v-else>{{moment(message.created_at).locale(i18n.global.locale.value).fromNow()}}</span>
               <VDialog
                 v-model="isDeleteDialogVisible"
                 persistent
@@ -162,10 +201,10 @@ if (message.value.user && message.value.user.picture === undefined) {
         <VDivider v-if="message.goal" class="mb-2"></VDivider>
         <span v-if="message.goal">{{ $t('goals.session') }}: {{ message.goal.title }} </span>
         <VDivider v-if="message.goal" class="mt-2"></VDivider>
-        <h6 class="text-h6 mt-4 line-heigh font-weight-bold text-error mb-2" v-if="message.type == 'ended_session'">
+        <h6 class="text-h6 mt-4 line-heigh font-weight-bold text-error mb-2" v-if="!isParentUser() && message.type == 'ended_session'">
           {{$t('goals.'+message.content)}}
         </h6>
-        <h6 class="text-h6 mt-4 line-heigh font-weight-bold text-success mb-2" v-else-if="message.type == 'started_session'">
+        <h6 class="text-h6 mt-4 line-heigh font-weight-bold text-success mb-2" v-else-if="!isParentUser() && message.type == 'started_session'">
           {{$t('goals.'+message.content)}}
         </h6>
         <h6 class="text-h6 mt-4 line-heigh font-weight-bold text-success " v-else-if="message.type != '' && message.type != null" v-html="sysMessges(message)"></h6>

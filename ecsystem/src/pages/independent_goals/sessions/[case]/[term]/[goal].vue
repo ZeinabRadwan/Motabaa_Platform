@@ -26,6 +26,7 @@ import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
 import {messagesApi} from "@/plugins/apis/messagesReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
+import { canRunIndependentSessions, filterIndependentSessionHeaders, isParentUser } from '@core/utils/staffSessionVisibility'
 import { useTheme } from 'vuetify'
 
 const route = useRoute()
@@ -68,8 +69,7 @@ const casesItem = ref([]);
 const selectedCase = ref(null);
 const selectedTerm = ref(null);
 const itemsTerm = ref([]);
-const selectedFrom = ref(null);
-const selectedTo = ref(null);
+const pageError = ref(false);
 const teacherItems = ref([])
 const teacher = ref(returnIdUserIfNotAdmin() ?? null)
 const date = ref(null)
@@ -126,17 +126,25 @@ const fetchMessages = () => {
 
 const fetchGoal = () => {
   goalsReqest.fetchGoal(route.params.goal).then(response => {
+    if (!response.data.data) {
+      pageError.value = true
+      return
+    }
     selectedGoal.value = response.data.data
+    goals.value = [response.data.data]
   }).catch(error => {
+    pageError.value = true
     console.error(error)
   })
 }
 
 const fetchTerm = () => {
-  termsReqest.fetchTerm(route.params.term).then(response => {
+  termsReqest.fetchTerm(route.params.term, { silentForbidden: true }).then(response => {
+    if (!response.data.data)
+      return
     selectedTerm.value = response.data.data
-  }).catch(error => {
-    console.error(error)
+    itemsTerm.value = [response.data.data]
+  }).catch(() => {
   })
 }
 
@@ -144,17 +152,30 @@ const fetchCase = () => {
   loading.value.cases = true;
   casesReqest.fetchCase(route.params.case).then(response => {
     loading.value.cases = false;
+    if (!response.data.data) {
+      pageError.value = true
+      return
+    }
     selectedCase.value = response.data.data
     casesItem.value = [{ id: response.data.data.id, name: response.data.data.name }]
     fetchMessages()
   }).catch(error => {
+    loading.value.cases = false;
+    pageError.value = true
     console.error(error)
   })
 }
 
-fetchCase()
-fetchTerm()
-fetchGoal()
+watch(
+  () => [String(route.params.case), String(route.params.term), String(route.params.goal)],
+  () => {
+    pageError.value = false
+    fetchCase()
+    fetchTerm()
+    fetchGoal()
+  },
+  { immediate: true },
+)
 
 const fetchEvaluationsSteps = () => {
   loading.value.evaluations = true
@@ -182,7 +203,7 @@ watchServerTableFetch(fetchEvaluationsSteps, {
   search: searchQuery,
   options,
 })
-if(!canDoes('parent')) {
+if(!isParentUser()) {
   isDraggable.value = true
 }
 
@@ -220,7 +241,7 @@ const translatedHeaders = () => {
     },
   ]
 
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     headers.push({
       title: 'Actions',
       key: 'actions',
@@ -229,12 +250,10 @@ const translatedHeaders = () => {
     })
   }
 
-  let translatedHeaders = headers.map(header => ({
+  return filterIndependentSessionHeaders(headers).map(header => ({
     ...header,
     title: i18n.global.t(header.title),
   }));
-
-  return translatedHeaders;
 }
 
 const sendMeesage = (data, callback) => {
@@ -247,7 +266,7 @@ const sendMeesage = (data, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -258,7 +277,7 @@ const deleteMessage = (id, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -395,7 +414,12 @@ const sessionTimeLabel = value => {
 </script>
 
 <template>
-  <section v-if="selectedCase && selectedTerm && selectedGoal">
+  <section v-if="pageError">
+    <VAlert type="error" variant="tonal">
+      {{ $t('Not Authorized') }}
+    </VAlert>
+  </section>
+  <section v-else-if="selectedCase && selectedGoal">
     <VRow class="mb-4">
       <VCol cols="12">
         <VCard>
@@ -407,7 +431,7 @@ const sessionTimeLabel = value => {
                 sm="6"
               >
                 <AppAutocomplete
-                  v-model="selectedCase"
+                  :model-value="selectedCase.id"
                   :label="$t('Cases')"
                   :item-title="'name'"
                   :item-value="'id'"
@@ -421,9 +445,11 @@ const sessionTimeLabel = value => {
                 sm="4"
               >
                 <AppSelect
-                  v-model="selectedTerm"
+                  :model-value="selectedTerm ? selectedTerm.id : Number(route.params.term)"
                   :label="$t('term')"
-                  :items="itemsTerm"
+                  :items="itemsTerm.length ? itemsTerm : [{ id: Number(route.params.term), title: String(route.params.term) }]"
+                  item-title="title"
+                  item-value="id"
                   :disabled="true"
                 />
               </VCol>
@@ -432,7 +458,7 @@ const sessionTimeLabel = value => {
                 sm="8"
               >
                 <AppAutocomplete
-                  v-model="selectedGoal"
+                  :model-value="selectedGoal.id"
                   :label="$t('goals.skills')"
                   :items="goals"
                   :loading="loading.goals"
@@ -466,7 +492,7 @@ const sessionTimeLabel = value => {
             <VSpacer />
 
             <div class="justify-end d-flex align-center flex-wrap gap-4">
-              <VBtn  v-if="can('edit_independent-sessions','edit_independent-sessions')" @click="evaluationStepDialog()">
+              <VBtn  v-if="canRunIndependentSessions()" @click="evaluationStepDialog()">
                 {{ $t('independent.add_assessment') }}
               </VBtn>
             </div>
@@ -520,7 +546,7 @@ const sessionTimeLabel = value => {
             <!-- Actions -->
             <template #item.actions="{ item }">
 
-              <IconBtn v-if="can('edit_independent-sessions','edit_independent-sessions')" :title="$t('Edit')" @click="evaluationStepDialog(item.raw)">
+              <IconBtn v-if="canRunIndependentSessions()" :title="$t('Edit')" @click="evaluationStepDialog(item.raw)">
                 <VIcon icon="tabler-edit" />
               </IconBtn>
 
@@ -571,7 +597,7 @@ const sessionTimeLabel = value => {
           </VDataTableServer>
           <!-- SECTION -->
     </VCard>
-    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (can('edit_independent-sessions','edit_independent-sessions') || canDoes('parent'))" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
+    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (canRunIndependentSessions() || isParentUser())" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
     <div>
       <Message 
         v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_independent-sessions','admin_independent-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
@@ -671,6 +697,9 @@ const sessionTimeLabel = value => {
       </VCard>
     </VDialog>
     <SnackbarComponent ref="snackbarRef" />
+  </section>
+  <section v-else>
+    <VProgressLinear indeterminate />
   </section>
 </template>
 

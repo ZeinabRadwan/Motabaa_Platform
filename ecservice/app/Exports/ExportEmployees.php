@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Models\User;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
@@ -33,8 +34,10 @@ class ExportEmployees extends BaseExport implements FromCollection, WithHeadings
         $map = [];
         $headers = [];
 
-        if(isset($this->data[0]))
-            $map = $this->mapping($this->data[0]);
+        $first = collect($this->data)->first();
+        if ($first) {
+            $map = $this->mapping($first);
+        }
 
         foreach ($map as $key => $value) {
             
@@ -51,38 +54,47 @@ class ExportEmployees extends BaseExport implements FromCollection, WithHeadings
 
     public function mapping($item) : array {
 
-        $nationality = $item->nationality;
+        $user = $item instanceof User ? $item : ($item->resource ?? $item);
+
+        $nationality = $user->nationality;
         if($nationality && !Str::contains(__("nationalities.{$nationality}"), 'nationalities.'))
             $nationality = __("nationalities.{$nationality}");
 
         $roles = '';
-        foreach ($item->roles as $role) {
+        foreach ($user->roles ?? [] as $role) {
             $roles .= "{$role->name},";
         }
         $roles = substr($roles, 0, -1);
 
+        $department = $user->department
+            ? (User::departments()[$user->department] ?? $user->department)
+            : '';
+        $contractType = $user->contract_type
+            ? (User::contractTypes()[$user->contract_type] ?? $user->contract_type)
+            : '';
+
         return [
-            'code' => $item->id,
-            'name' => $item->name,
-            'email' => $item->email,
+            'code' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
             'roles' => "{$roles}",
             'nationality' => "{$nationality}",
-            'id_or_residence_number' => $item->id_or_residence_number,
-            'job_title' => $item->job_title,
-            'department' => $item->department,
-            'work_shift' => $item->work_shift_label,
-            'contract_type' => $item->contract_type,
-            'hire_date' => $item->hire_date,
-            'contract_end_date' => $item->contract_end_date,
-            'id_expiry_date' => $item->id_expiry_date,
-            'phone' => $item->phone,
-            'address_unit' => $item->address_unit,
-            'address_building' => $item->address_building,
-            'address_street' => $item->address_street,
-            'address_area' => $item->address_area,
-            'address_city' => $item->address_city,
-            'address_zipcode' => $item->address_zipcode,
-            'address_number' => $item->address_number,
+            'id_or_residence_number' => $user->id_or_residence_number,
+            'job_title' => $user->job_title,
+            'department' => $department,
+            'work_shift' => $user->workShiftLabel(),
+            'contract_type' => $contractType,
+            'hire_date' => $user->hire_date,
+            'contract_end_date' => $user->contract_end_date,
+            'id_expiry_date' => $user->id_expiry_date,
+            'phone' => $user->phone,
+            'address_unit' => $user->address_unit,
+            'address_building' => $user->address_building,
+            'address_street' => $user->address_street,
+            'address_area' => $user->address_area,
+            'address_city' => $user->address_city,
+            'address_zipcode' => $user->address_zipcode,
+            'address_number' => $user->address_number,
             
         ];
     }

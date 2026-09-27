@@ -128,9 +128,11 @@ export const useSessionStore = defineStore('session', {
       else
         this.userCenters = null
 
-      if (user.centers && user.centers.length > 0 && user.centers[0].status == 1 && !isAdminRole) {
-        this.center = user.centers[0].id
-        this.centerData = { title: user.centers[0].title, image_path: '' }
+      if (user.centers && user.centers.length > 0 && !isAdminRole) {
+        const preferred = user.centers.find(center => Number(center.status) === 1)
+          || user.centers[0]
+        this.center = String(preferred.id)
+        this.centerData = { title: preferred.title, image_path: '' }
       }
       else {
         this.center = ''

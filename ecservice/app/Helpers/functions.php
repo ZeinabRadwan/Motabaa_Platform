@@ -167,6 +167,34 @@ if (! function_exists('isHasRole')) {
     }
 }
 
+if (! function_exists('isParentUser')) {
+    /**
+     * True only for Spatie parent accounts (default_name "parent" on every assigned role).
+     * Any other role — custom job title, empty default_name, staff template — is not parent-only.
+     * Does not inspect session permissions; staff UI stays on existing Spatie/CASL checks.
+     */
+    function isParentUser($user = null): bool
+    {
+        $user = $user ?? auth()->user();
+        if (!$user || !isHasRole(System::USER_TYPE_PARENT_ROLE_NAME, $user)) {
+            return false;
+        }
+
+        $roles = $user->roles;
+        if ($roles->isEmpty()) {
+            return false;
+        }
+
+        foreach ($roles as $role) {
+            if ($role->default_name !== System::USER_TYPE_PARENT_ROLE_NAME) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
 if (! function_exists('isImpersonating')) {
     function isImpersonating($user = null) {
         $user = ($user) ? $user : auth()->user();
@@ -360,10 +388,75 @@ if (!function_exists('paginate')) {
     }
 }
 
+if (!function_exists('applicationUrl')) {
+    /**
+     * Base URL for API-generated links (signed downloads, etc.).
+     * Never returns localhost on LIVE when the request or API_URL override is available.
+     */
+    function applicationUrl(): string
+    {
+        $url = rtrim((string) config('app.url'), '/');
+        $override = rtrim((string) config('motabaa.api_url', ''), '/');
+
+        if ($override !== '' && preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#i', $url)) {
+            return $override;
+        }
+
+        if (preg_match('#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#i', $url)) {
+            if (!app()->runningInConsole() && request()->getHttpHost()) {
+                return request()->getSchemeAndHttpHost();
+            }
+        }
+
+        return $url;
+    }
+}
+
 if (!function_exists('usesBunnyStorage')) {
     function usesBunnyStorage($from = null): bool
     {
-        return config('motabaa.files.storage') === 'bunnycdn' && $from !== 'local';
+        if ($from === 'local') {
+            return false;
+        }
+
+        $storage = strtolower(trim((string) config('motabaa.files.storage')));
+
+        if ($storage === 'local') {
+            return false;
+        }
+
+        if ($storage === 'bunnycdn') {
+            return true;
+        }
+
+        // Unset storage driver: prefer Bunny when delivery credentials exist (LIVE default).
+        if ($storage === '') {
+            return bunnyDeliveryConfigured();
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('bunnyDeliveryConfigured')) {
+    function bunnyDeliveryConfigured(): bool
+    {
+        return trim((string) config('motabaa.bunny.url')) !== ''
+            && trim((string) config('motabaa.bunny.token_key')) !== ''
+            && trim((string) config('motabaa.bunny.storage_zone')) !== '';
+    }
+}
+
+if (!function_exists('bunnyObjectFolder')) {
+    function bunnyObjectFolder($folderName): string
+    {
+        $folder = str_replace('\\', '/', (string) $folderName);
+        $folder = ltrim($folder, '/');
+        if (str_starts_with($folder, 'public/')) {
+            $folder = substr($folder, strlen('public/'));
+        }
+
+        return trim($folder, '/');
     }
 }
 
@@ -381,9 +474,35 @@ if (!function_exists('sendWhatsAppMessage')) {
     }
 }
 
+if (!function_exists('resolveUploadSourcePath')) {
+    function resolveUploadSourcePath($file): ?string
+    {
+        if ($file instanceof \SplFileInfo) {
+            $path = $file->getRealPath() ?: $file->getPathname();
+
+            return ($path && is_readable($path)) ? $path : null;
+        }
+
+        if (is_string($file) && is_readable($file)) {
+            return $file;
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('uplaodFileToBunny')) {
     function uplaodFileToBunny($folderName, $fileName, $file)
     {
+        $source = resolveUploadSourcePath($file);
+        if (!$source) {
+            \Log::error('Upload file to bunnycdn failed: source file is not readable', [
+                'path' => $folderName.'/'.$fileName,
+            ]);
+
+            return false;
+        }
+
         $region = config('motabaa.files.region');  // If German region, set this to an empty string: ''
         $baseHostName = config('motabaa.bunny.base_hostname');
         $hostName = (!empty($region)) ? "{$region}.{$baseHostName}" : $baseHostName;
@@ -391,38 +510,64 @@ if (!function_exists('uplaodFileToBunny')) {
         $accessKey = config('motabaa.bunny.api_key');
 
         $url = "https://{$hostName}/{$storageZoneName}/";
+        $folderName = bunnyObjectFolder($folderName);
         if($folderName) {
             $url .= "{$folderName}/";
         }
-        $url .= urlencode($fileName);
+        $url .= str_replace('%2F', '/', rawurlencode($fileName));
+
+        $stream = fopen($source, 'rb');
+        if ($stream === false) {
+            \Log::error('Upload file to bunnycdn failed: could not open source file', [
+                'path' => $folderName.'/'.$fileName,
+            ]);
+
+            return false;
+        }
 
         $ch = curl_init();
-
-        $options = array(
+        curl_setopt_array($ch, [
           CURLOPT_URL => $url,
           CURLOPT_RETURNTRANSFER => true,
           CURLOPT_PUT => true,
-          CURLOPT_INFILE => fopen($file, 'r'),
-          CURLOPT_INFILESIZE => filesize($file),
-          CURLOPT_HTTPHEADER => array(
+          CURLOPT_INFILE => $stream,
+          CURLOPT_INFILESIZE => filesize($source),
+          CURLOPT_TIMEOUT => 600,
+          CURLOPT_CONNECTTIMEOUT => 30,
+          CURLOPT_HTTPHEADER => [
             "AccessKey: {$accessKey}",
-            'Content-Type: application/octet-stream'
-          )
-        );
-
-        curl_setopt_array($ch, $options);
+            'Content-Type: application/octet-stream',
+          ],
+        ]);
 
         $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        fclose($stream);
 
-        if (!$response) {
-            \Log::error("Upload file to bunnycdn failed: " . curl_error($ch));
+        $decoded = json_decode((string) $response);
+        $bunnyCode = (int) ($decoded->HttpCode ?? $httpCode);
+        $ok = $response !== false && $curlError === '' && in_array($bunnyCode, [200, 201], true);
+
+        if (!$ok) {
+            \Log::error('Upload file to bunnycdn failed', [
+                'http_code' => $httpCode,
+                'bunny_code' => $bunnyCode,
+                'bunny_message' => $decoded->Message ?? ($curlError !== '' ? $curlError : substr((string) $response, 0, 500)),
+                'path' => $folderName.'/'.$fileName,
+            ]);
         }
+
+        return $ok;
     }
 }
 
 if (!function_exists('fileURLFromBunny')) {
     function fileURLFromBunny($folderName, $fileName)
     {
+        $folderName = bunnyObjectFolder($folderName);
+        $fileName = ltrim((string) $fileName, '/');
         $path = '/'.$folderName.'/'.$fileName;
         $expires = time() + 3600;
         $hashableBase = config('motabaa.bunny.token_key').$path.$expires;
@@ -430,7 +575,7 @@ if (!function_exists('fileURLFromBunny')) {
         $token = base64_encode($token);
         $token = strtr($token, '+/', '-_');
         $token = str_replace('=', '', $token);
-        $url = config('motabaa.bunny.url')."{$path}?token={$token}&expires={$expires}";
+        $url = rtrim((string) config('motabaa.bunny.url'), '/')."{$path}?token={$token}&expires={$expires}";
         return $url;
     }
 }
@@ -487,11 +632,12 @@ if (!function_exists('fetchFilesFromBunny')) {
             $accessKey = config('motabaa.bunny.api_key');
 
             $url = "https://{$hostName}/{$storageZoneName}/";
+            $folderName = bunnyObjectFolder($folderName);
             if($folderName) {
                 $url .= "{$folderName}/";
             }
             if($fileName) {
-                $url .= "{$fileName}";
+                $url .= str_replace('%2F', '/', rawurlencode($fileName));
             }
 
             $curl = curl_init();
@@ -532,11 +678,12 @@ if (!function_exists('deleteFileFromBunny')) {
         $accessKey = config('motabaa.bunny.api_key');
 
         $url = "https://{$hostName}/{$storageZoneName}/";
+        $folderName = bunnyObjectFolder($folderName);
         if($folderName) {
             $url .= "{$folderName}/";
         }
         if($fileName) {
-            $url .= urlencode($fileName);
+            $url .= str_replace('%2F', '/', rawurlencode($fileName));
         }
 
         $curl = curl_init();
@@ -585,11 +732,18 @@ if (!function_exists('downloadFile')) {
     }
 }
 
+if (!function_exists('bunnyListCacheKey')) {
+    function bunnyListCacheKey($path): string
+    {
+        return 'bunny:list:'.bunnyObjectFolder($path);
+    }
+}
+
 if (!function_exists('forgetBunnyListCache')) {
     function forgetBunnyListCache($path = null)
     {
         if ($path) {
-            \Illuminate\Support\Facades\Cache::forget('bunny:list:'.$path);
+            \Illuminate\Support\Facades\Cache::forget(bunnyListCacheKey($path));
         }
     }
 }
@@ -682,29 +836,89 @@ if (!function_exists('primeNamedFile')) {
     }
 }
 
+if (!function_exists('namedFileAbsolutePath')) {
+    function namedFileAbsolutePath($path, $basename): ?string
+    {
+        $basename = basename((string) $basename);
+        $relative = trim(str_replace('\\', '/', (string) $path), '/');
+        $candidates = [
+            storage_path('app/'.$relative).DIRECTORY_SEPARATOR.$basename,
+        ];
+        if (str_starts_with($relative, 'public/')) {
+            $candidates[] = storage_path('app/public/'.substr($relative, strlen('public/'))).DIRECTORY_SEPARATOR.$basename;
+        } else {
+            $candidates[] = storage_path('app/public/'.$relative).DIRECTORY_SEPARATOR.$basename;
+        }
+
+        foreach (array_unique($candidates) as $absolute) {
+            if (is_file($absolute)) {
+                return $absolute;
+            }
+        }
+
+        return null;
+    }
+}
+
+if (!function_exists('namedFileRelativePath')) {
+    function namedFileRelativePath($path, $basename): string
+    {
+        return '/'.trim(str_replace('\\', '/', (string) $path), '/').'/'.basename((string) $basename);
+    }
+}
+
+if (!function_exists('namedFileSecureDownloadUrl')) {
+    function namedFileSecureDownloadUrl($path, $basename): string
+    {
+        $fileSystem = new \App\Models\FileSystem\LaravelFileSystem();
+
+        return $fileSystem->secureDownloadURL(namedFileRelativePath($path, $basename));
+    }
+}
+
+if (!function_exists('namedFilePublicUrl')) {
+    function namedFilePublicUrl($path, $fileName, $fileExtension, $from = null): ?string
+    {
+        $basename = $fileName.'.'.$fileExtension;
+        $localPath = namedFileAbsolutePath($path, $basename);
+        $bunnyReady = bunnyDeliveryConfigured();
+        $bunnyPrimary = usesBunnyStorage($from);
+
+        // Bunny is the primary store: CDN URL for cloud-only files; signed API download for
+        // transitional local copies (uploaded before Bunny was enabled on LIVE).
+        if ($bunnyPrimary && $bunnyReady) {
+            if ($localPath) {
+                return namedFileSecureDownloadUrl($path, $basename);
+            }
+
+            return fileURLFromBunny($path, $basename);
+        }
+
+        if ($localPath) {
+            return namedFileSecureDownloadUrl($path, $basename);
+        }
+
+        // Legacy records migrated to Bunny while local disk copy was removed.
+        if ($from !== 'local' && $bunnyReady) {
+            return fileURLFromBunny($path, $basename);
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('hydrateNamedFileMeta')) {
     function hydrateNamedFileMeta($path, $fileName, $fileExtension, $from = null)
     {
-        if (!usesBunnyStorage($from)) {
-            $basename = $fileName.'.'.$fileExtension;
-            $absolute = storage_path('app/'.$path).'/'.$basename;
-            if (!is_file($absolute)) {
-                return null;
-            }
-
-            $relative = trim($path, '/').'/'.$basename;
-
-            return [
-                'file_name' => $fileName,
-                'file_extension' => $fileExtension,
-                'file_url' => asset(str_replace('public', 'storage', $relative)). '?code=' . md5_file($absolute),
-            ];
+        $fileURL = namedFilePublicUrl($path, $fileName, $fileExtension, $from);
+        if (!$fileURL) {
+            return null;
         }
 
         return [
             'file_name' => $fileName,
             'file_extension' => $fileExtension,
-            'file_url' => fileURLFromBunny($path, $fileName.'.'.$fileExtension),
+            'file_url' => $fileURL,
         ];
     }
 }
@@ -817,7 +1031,9 @@ if (!function_exists('saveFile')) {
         if(usesBunnyStorage()) {
             if($currentFileURL)
                 purgeFileBunny($currentFileURL);
-            uplaodFileToBunny($path, $fileName, $file);
+            if (!uplaodFileToBunny($path, $fileName, $file)) {
+                throw new \RuntimeException('Bunny storage upload failed.');
+            }
         }
         else {
             
@@ -867,42 +1083,55 @@ if (!function_exists('fetchFiles')) {
         if(!usesBunnyStorage($from)) {
             $GLOBALS['__file_lookup_stats']['listings']++;
             $storageFiles = Storage::files($path);
+            if (empty($storageFiles) && bunnyDeliveryConfigured() && $from !== 'local') {
+                if (array_key_exists($listingKey, $GLOBALS['__file_request_listings'])) {
+                    $storageFiles = $GLOBALS['__file_request_listings'][$listingKey];
+                } else {
+                    $GLOBALS['__file_lookup_stats']['listings']++;
+                    $storageFiles = \Illuminate\Support\Facades\Cache::remember(bunnyListCacheKey($path), 180, function () use ($path) {
+                        return json_decode(fetchFilesFromBunny($path)) ?: [];
+                    });
+                    $GLOBALS['__file_request_listings'][$listingKey] = $storageFiles;
+                }
+            }
         }
         else if(usesBunnyStorage()) {
             if (array_key_exists($listingKey, $GLOBALS['__file_request_listings'])) {
                 $storageFiles = $GLOBALS['__file_request_listings'][$listingKey];
             } else {
                 $GLOBALS['__file_lookup_stats']['listings']++;
-                $storageFiles = \Illuminate\Support\Facades\Cache::remember('bunny:list:'.$path, 180, function () use ($path) {
-                    return json_decode(fetchFilesFromBunny($path));
+                $storageFiles = \Illuminate\Support\Facades\Cache::remember(bunnyListCacheKey($path), 180, function () use ($path) {
+                    return json_decode(fetchFilesFromBunny($path)) ?: [];
                 });
                 $GLOBALS['__file_request_listings'][$listingKey] = $storageFiles;
             }
         }
 
         foreach ($storageFiles as $file) {
-
-            $name = '';
+            $name = [];
             $fileURL = '';
-            if(!usesBunnyStorage($from)) {
 
-                $name = basename($file);
-                $name = explode('.', $name);
-                $fileURL = asset(str_replace('public', 'storage', $file)). '?code=' . md5_file(storage_path('app/'.$path).'/'.basename($file));
-            }
-            else if(usesBunnyStorage()) {
-
-                if(!isset($file->ObjectName))
+            if (is_string($file)) {
+                $parts = explode('.', basename($file));
+                if (!isset($parts[1])) {
                     continue;
-
-                $name = $file->ObjectName;
-                $name = explode('.', $name);
-
-                if(!isset($name[1]))
+                }
+                $name = [$parts[0], $parts[1]];
+            } elseif (is_object($file) && isset($file->ObjectName)) {
+                $parts = explode('.', $file->ObjectName);
+                if (!isset($parts[1])) {
                     continue;
-
-                $fileURL = fileURLFromBunny($path, $name[0].'.'.$name[1]);
+                }
+                $name = [$parts[0], $parts[1]];
+            } else {
+                continue;
             }
+
+            $meta = hydrateNamedFileMeta($path, $name[0], $name[1], $from);
+            if (!$meta) {
+                continue;
+            }
+            $fileURL = $meta['file_url'];
 
             if($fileName) {
                 if ($fileName == $name[0] || str_replace(' ', '_', $fileName) == $name[0]) {

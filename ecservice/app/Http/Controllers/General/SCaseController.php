@@ -26,6 +26,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use App\Models\Log;
 use App\Models\Term;
+use App\Support\CaseListAccess;
 
 use App\Models\System\ExportExcel;
 use App\Exports\ExportCases;
@@ -35,23 +36,18 @@ class SCaseController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $isAdminCases =$user->can('admin_cases');
+        $viewAllCenterCases = CaseListAccess::canViewAllCenterCases($user);
 
         $perPage = resolvePerPage($request);
         $disability = $request->disability;
         $service = $request->service;
-        $teacher_id = $request->teacher_id;
-        $specialist_id = $request->specialist_id;
-        $specialist_teacher_id = $request->specialist_teacher_id;
+        $teacher_id = $viewAllCenterCases ? $request->teacher_id : null;
+        $specialist_id = $viewAllCenterCases ? $request->specialist_id : null;
+        $specialist_teacher_id = $viewAllCenterCases ? $request->specialist_teacher_id : null;
         $keywords = mb_ereg_replace(" ", "%", getFTS($request->q));
+        $period = $this->requestedCasePeriod($request);
         
-        $center = null;
-        if($request->center_id && $user->isInCenter($request->center_id)) {
-            $center = $request->center_id;
-        }
-        else if($user->centers){ 
-            $center = $user->centers[0]->id;
-        }
+        $center = Term::resolveCenterId($user, $request->center_id);
 
         $cases = SCase::query()
         ->with([
@@ -103,8 +99,12 @@ class SCaseController extends Controller
             })
         )
         ->when(
-            !$isAdminCases,
-            fn ($q) => $q->usersRoles($user->roles, $user->id)
+            $period !== null,
+            fn ($q) => $q->where('scases.period', $period)
+        )
+        ->when(
+            !$viewAllCenterCases,
+            fn ($q) => $q->assignedToStaffUser($user->id)
         )
         ->when(
             $request->task,
@@ -152,17 +152,18 @@ class SCaseController extends Controller
         }
 
         $user = auth()->user();
-        $isAdminCases = $user->can('admin_cases');
+        $viewAllCenterCases = CaseListAccess::canViewAllCenterCases($user);
         $limit = $autocomplete['limit'];
         if ($preload) {
             $limit = min(max((int) $request->get('limit', 500), 1), 500);
         }
         $disability = $request->disability;
         $service = $request->service;
-        $teacher_id = $request->teacher_id;
-        $specialist_id = $request->specialist_id;
-        $specialist_teacher_id = $request->specialist_teacher_id;
+        $teacher_id = $viewAllCenterCases ? $request->teacher_id : null;
+        $specialist_id = $viewAllCenterCases ? $request->specialist_id : null;
+        $specialist_teacher_id = $viewAllCenterCases ? $request->specialist_teacher_id : null;
         $keywords = $autocomplete['keywords'];
+        $period = $this->requestedCasePeriod($request);
 
         // Resolved the same way as the lists this dropdown filters, so a user
         // without their own center (platform admin) still gets the right scope.
@@ -204,6 +205,10 @@ class SCaseController extends Controller
                 })
             )
             ->when(
+                $period !== null,
+                fn ($q) => $q->where('scases.period', $period)
+            )
+            ->when(
                 $disability,
                 fn ($q) => $q->whereHas('disabilities', function ($query) use ($disability) {
                     $query->whereIn('disabilities.id', $disability);
@@ -216,8 +221,8 @@ class SCaseController extends Controller
                 })
             )
             ->when(
-                !$isAdminCases,
-                fn ($q) => $q->usersRoles($user->roles, $user->id)
+                !$viewAllCenterCases,
+                fn ($q) => $q->assignedToStaffUser($user->id)
             )
             ->when(
                 $request->status && $request->status == 'all',
@@ -241,15 +246,12 @@ class SCaseController extends Controller
     public function assignedStaff(Request $request)
     {
         $user = auth()->user();
-        $isAdminCases = $user->can('admin_cases');
 
-        $center = null;
-        if($request->center_id && $user->isInCenter($request->center_id)) {
-            $center = $request->center_id;
+        if (! CaseListAccess::canViewAllCenterCases($user)) {
+            return Term::forbiddenResponse();
         }
-        else if($user->centers){
-            $center = $user->centers[0]->id;
-        }
+
+        $center = Term::resolveCenterId($user, $request->center_id);
 
         if(!$center) {
             return apiResponse([]);
@@ -265,29 +267,17 @@ class SCaseController extends Controller
             System::USER_TYPE_PSYCHOTHERAPIST,
         ];
 
-        $visibleCaseIds = null;
-        if(!$isAdminCases) {
-            $visibleCaseIds = SCase::withTrashed()
-                ->where('scases.center_id', $center)
-                ->usersRoles($user->roles, $user->id)
-                ->pluck('scases.id');
-        }
-
         $staff = User::select('users.id', 'users.name', 'users.job_title')
             ->with('roles:id,name,default_name')
             ->whereHas('centers', function ($query) use ($center) {
                 $query->where('centers.id', $center);
             })
-            ->whereIn('users.id', function ($query) use ($center, $staffTypes, $visibleCaseIds) {
+            ->whereIn('users.id', function ($query) use ($center, $staffTypes) {
                 $query->select('scase_user.user_id')
                     ->from('scase_user')
                     ->join('scases', 'scases.id', '=', 'scase_user.scase_id')
                     ->where('scases.center_id', $center)
                     ->whereIn('scase_user.relationship_type', $staffTypes);
-
-                if($visibleCaseIds !== null) {
-                    $query->whereIn('scase_user.scase_id', $visibleCaseIds);
-                }
             })
             ->orderBy('users.name')
             ->get();
@@ -298,13 +288,7 @@ class SCaseController extends Controller
     public function show(Request $request, $case)
     {
         $user = auth()->user();
-        $center = null;
-        if($request->center_id && $user->isInCenter($request->center_id)) {
-            $center = $request->center_id;
-        }
-        else if($user->centers){ 
-            $center = $user->centers[0]->id;
-        }
+        $center = Term::resolveCenterId($user, $request->center_id);
 
         $case = SCase::with(
             'disabilities', 
@@ -319,6 +303,10 @@ class SCaseController extends Controller
         ->where('scases.center_id', $center)
         ->withTrashed()
         ->find($case);
+
+        if ($case && !SCase::userCanAccessCase($user, $case)) {
+            return Term::forbiddenResponse();
+        }
 
         if($case)
             $case = new SCaseResource($case);
@@ -1220,5 +1208,15 @@ class SCaseController extends Controller
         
             return response()->json(['message' => 'saved_successfully', 'status' => true], 200);
         }
+    }
+
+    private function requestedCasePeriod(Request $request): ?int
+    {
+        $period = $request->input('period');
+        if (!in_array($period, ['0', '1', 0, 1], true)) {
+            return null;
+        }
+
+        return (int) $period;
     }
 }

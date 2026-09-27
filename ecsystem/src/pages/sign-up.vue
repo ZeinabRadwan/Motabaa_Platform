@@ -2,8 +2,12 @@
 import { useAppAbility } from '@/plugins/casl/useAppAbility'
 import i18n from '@/plugins/i18n/index.js'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue'
+import { useGenerateImageVariant } from '@core/composable/useGenerateImageVariant'
+import authV2MaskDark from '@images/pages/misc-mask-dark.png'
+import authV2MaskLight from '@images/pages/misc-mask-light.png'
 import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
 import { themeConfig } from '@themeConfig'
+import { BUNDLED_LOGIN_SIDE_IMAGE } from '@/utils/branding-login'
 
 import { centersApi } from "@/plugins/apis/centersRequest"
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
@@ -42,6 +46,7 @@ const email = ref('')
 const phone = ref('')
 const password = ref('')
 const isPasswordVisible = ref(false)
+const authThemeMask = useGenerateImageVariant(authV2MaskLight, authV2MaskDark)
 
 const snackbarRef = ref(null);
 
@@ -85,21 +90,41 @@ const onSubmit = () => {
 </script>
 
 <template>
-  <div class="motabaa-auth">
-    <div class="motabaa-auth__card motabaa-auth__card--wide">
-      <div class="motabaa-auth__logo">
-        <VNodeRenderer :nodes="themeConfig.app.login_logo" />
-      </div>
-      <h1 class="motabaa-auth__title">
-        {{ $t('centers.register_center') }}
-      </h1>
-      <p class="motabaa-auth__subtitle">
-        {{ $t('register_subtitle') }}
-      </p>
-      <VForm
-        ref="refVForm"
-        @submit.prevent="onSubmit"
+<div>
+  <VRow
+    class="auth-wrapper bg-surface"
+    no-gutters
+  >
+    <VCol
+      cols="12"
+      lg="4"
+      class="auth-card-v2 d-flex align-center justify-center"
+    >
+      <VCard
+        flat
+        :max-width="500"
+        class="mt-12 mt-sm-0 pa-4"
       >
+
+        <VCardItem class="justify-center">
+          <template #prepend>
+            <div class="d-flex">
+              <VNodeRenderer :nodes="themeConfig.app.login_logo" />
+            </div>
+          </template>
+        </VCardItem>
+
+        <VCardText>
+          <h5 class="text-h4 mb-1">
+            {{ $t('centers.register_center') }}
+          </h5>
+        </VCardText>
+
+        <VCardText>
+          <VForm 
+            ref="refVForm"
+            @submit.prevent="onSubmit"
+          >
             <VRow>
 
               <!-- email -->
@@ -159,6 +184,13 @@ const onSubmit = () => {
                 />
               </VCol>
 
+              <VCol
+                cols="12"
+                class="d-flex align-center"
+              >
+                <VDivider />
+              </VCol>
+
               <!-- name -->
               <VCol cols="12">
                 <AppTextField
@@ -212,7 +244,6 @@ const onSubmit = () => {
               <VCol cols="12">
                 <VBtn
                   block
-                  size="large"
                   type="submit"
                 >
                   {{ $t('Register') }}
@@ -234,10 +265,38 @@ const onSubmit = () => {
               </VCol>
             </VRow>
           </VForm>
-    </div>
-    <SnackbarComponent ref="snackbarRef" />
-  </div>
+        </VCardText>
+      </VCard>
+    </VCol>
+
+    <VCol
+      lg="8"
+      class="d-none d-lg-flex"
+    >
+      <div class="position-relative bg-background rounded-lg w-100 ma-8 me-0">
+        <div class="d-flex align-center justify-center w-100 h-100">
+          <VImg
+            max-width="1000"
+            :src="BUNDLED_LOGIN_SIDE_IMAGE"
+            class="auth-illustration mt-16 mb-2"
+          />
+        </div>
+
+        <VImg
+          max-width="1000"
+          :src="authThemeMask"
+          class="auth-footer-mask"
+        />
+      </div>
+    </VCol>
+  </VRow>
+  <SnackbarComponent ref="snackbarRef" />
+</div>
 </template>
+
+<style lang="scss">
+@use "@core/scss/template/pages/page-auth.scss";
+</style>
 
 <route lang="yaml">
 meta:

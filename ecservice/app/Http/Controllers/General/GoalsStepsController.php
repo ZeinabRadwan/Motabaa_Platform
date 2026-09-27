@@ -8,6 +8,9 @@ use App\Models\GoalsSteps;
 use App\Http\Requests\GoalStepsRequest;
 use App\Http\Resources\GoalStepsResource;
 use App\Models\Log;
+use App\Models\Goal;
+use App\Models\SCase;
+use App\Models\Term;
 
 class GoalsStepsController extends Controller
 {
@@ -15,7 +18,25 @@ class GoalsStepsController extends Controller
     {
         $user = auth()->user();
 
+        if (isParentUser($user)) {
+            return apiPaginateResponse(
+                new \Illuminate\Pagination\LengthAwarePaginator([], 0, max(resolvePerPage($request), 1)),
+                GoalStepsResource::collection(collect())
+            );
+        }
+
         $perPage = resolvePerPage($request);
+
+        if ($request->goal_id) {
+            $goal = Goal::with('case')->find($request->goal_id);
+            if (!$goal || !$goal->case || !SCase::userCanAccessCase($user, $goal->case)) {
+                return Term::forbiddenResponse();
+            }
+            $denied = Term::abortIfInaccessible($user, $goal->case->center_id, $goal->term_id);
+            if ($denied) {
+                return $denied;
+            }
+        }
 
         $goals = GoalsSteps::
         when(

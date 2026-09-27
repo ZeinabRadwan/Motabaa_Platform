@@ -18,9 +18,9 @@ export const questionnairesApi = defineStore('questionnaires', {
     },
 
     // 👉 is Questionnaire open
-    isQuestionnaireOpen(data) { 
+    isQuestionnaireOpen(data = {}) { 
       data['center_id'] = Number(localStorage.getItem('center'));
-      return axios.post(`/questionnaires/task`, data) 
+      return axios.get(`/questionnaires/task`, { params: data }) 
     },
 
     // 👉 Add Questionnaire

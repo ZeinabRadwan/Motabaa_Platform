@@ -27,9 +27,9 @@ class MessageRequest extends FormRequest
             'log_work' => 'sometimes|boolean',
             'parents_can_see' => 'sometimes|boolean',
             'meeting_room_id' => 'sometimes|exists:meeting_rooms,id',
-            'image' => 'sometimes|image|mimes:jpeg,png,jpg|max:10240',
-            'file' => 'sometimes|max:102400',
-            'video' => 'sometimes|mimes:mp4,mov,ogg,webm||max:102400',
+            'image' => 'sometimes|nullable|image|mimes:jpeg,png,jpg|max:10240',
+            'file' => 'sometimes|nullable|file|max:102400',
+            'video' => 'sometimes|nullable|file|mimetypes:video/mp4,video/quicktime,video/ogg,video/webm,video/x-m4v|max:102400',
         ];
 
         return $rules;

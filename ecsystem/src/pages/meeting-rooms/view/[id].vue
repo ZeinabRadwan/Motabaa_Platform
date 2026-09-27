@@ -59,7 +59,7 @@ const sendMeesage = (data, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -71,7 +71,7 @@ const deleteMessage = (id, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 

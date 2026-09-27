@@ -81,7 +81,7 @@ class LaravelFileSystem extends BaseFileSystem {
         $token = base64_encode($token);
         $token = strtr($token, '+/', '-_');
         $token = str_replace('=', '', $token);
-        $url = config('app.url')."/download{$filePath}?token={$token}&expires={$expires}";
+        $url = applicationUrl()."/download{$filePath}?token={$token}&expires={$expires}";
         return $url;
     }
 

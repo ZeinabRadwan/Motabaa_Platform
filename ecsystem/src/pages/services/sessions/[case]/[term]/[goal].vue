@@ -6,6 +6,7 @@ import MessageSend from '@/views/messages/MessageSend.vue';
 import { returnIdUserIfNotAdmin, isUser } from "@core/utils/helper";
 import Message from '@/views/messages/Message.vue';
 import { can, canDoes } from '@layouts/plugins/casl'
+import { canRunTreatmentSessions, isParentUser } from '@core/utils/staffSessionVisibility'
 import {
   scaleTypeFilterItems,
   termItems
@@ -174,7 +175,7 @@ const sendMeesage = (data, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -185,7 +186,7 @@ const deleteMessage = (id, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -331,7 +332,7 @@ const putGoal = () =>{
           </div>
           <VSpacer />
           <VBtn  
-            v-if="can('edit_treatment-sessions','edit_treatment-sessions')" 
+            v-if="canRunTreatmentSessions()" 
             prepend-icon="tabler-edit"
             @click="goalDialog(selectedGoal)"
           >
@@ -339,22 +340,15 @@ const putGoal = () =>{
           </VBtn>
 
           <div class="justify-end d-flex align-center flex-wrap gap-4">
-            <VBtn  v-if="isEndedSession  && can('edit_treatment-sessions','edit_treatment-sessions')" color="success" :disabled="selectedGoal == null || selectedGoal == ''" @click="startEndSession()">
+            <VBtn  v-if="isEndedSession  && canRunTreatmentSessions()" color="success" :disabled="selectedGoal == null || selectedGoal == ''" @click="startEndSession()">
                 {{ $t('goals.start_session') }}
               </VBtn>
-              <VBtn  v-if="!isEndedSession && can('edit_treatment-sessions','edit_treatment-sessions')" color="error" :disabled="selectedGoal == null || selectedGoal == ''" @click="startEndSession()">
+              <VBtn  v-if="!isEndedSession && canRunTreatmentSessions()" color="error" :disabled="selectedGoal == null || selectedGoal == ''" @click="startEndSession()">
                 {{ $t('goals.end_session') }}
               </VBtn>
           </div>
         </div>
       </v-card-title>
-      <VCardText>
-        <SessionDateTimeFields
-          v-model:date="date"
-          v-model:time="time"
-          :disable-from="formattedTomorrow"
-        />
-      </VCardText>
       <VCardText >
         <VRow>
           <VCol
@@ -376,7 +370,7 @@ const putGoal = () =>{
               color="primary"
               icon="tabler-calendar"
             />
-            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(selectedGoal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(selectedGoal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") }} {{ moment(selectedGoal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(selectedGoal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')' }}</span>
+            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(selectedGoal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(selectedGoal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") }}<template v-if="!isParentUser()"> {{ moment(selectedGoal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(selectedGoal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')' }}</template></span>
           </VCol>
           <VCol
             cols="4"
@@ -386,13 +380,13 @@ const putGoal = () =>{
               color="primary"
               icon="tabler-calendar"
             />
-            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(selectedGoal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(selectedGoal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY")  }} {{ moment(selectedGoal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(selectedGoal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')'  }}</span>
+            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(selectedGoal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(selectedGoal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY")  }}<template v-if="!isParentUser()"> {{ moment(selectedGoal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(selectedGoal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')'  }}</template></span>
 
           </VCol>
         </VRow>
       </VCardText>
     </VCard>
-    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (can('edit_treatment-sessions','edit_treatment-sessions') || canDoes('parent'))" :isMeeting="false" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
+    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (canRunTreatmentSessions() || isParentUser())" :isMeeting="false" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
     <div>
       <Message v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_treatment-sessions','admin_treatment-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
     </div>

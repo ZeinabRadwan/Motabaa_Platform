@@ -84,7 +84,7 @@ class RolesController extends Controller {
         }
 
         if (! canAny(['access_roles', 'show_roles', 'edit_roles', 'admin_roles'])) {
-            return error(System::HTTP_UNAUTHORIZED);
+            return error(403);
         }
 
         $roles = Role::select('id', 'name', 'default_name', 'is_delectable')->orderBy('name')->get()->toArray();
@@ -104,7 +104,7 @@ class RolesController extends Controller {
     public function get(Request $request, Role $role) {
 
         if (! canAny(['access_roles', 'show_roles', 'edit_roles', 'admin_roles'])) {
-            return error(System::HTTP_UNAUTHORIZED);
+            return error(403);
         }
 
         $permissions = $role->permissions()->pluck( 'id')->toArray();
@@ -115,7 +115,7 @@ class RolesController extends Controller {
     public function put(Request $request, Role $role = null) {
 
         if (! canAny(['edit_roles', 'admin_roles'])) {
-            return error(System::HTTP_UNAUTHORIZED);
+            return error(403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -146,7 +146,7 @@ class RolesController extends Controller {
     public function delete(Request $request, Role $role) {
 
         if (! canAny(['edit_roles', 'admin_roles'])) {
-            return error(System::HTTP_UNAUTHORIZED);
+            return error(403);
         }
 
         if ($role->users()->count() > 0) return error(System::ERROR_ITEM_NOT_EMPTY);
@@ -169,7 +169,7 @@ class RolesController extends Controller {
     public function user(Request $request, User $user) {
 
         if (! canAny(['show_roles', 'edit_roles', 'admin_roles', 'show_users', 'edit_users', 'admin_users'])) {
-            return error(System::HTTP_UNAUTHORIZED);
+            return error(403);
         }
 
         return success([
@@ -181,7 +181,7 @@ class RolesController extends Controller {
     public function sync(Request $request, User $user) {
 
         if (! canAny(['edit_roles', 'admin_roles', 'edit_users', 'admin_users'])) {
-            return error(System::HTTP_UNAUTHORIZED);
+            return error(403);
         }
 
         $user->syncPermissions($request->permissions);

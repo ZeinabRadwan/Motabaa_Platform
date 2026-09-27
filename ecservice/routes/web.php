@@ -32,7 +32,7 @@ use Illuminate\Http\Request;
 Route::get('/download/{file_path}', function (Request $request) {
 
 	$fileSystem = new LaravelFileSystem();
-	return $fileSystem->download($request->file_path, $request->token, $request->expires);
+	return $fileSystem->download($request->file_path, false, $request->token, $request->expires);
 
 })->where('file_path', '.*');
 

@@ -7,7 +7,7 @@ const APP_AND_PAGES_TEMPLATE = [
     children: [
       { identifier: 'cases-add', title: 'Register', to: { name: 'cases-add' }, action: 'edit_cases', subject: 'edit_cases' },
       { identifier: 'cases-assessments', title: 'Assessment', to: { name: 'cases-assessments' }, action: 'access_assessments_cases', subject: 'access_assessments_cases' },
-      { identifier: 'cases', title: 'Show Cases', to: { name: 'cases-list' }, action: 'access_cases', subject: 'access_cases' },
+      { identifier: 'cases', title: 'Show Cases', to: { name: 'cases-list' }, action: 'access_cases_mine', subject: 'access_cases_mine', actionsAny: ['access_cases_mine', 'access_cases_all', 'access_cases', 'admin_cases'] },
     ],
   },
   {
@@ -74,6 +74,14 @@ const APP_AND_PAGES_TEMPLATE = [
     action: 'access_meetings',
     subject: 'access_meetings',
     to: { name: 'meeting-rooms-list' },
+  },
+  {
+    identifier: 'center-activities',
+    title: 'center_activities.menu',
+    icon: { icon: 'tabler-calendar-event' },
+    action: 'access_center-activities',
+    subject: 'access_center-activities',
+    to: { name: 'center-activities-list' },
   },
   {
     identifier: 'study-fees',

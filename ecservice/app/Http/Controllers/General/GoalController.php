@@ -40,10 +40,8 @@ class GoalController extends Controller
         
         $center = Term::resolveCenterId($user, $request->center_id);
 
-        // Listing goals across every case must not widen what this user can see.
-        // Asking for one specific case keeps the original center-only check.
-        $restrictCases = !$request->case_id
-            && !$user->can('admin_cases')
+        // Listing goals must not widen what this user can see, even when a case_id is sent.
+        $restrictCases = !$user->can('admin_cases')
             && !Term::canManageAllCenterTerms($user, $center);
 
         $sessionsCountMin = $request->sessions_count_min;
@@ -437,24 +435,30 @@ class GoalController extends Controller
     public function show(Request $request, Goal $goal){
 
         $user = auth()->user();
-        $center = Term::resolveCenterId($user, $request->center_id);
-
         $goal = $goal->load('case')->loadCount([
             'messages as started_sessions_count' => function ($query) {
                 $query->where('type', Message::SYS_STARTED_SESSION);
             },
             'evaluation_steps as evaluation_steps_count',
         ]);
-        $denied = Term::abortIfInaccessible($user, $center ?: $goal->case->center_id, $goal->term_id);
+
+        if (!$goal->case) {
+            return Term::forbiddenResponse();
+        }
+
+        $center = Term::resolveCenterId($user, $request->center_id) ?: (int) $goal->case->center_id;
+        $denied = Term::abortIfInaccessible($user, $center, $goal->term_id);
         if ($denied) {
             return $denied;
         }
-        if($goal->case->center_id == $center)
-            $goal = new GoalsResource($goal);
-        else
-            $goal = null;
+        if ((int) $goal->case->center_id !== (int) $center && !Term::canViewPastTerms($user)) {
+            return Term::forbiddenResponse();
+        }
+        if (!SCase::userCanAccessCase($user, $goal->case)) {
+            return Term::forbiddenResponse();
+        }
 
-        return apiResponse($goal);
+        return apiResponse(new GoalsResource($goal));
     }
 
     public function put(GoalRequest $request, $goal = null){
@@ -707,10 +711,8 @@ class GoalController extends Controller
             return Term::forbiddenResponse();
         }
 
-        // Listing goals across every case must not widen what this user can see.
-        // Asking for one specific case keeps the original center-only check.
-        $restrictCases = !$request->case_id
-            && !$user->can('admin_cases')
+        // Listing goals must not widen what this user can see, even when a case_id is sent.
+        $restrictCases = !$user->can('admin_cases')
             && !Term::canManageAllCenterTerms($user, $center);
 
         $goals = Goal::select(
@@ -878,8 +880,7 @@ class GoalController extends Controller
 
         // Case and term are optional: without them every domain the user may see
         // is listed, so the dropdown is usable on its own.
-        $restrictCases = !$request->case_id
-            && !$user->can('admin_cases')
+        $restrictCases = !$user->can('admin_cases')
             && !Term::canManageAllCenterTerms($user, $center);
 
         $goals = Goal::query()

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import MessageSend from '@/views/messages/MessageSend.vue';
 import Message from '@/views/messages/Message.vue';
 import { can, canDoes } from '@layouts/plugins/casl'
+import { canRunEducationSessions, isParentUser } from '@core/utils/staffSessionVisibility'
 import { returnIdUserIfNotAdmin, isUser } from "@core/utils/helper";
 import {
   performanceEvaluationItems,
@@ -55,8 +56,7 @@ const casesItem = ref([]);
 const selectedCase = ref(null);
 const selectedTerm = ref(null);
 const itemsTerm = ref([]);
-const selectedFrom = ref(null);
-const selectedTo = ref(null);
+const pageError = ref(false);
 const teacherItems = ref([])
 const teacher = ref(returnIdUserIfNotAdmin() ?? null)
 const uploadPercentage = ref(0);
@@ -92,14 +92,24 @@ const fetchMessages = () => {
 
 const fetchGoal = () => {
   goalsReqest.fetchGoal(route.params.goal).then(response => {
+    if (!response.data.data) {
+      pageError.value = true
+      return
+    }
     selectedGoal.value = response.data.data
+    goals.value = [response.data.data]
   }).catch(error => {
+    pageError.value = true
     console.error(error)
   })
 }
 
 const fetchSteps = async () => {
   steps.value = []
+  if (isParentUser()) {
+    loading.value.steps = false
+    return
+  }
   loading.value.steps = true
   try {
     const first = await goalsReqest.fetchSteps({
@@ -129,10 +139,12 @@ const fetchSteps = async () => {
 }
 
 const fetchTerm = () => {
-  termsReqest.fetchTerm(route.params.term).then(response => {
+  termsReqest.fetchTerm(route.params.term, { silentForbidden: true }).then(response => {
+    if (!response.data.data)
+      return
     selectedTerm.value = response.data.data
-  }).catch(error => {
-    console.error(error)
+    itemsTerm.value = [response.data.data]
+  }).catch(() => {
   })
 }
 
@@ -140,20 +152,33 @@ const fetchCase = () => {
   loading.value.cases = true;
   casesReqest.fetchCase(route.params.case).then(response => {
     loading.value.cases = false;
+    if (!response.data.data) {
+      pageError.value = true
+      return
+    }
     selectedCase.value = response.data.data
     casesItem.value = [{ id: response.data.data.id, name: response.data.data.name }]
     fetchSteps() 
     fetchMessages()
   }).catch(error => {
+      loading.value.cases = false;
+      pageError.value = true
       console.error(error)
   })
 };
 
-fetchCase()
-fetchTerm()
-fetchGoal()
+watch(
+  () => [String(route.params.case), String(route.params.term), String(route.params.goal)],
+  () => {
+    pageError.value = false
+    fetchCase()
+    fetchTerm()
+    fetchGoal()
+  },
+  { immediate: true },
+)
 
-if(!canDoes('parent')) {
+if(!isParentUser()) {
   isDraggable.value = true
 }
 
@@ -197,7 +222,7 @@ const translatedHeaders = () => {
     }
   ]
 
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     headers.push({
       title: 'Actions',
       key: 'actions',
@@ -278,7 +303,7 @@ const sendMeesage = (data, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -289,7 +314,7 @@ const deleteMessage = (id, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -306,14 +331,14 @@ const restoreStep = id => {
 }
 
 const startDarg = (e, item) => {
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     e.dataTransfer.setData('itemID', e.currentTarget.dataset.id)
     e.dataTransfer.setData('itemOrder', e.currentTarget.dataset.order)
   }
 }
 
 const onDrop = (e) => {
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     var itemID = e.dataTransfer.getData('itemID')
     var itemOrder = e.dataTransfer.getData('itemOrder')
     var itemNewOrder = e.currentTarget.dataset.order
@@ -336,7 +361,12 @@ const onDrop = (e) => {
 </script>
 
 <template>
-  <section v-if="selectedCase && selectedTerm && selectedGoal">
+  <section v-if="pageError">
+    <VAlert type="error" variant="tonal">
+      {{ $t('Not Authorized') }}
+    </VAlert>
+  </section>
+  <section v-else-if="selectedCase && selectedGoal">
     <VRow class="mb-4">
       <VCol cols="12">
         <VCard>
@@ -348,8 +378,7 @@ const onDrop = (e) => {
                 sm="6"
               >
                 <AppAutocomplete
-                  v-model="selectedCase"
-                  v-model:search="search"
+                  :model-value="selectedCase.id"
                   :label="$t('Cases')"
                   :item-title="'name'"
                   :item-value="'id'"
@@ -357,8 +386,6 @@ const onDrop = (e) => {
                   :placeholder="$t('Type Case Name')"
                   :items="casesItem"
                   :disabled="true"
-                  clear-icon="tabler-x"
-                  clearable
                 />
               </VCol>
               <VCol
@@ -366,12 +393,12 @@ const onDrop = (e) => {
                 sm="6"
               >
                 <AppSelect
-                  v-model="selectedTerm"
+                  :model-value="selectedTerm ? selectedTerm.id : Number(route.params.term)"
                   :label="$t('term')"
-                  :items="itemsTerm"
+                  :items="itemsTerm.length ? itemsTerm : [{ id: Number(route.params.term), title: String(route.params.term) }]"
+                  item-title="title"
+                  item-value="id"
                   :disabled="true"
-                  clear-icon="tabler-x"
-                  clearable
                 />
               </VCol>
               <VCol
@@ -379,8 +406,7 @@ const onDrop = (e) => {
                 sm="8"
               >
                 <AppAutocomplete
-                  v-model="selectedGoal"
-                  @update:modelValue="selectedGoal"
+                  :model-value="selectedGoal.id"
                   :label="$t('goals.goal_behavioral')"
                   :items="goals"
                   :loading="loading.goals"
@@ -388,8 +414,6 @@ const onDrop = (e) => {
                   :item-value="'id'"
                   :placeholder="$t('Type to search')"
                   :disabled="true"
-                  clear-icon="tabler-x"
-                  clearable
                 >
                 </AppAutocomplete>
               </VCol>
@@ -400,7 +424,10 @@ const onDrop = (e) => {
       </vcol>
     </VRow>
 
-    <VCard class="mb-4">
+    <VCard
+      v-if="!isParentUser()"
+      class="mb-4"
+    >
       <v-card-title>
         <div class="d-flex flex-wrap py-4 gap-4">
           <div class="me-3 d-flex gap-3 align-center">
@@ -420,7 +447,7 @@ const onDrop = (e) => {
           <VSpacer />
 
           <div class="justify-end d-flex align-center flex-wrap gap-4">
-            <VBtn v-if="can('edit_education-sessions','edit_education-sessions')" @click="addStep">
+            <VBtn v-if="canRunEducationSessions()" @click="addStep">
               {{ $t('goals.add_procedural_goal') }}
             </VBtn>
           </div>
@@ -490,8 +517,8 @@ const onDrop = (e) => {
                 </div>
               </td>
 
-              <td v-if="!canDoes('parent')">
-                <IconBtn v-if="can('edit_education-sessions','edit_education-sessions')" :title="$t('Edit')" @click="editStep(step)">
+              <td v-if="!isParentUser()">
+                <IconBtn v-if="canRunEducationSessions()" :title="$t('Edit')" @click="editStep(step)">
                   <VIcon icon="tabler-edit" />
                 </IconBtn>
                 <IconBtn v-if="!step.deleted_at && can('admin_education-sessions','admin_education-sessions')" :title="$t('delete')" @click="deleteStep(step.id)">
@@ -505,7 +532,7 @@ const onDrop = (e) => {
         </tbody>
       </VTable>
     </VCard>
-    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (can('edit_education-sessions','edit_education-sessions') || canDoes('parent'))" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
+    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (canRunEducationSessions() || isParentUser())" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
     <div>
       <Message 
         v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_education-sessions','admin_education-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
@@ -604,6 +631,9 @@ const onDrop = (e) => {
     </VDialog>
 
     <SnackbarComponent ref="snackbarRef" />
+  </section>
+  <section v-else>
+    <VProgressLinear indeterminate />
   </section>
 </template>
 

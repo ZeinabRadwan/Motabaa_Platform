@@ -19,6 +19,16 @@ class SyncPermissionsCommand extends Command
             PermissionCatalog::grantCatalogToAdmin();
         }
 
+        if (! empty($result['cases_view_migration'])) {
+            $m = $result['cases_view_migration'];
+            $this->info('Cases view migration: roles with mine/all='.$m['roles_migrated'].', direct users='.$m['users_migrated'].', legacy revoked='.$m['legacy_revoked']);
+        }
+
+        if (! empty($result['center_activities_migration'])) {
+            $m = $result['center_activities_migration'];
+            $this->info('Center activities migration: roles updated='.$m['roles_updated'].', legacy revoked='.$m['legacy_revoked']);
+        }
+
         $this->info('Created: '.count($result['created']));
         foreach ($result['created'] as $name) {
             $this->line('  + '.$name);

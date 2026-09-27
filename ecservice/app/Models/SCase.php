@@ -200,6 +200,22 @@ class SCase extends Model
                     ->wherePivotIn('scase_user.relationship_type', $types );
     }
 
+    /**
+     * Cases where the user is assigned as staff (any non-parent relationship on scase_user).
+     */
+    public function scopeAssignedToStaffUser(Builder $query, $userId): void
+    {
+        $query->whereExists(function ($pivot) use ($userId) {
+            $pivot->selectRaw('1')
+                ->from('scase_user')
+                ->join('users', 'users.id', '=', 'scase_user.user_id')
+                ->whereColumn('scase_user.scase_id', 'scases.id')
+                ->where('scase_user.user_id', $userId)
+                ->where('scase_user.relationship_type', '!=', System::USER_TYPE_PARENT)
+                ->whereNull('users.deleted_at');
+        });
+    }
+
     public function scopeUsersRoles(Builder $query, $roles, $userId): void
     {
         $this->userRoles = $roles;
@@ -246,6 +262,26 @@ class SCase extends Model
                 $pivot->whereIn('scase_user.relationship_type', $types);
             }
         });
+    }
+
+    public static function userCanAccessCase($user, $case): bool
+    {
+        if (!$user || !$case) {
+            return false;
+        }
+
+        if ($user->can('admin_cases') || Term::canManageAllCenterTerms($user, $case->center_id)) {
+            return true;
+        }
+
+        if (\App\Support\CaseListAccess::canViewAllCenterCases($user)) {
+            return $user->isInCenter($case->center_id) || Term::canViewPastTerms($user);
+        }
+
+        return static::query()
+            ->where('scases.id', $case->id)
+            ->assignedToStaffUser($user->id)
+            ->exists();
     }
 
     public function storagePath() {

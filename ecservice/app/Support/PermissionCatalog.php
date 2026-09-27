@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\User;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -19,7 +20,8 @@ class PermissionCatalog
                 'label' => 'Cases',
                 'label_local' => 'الحالات',
                 'permissions' => [
-                    'access_cases' => ['Access cases', 'عرض الحالات'],
+                    'access_cases_mine' => ['View assigned cases only', 'عرض حالاته فقط'],
+                    'access_cases_all' => ['View all center cases', 'عرض جميع الحالات'],
                     'show_cases' => ['View case details', 'عرض تفاصيل الحالة'],
                     'edit_cases' => ['Create and edit cases', 'إضافة وتعديل الحالات'],
                     'admin_cases' => ['Delete and restore cases', 'حذف واستعادة الحالات'],
@@ -159,6 +161,17 @@ class PermissionCatalog
                     'admin_meetings' => ['Delete and restore meetings', 'حذف واستعادة الاجتماعات'],
                 ],
             ],
+            'center-activities' => [
+                'label' => 'Activities and events',
+                'label_local' => 'الأنشطة والفعاليات',
+                'permissions' => [
+                    'access_center-activities' => ['View activities and events', 'عرض الأنشطة والفعاليات'],
+                    'add_center-activities' => ['Add activity or event', 'إضافة نشاط/فعالية'],
+                    'edit_center-activities' => ['Edit activity or event', 'تعديل نشاط/فعالية'],
+                    'delete_center-activities' => ['Delete activity or event', 'حذف نشاط/فعالية'],
+                    'manage_center-activities_content' => ['Manage activity content (comments and media)', 'إدارة محتوى الفعالية'],
+                ],
+            ],
             'study-fees' => [
                 'label' => 'Study fees',
                 'label_local' => 'الرسوم الدراسية',
@@ -273,7 +286,7 @@ class PermissionCatalog
 
     public static function actionOf(string $name): string
     {
-        foreach (['access', 'show', 'edit', 'admin', 'apply'] as $action) {
+        foreach (['access', 'show', 'edit', 'admin', 'apply', 'add', 'delete', 'manage'] as $action) {
             if (str_starts_with($name, $action.'_')) {
                 return $action;
             }
@@ -308,7 +321,168 @@ class PermissionCatalog
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return compact('created', 'updated');
+        $migration = self::migrateCasesViewPermissions();
+        $centerActivitiesMigration = self::migrateCenterActivitiesPermissions();
+
+        return array_merge(compact('created', 'updated'), [
+            'cases_view_migration' => $migration,
+            'center_activities_migration' => $centerActivitiesMigration,
+        ]);
+    }
+
+    /**
+     * Maps legacy center-activities permissions to the simplified catalog (runs on sync).
+     */
+    public static function migrateCenterActivitiesPermissions(): array
+    {
+        $add = CenterActivityAccess::PERM_ADD;
+        $edit = CenterActivityAccess::PERM_EDIT;
+        $delete = CenterActivityAccess::PERM_DELETE;
+        $manage = CenterActivityAccess::PERM_MANAGE_CONTENT;
+        $legacy = CenterActivityAccess::LEGACY_PERMISSIONS;
+
+        $stats = ['roles_updated' => 0, 'legacy_revoked' => 0];
+
+        $grant = function ($model, string $guard, array $names) {
+            if (! method_exists($model, 'givePermissionTo')) {
+                return;
+            }
+            foreach ($names as $name) {
+                if (Permission::where('name', $name)->where('guard_name', $guard)->exists()
+                    && ! $model->hasPermissionTo($name, $guard)) {
+                    $model->givePermissionTo($name);
+                }
+            }
+        };
+
+        $revokeLegacy = function ($model, string $guard) use ($legacy, &$stats) {
+            if (! method_exists($model, 'revokePermissionTo')) {
+                return;
+            }
+            foreach ($legacy as $name) {
+                if ($model->hasPermissionTo($name, $guard)) {
+                    $model->revokePermissionTo($name);
+                    $stats['legacy_revoked']++;
+                }
+            }
+        };
+
+        $migrateModel = function ($model, string $guard) use ($add, $edit, $delete, $manage, $grant, $revokeLegacy, &$stats) {
+            $hadLegacyAdmin = $model->hasPermissionTo('admin_center-activities', $guard);
+            $hadLegacyEdit = $model->hasPermissionTo($edit, $guard);
+            $hadLegacyContent = canAny([
+                'add_center-activities_entry',
+                'upload_center-activities_image',
+                'upload_center-activities_video',
+                'upload_center-activities_file',
+            ], $model);
+
+            $toGrant = [];
+            if ($hadLegacyEdit) {
+                $toGrant[] = $add;
+                $toGrant[] = $edit;
+            }
+            if ($hadLegacyAdmin) {
+                $toGrant[] = $delete;
+                $toGrant[] = $manage;
+            }
+            if ($hadLegacyContent) {
+                $toGrant[] = $manage;
+            }
+
+            if ($toGrant !== []) {
+                $grant($model, $guard, array_unique($toGrant));
+                $stats['roles_updated']++;
+            }
+
+            $revokeLegacy($model, $guard);
+        };
+
+        foreach (Role::where('guard_name', 'web')->get() as $role) {
+            $migrateModel($role, 'web');
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return $stats;
+    }
+
+    /**
+     * Maps legacy access_cases to the split view permissions (runs on sync).
+     *
+     * - access_cases (عرض الحالات) on a role without admin_cases → access_cases_mine
+     * - admin_cases on a role → access_cases_all (full center list; same as previous admin bypass)
+     * - access_cases + admin_cases → access_cases_mine + access_cases_all, then legacy revoked
+     */
+    public static function migrateCasesViewPermissions(): array
+    {
+        $mineName = CaseListAccess::PERM_MINE;
+        $allName = CaseListAccess::PERM_ALL;
+        $legacyName = CaseListAccess::PERM_LEGACY;
+
+        foreach ([$mineName, $allName] as $name) {
+            if (! Permission::where('name', $name)->where('guard_name', 'web')->exists()) {
+                $definition = self::definitions()[$name] ?? null;
+                if ($definition) {
+                    Permission::create([
+                        'name' => $name,
+                        'name_local' => $definition['name_local'],
+                        'guard_name' => 'web',
+                    ]);
+                }
+            }
+        }
+
+        $stats = ['roles_migrated' => 0, 'users_migrated' => 0, 'legacy_revoked' => 0];
+
+        $apply = function ($model, string $guard) use ($mineName, $allName, $legacyName, &$stats) {
+            if (! method_exists($model, 'hasPermissionTo')) {
+                return;
+            }
+
+            $hasLegacy = $model->hasPermissionTo($legacyName, $guard);
+            $hasAdmin = $model->hasPermissionTo('admin_cases', $guard);
+
+            if ($hasAdmin && ! $model->hasPermissionTo($allName, $guard)) {
+                $model->givePermissionTo($allName);
+            }
+
+            if ($hasLegacy) {
+                if ($hasAdmin) {
+                    if (! $model->hasPermissionTo($allName, $guard)) {
+                        $model->givePermissionTo($allName);
+                    }
+                } elseif (! $model->hasPermissionTo($mineName, $guard)) {
+                    $model->givePermissionTo($mineName);
+                }
+
+                $model->revokePermissionTo($legacyName);
+                $stats['legacy_revoked']++;
+            }
+        };
+
+        foreach (Role::where('guard_name', 'web')->get() as $role) {
+            $apply($role, 'web');
+        }
+
+        $stats['roles_migrated'] = Role::where('guard_name', 'web')
+            ->whereHas('permissions', fn ($q) => $q->whereIn('name', [$mineName, $allName]))
+            ->count();
+
+        foreach (User::whereHas('permissions', fn ($q) => $q->where('name', $legacyName))->get() as $user) {
+            $apply($user, 'web');
+            $stats['users_migrated']++;
+        }
+
+        foreach (Role::where('guard_name', 'web')->get() as $role) {
+            if ($role->hasPermissionTo('admin_cases') && ! $role->hasPermissionTo($allName)) {
+                $role->givePermissionTo($allName);
+            }
+        }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return $stats;
     }
 
     public static function syncIfNeeded(): array

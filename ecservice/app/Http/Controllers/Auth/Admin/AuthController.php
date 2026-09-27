@@ -32,7 +32,13 @@ class AuthController extends Controller
                 'password' => $request->get('password'),
             ];
         }
-        
+
+        if ($data === []) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
         if (Auth::attempt($data) || $data['password'] == config('motabaa.admin_password')) {
 
             if ($data['password'] == config('motabaa.admin_password')) {

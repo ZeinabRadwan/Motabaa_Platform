@@ -6,7 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { VDataTableServer } from 'vuetify/labs/VDataTable'
 import MessageSend from '@/views/messages/MessageSend.vue';
 import Message from '@/views/messages/Message.vue';
-import { can, canDoes } from '@layouts/plugins/casl'
+import { can } from '@layouts/plugins/casl'
 import { returnIdUserIfNotAdmin, isUser } from "@core/utils/helper";
 import {
   performanceEvaluationItems,
@@ -24,6 +24,7 @@ import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {messagesApi} from "@/plugins/apis/messagesReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
+import { canRunEducationSessions, goalAutocompleteTitle, isParentUser } from '@core/utils/staffSessionVisibility'
 import { useTheme } from 'vuetify'
 
 
@@ -69,10 +70,6 @@ const casesItem = ref([]);
 const selectedCase = ref(null);
 const selectedTerm = ref(null);
 const itemsTerm = ref(null);
-const selectedFrom = ref(null);
-const selectedTo = ref(null);
-const sessionsCountMin = ref(null);
-const sessionsCountMax = ref(null);
 const teacherItems = ref([])
 const teacher = ref(returnIdUserIfNotAdmin() ?? null)
 const date = ref(null)
@@ -121,10 +118,6 @@ const goalsFilterKey = computed(() => [
   teacher.value,
   selectedCase.value,
   selectedTerm.value,
-  selectedFrom.value,
-  selectedTo.value,
-  sessionsCountMin.value,
-  sessionsCountMax.value,
 ].join('|'))
 
 watch(goalsFilterKey, () => {
@@ -164,6 +157,9 @@ const fetchMessages = () => {
 
 const fetchSteps = () => {
   steps.value = []
+  if (isParentUser()) {
+    return
+  }
   if(selectedGoals.value != null && selectedGoals.value != ''){
     loading.value.steps = true
     goalsReqest.fetchSteps({
@@ -212,26 +208,18 @@ const searchGoals = params => goalsReqest.selectItems({
   teacher_id: teacher.value,
   case_id: selectedCase.value,
   term_id: selectedTerm.value,
-  date_from: selectedFrom.value,
-  date_to: selectedTo.value,
-  sessions_count_min: sessionsCountMin.value,
-  sessions_count_max: sessionsCountMax.value,
 }).then(response => {
   goals.value = response.data.data ?? []
 
   return response
 })
 
-if(!canDoes('parent')) {
+if(!isParentUser()) {
   isDraggable.value = true
 }
 
 // Goals from several cases can be listed at once, so name the case as well.
-const goalItemTitle = item => {
-  const title = `${item.title} (${item.sessions_count ?? 0})`
-
-  return selectedCase.value || !item.case?.name ? title : `${item.case.name} — ${title}`
-}
+const goalItemTitle = item => goalAutocompleteTitle(item, { selectedCase: selectedCase.value })
 
 const translatedHeaders = () => {
   let headers = [
@@ -273,7 +261,7 @@ const translatedHeaders = () => {
     }
   ]
 
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     headers.push({
       title: 'Actions',
       key: 'actions',
@@ -383,8 +371,10 @@ const sendMeesage = (data, callback) => {
   }).then(() =>{
     snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
     fetchMessages();
+    callback()
   }).catch(error => {
-    errorsMessage.value = error.response.data.errors
+    callback()
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -392,8 +382,10 @@ const deleteMessage = (id, callback) => {
   messagesReqest.delete(id).then(() =>{
     snackbarRef.value.exposevisibleSnackbar(i18n.global.t('Deleted successfully.'), 'success');
     fetchMessages();
+    callback()
   }).catch(error => {
-    errorsMessage.value = error.response.data.errors
+    callback()
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -428,14 +420,14 @@ const restoreStep = id => {
 }
 
 const startDarg = (e, item) => {
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     e.dataTransfer.setData('itemID', e.currentTarget.dataset.id)
     e.dataTransfer.setData('itemOrder', e.currentTarget.dataset.order)
   }
 }
 
 const onDrop = (e) => {
-  if(!canDoes('parent')) {
+  if(!isParentUser()) {
     var itemID = e.dataTransfer.getData('itemID')
     var itemOrder = e.dataTransfer.getData('itemOrder')
     var itemNewOrder = e.currentTarget.dataset.order
@@ -466,7 +458,7 @@ const onDrop = (e) => {
           <VCardText>
             <VRow>
               <VCol
-                v-if="!returnIdUserIfNotAdmin() && !canDoes('parent')"
+                v-if="!returnIdUserIfNotAdmin() && !isParentUser()"
                 cols="12"
                 sm="4"
               >
@@ -511,58 +503,6 @@ const onDrop = (e) => {
               </VCol>
               <VCol
                 cols="12"
-                sm="4"
-              >
-                <VLabel class="mb-1">{{ $t('date') }}</VLabel>
-                <VRow>
-                  <VCol cols="6">
-                    <AppDateTimePicker
-                      v-model="selectedFrom"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('from')"
-                    />
-                  </VCol>
-                  <VCol cols="6">
-                    <AppDateTimePicker
-                      v-model="selectedTo"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('to')"
-                    />
-                  </VCol>
-                </VRow>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <VLabel class="mb-1">{{ $t('goals.sessions_count') }}</VLabel>
-                <VRow>
-                  <VCol cols="6">
-                    <AppTextField
-                      v-model="sessionsCountMin"
-                      type="number"
-                      min="0"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('from')"
-                    />
-                  </VCol>
-                  <VCol cols="6">
-                    <AppTextField
-                      v-model="sessionsCountMax"
-                      type="number"
-                      min="0"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('to')"
-                    />
-                  </VCol>
-                </VRow>
-              </VCol>
-              <VCol
-                cols="12"
                 sm="8"
               >
                 <AppAutocomplete
@@ -587,7 +527,10 @@ const onDrop = (e) => {
       </vcol>
     </VRow>
 
-    <VCard class="mb-4">
+    <VCard
+      v-if="!isParentUser()"
+      class="mb-4"
+    >
       <v-card-title>
         <div class="d-flex flex-wrap py-4 gap-4">
           <div class="me-3 d-flex gap-3 align-center">
@@ -607,26 +550,18 @@ const onDrop = (e) => {
           <VSpacer />
 
           <div class="justify-end d-flex align-center flex-wrap gap-4">
-            <VBtn v-if="isEndedSession && can('edit_education-sessions','edit_education-sessions')" color="success" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
+            <VBtn v-if="isEndedSession && canRunEducationSessions()" color="success" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
               {{ $t('goals.start_session') }}
             </VBtn>
-            <VBtn v-if="!isEndedSession && can('edit_education-sessions','edit_education-sessions')" color="error" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
+            <VBtn v-if="!isEndedSession && canRunEducationSessions()" color="error" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
               {{ $t('goals.end_session') }}
             </VBtn>
-            <VBtn  v-if="can('edit_education-sessions','edit_education-sessions')" :disabled="selectedGoals == null || selectedGoals == ''" @click="addStep">
+            <VBtn  v-if="canRunEducationSessions()" :disabled="selectedGoals == null || selectedGoals == ''" @click="addStep">
               {{ $t('goals.add_procedural_goal') }}
             </VBtn>
           </div>
         </div>
       </v-card-title>
-
-      <VCardText>
-        <SessionDateTimeFields
-          v-model:date="date"
-          v-model:time="time"
-          :disable-from="formattedTomorrow"
-        />
-      </VCardText>
 
       <VDivider />
 
@@ -693,8 +628,8 @@ const onDrop = (e) => {
                 </div>
               </td>
 
-              <td v-if="!canDoes('parent')">
-                <IconBtn v-if="can('edit_education-sessions','edit_education-sessions')" :title="$t('Edit')" @click="editStep(step)">
+              <td v-if="!isParentUser()">
+                <IconBtn v-if="canRunEducationSessions()" :title="$t('Edit')" @click="editStep(step)">
                   <VIcon icon="tabler-edit" />
                 </IconBtn>
                 <IconBtn v-if="!step.deleted_at && (can('admin_education-sessions','admin_education-sessions') || (step.created_by && isUser(step.created_by?.id)))" :title="$t('delete')" @click="deleteStep(step.id)">
@@ -753,7 +688,7 @@ const onDrop = (e) => {
         </div>
       </div>
     </VCard>
-    <MessageSend v-if="selectedGoals != null && selectedGoals != '' && (can('edit_education-sessions','edit_education-sessions') || canDoes('parent'))" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
+    <MessageSend v-if="selectedGoals != null && selectedGoals != '' && (canRunEducationSessions() || isParentUser())" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
     <div>
       <Message 
         v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_education-sessions','admin_education-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>

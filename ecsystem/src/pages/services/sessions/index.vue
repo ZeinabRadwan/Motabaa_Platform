@@ -20,6 +20,7 @@ import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {messagesApi} from "@/plugins/apis/messagesReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
+import { canRunTreatmentSessions, goalAutocompleteTitle, isParentUser } from '@core/utils/staffSessionVisibility'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,10 +55,6 @@ const casesItem = ref([]);
 const selectedCase = ref(null);
 const selectedTerm = ref(null);
 const itemsTerm = ref(null);
-const selectedFrom = ref(null);
-const selectedTo = ref(null);
-const sessionsCountMin = ref(null);
-const sessionsCountMax = ref(null);
 const selectedScaleType = ref(null)
 const specialist = ref(returnIdUserIfNotAdmin() ?? null)
 const isDialogVisibleDate = ref(false)
@@ -104,10 +101,6 @@ const goalsFilterKey = computed(() => [
   selectedScaleType.value,
   selectedCase.value,
   selectedTerm.value,
-  selectedFrom.value,
-  selectedTo.value,
-  sessionsCountMin.value,
-  sessionsCountMax.value,
 ].join('|'))
 
 watch(goalsFilterKey, () => {
@@ -154,10 +147,6 @@ const searchGoals = params => goalsReqest.selectItems({
   category : selectedScaleType.value,
   case_id: selectedCase.value,
   term_id: selectedTerm.value,
-  date_from: selectedFrom.value,
-  date_to: selectedTo.value,
-  sessions_count_min: sessionsCountMin.value,
-  sessions_count_max: sessionsCountMax.value,
 }).then(response => {
   goals.value = response.data.data ?? []
   return response
@@ -176,11 +165,7 @@ const searchCases = params => casesReqest.selectItems({
   return response
 })
 
-const goalItemTitle = item => {
-  const title = `${item.title} (${item.sessions_count ?? 0})`
-
-  return selectedCase.value || !item.case?.name ? title : `${item.case.name} — ${title}`
-}
+const goalItemTitle = item => goalAutocompleteTitle(item, { selectedCase: selectedCase.value })
 
 const selectedGoal = (value) => {
   let goal = goals.value.find(item => item.id === value)
@@ -221,7 +206,7 @@ const sendMeesage = (data, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -232,7 +217,7 @@ const deleteMessage = (id, callback) => {
     callback()
   }).catch(error => {
     callback()
-    errorsMessage.value = error.response.data.errors
+    errorsMessage.value = error.response?.data?.errors || {}
   })
 }
 
@@ -308,7 +293,7 @@ const putGoal = () =>{
                 />
               </VCol>
               <VCol
-                v-if="!returnIdUserIfNotAdmin() && !canDoes('parent')"
+                v-if="!returnIdUserIfNotAdmin() && !isParentUser()"
                 cols="12"
                 sm="4"
               > 
@@ -355,58 +340,6 @@ const putGoal = () =>{
                 cols="12"
                 sm="4"
               >
-                <VLabel class="mb-1">{{ $t('date') }}</VLabel>
-                <VRow>
-                  <VCol cols="6">
-                    <AppDateTimePicker
-                      v-model="selectedFrom"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('from')"
-                    />
-                  </VCol>
-                  <VCol cols="6">
-                    <AppDateTimePicker
-                      v-model="selectedTo"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('to')"
-                    />
-                  </VCol>
-                </VRow>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
-                <VLabel class="mb-1">{{ $t('goals.sessions_count') }}</VLabel>
-                <VRow>
-                  <VCol cols="6">
-                    <AppTextField
-                      v-model="sessionsCountMin"
-                      type="number"
-                      min="0"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('from')"
-                    />
-                  </VCol>
-                  <VCol cols="6">
-                    <AppTextField
-                      v-model="sessionsCountMax"
-                      type="number"
-                      min="0"
-                      clearable
-                      clear-icon="tabler-x"
-                      :placeholder="$t('to')"
-                    />
-                  </VCol>
-                </VRow>
-              </VCol>
-              <VCol
-                cols="12"
-                sm="4"
-              >
                 <AppAutocomplete
                   v-model="selectedGoals"
                   @update:modelValue="selectedGoal"
@@ -446,7 +379,7 @@ const putGoal = () =>{
           </div>
           <VSpacer />
           <VBtn  
-            v-if="can('edit_treatment-sessions','edit_treatment-sessions')" 
+            v-if="canRunTreatmentSessions()" 
             prepend-icon="tabler-edit"
             @click="goalDialog(goal)"
           >
@@ -454,22 +387,15 @@ const putGoal = () =>{
           </VBtn>
 
           <div class="justify-end d-flex align-center flex-wrap gap-4">
-            <VBtn  v-if="isEndedSession  && can('edit_treatment-sessions','edit_treatment-sessions')" color="success" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
+            <VBtn  v-if="isEndedSession  && canRunTreatmentSessions()" color="success" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
                 {{ $t('goals.start_session') }}
               </VBtn>
-              <VBtn  v-if="!isEndedSession && can('edit_treatment-sessions','edit_treatment-sessions')" color="error" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
+              <VBtn  v-if="!isEndedSession && canRunTreatmentSessions()" color="error" :disabled="selectedGoals == null || selectedGoals == ''" @click="startEndSession()">
                 {{ $t('goals.end_session') }}
               </VBtn>
           </div>
         </div>
       </v-card-title>
-      <VCardText>
-        <SessionDateTimeFields
-          v-model:date="date"
-          v-model:time="time"
-          :disable-from="formattedTomorrow"
-        />
-      </VCardText>
       <VCardText >
         <VRow>
           <VCol
@@ -491,7 +417,7 @@ const putGoal = () =>{
               color="primary"
               icon="tabler-calendar"
             />
-            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(goal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(goal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") }} {{ moment(goal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(goal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')' }}</span>
+            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(goal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(goal.date_from).locale(i18n.global.locale.value).format("D MMMM YYYY") }}<template v-if="!isParentUser()"> {{ moment(goal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(goal.started_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')' }}</template></span>
           </VCol>
           <VCol
             cols="4"
@@ -501,13 +427,13 @@ const putGoal = () =>{
               color="primary"
               icon="tabler-calendar"
             />
-            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(goal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(goal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY")  }} {{ moment(goal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(goal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')'  }}</span>
+            <span class="text-subtitle-2 mr-2 ml-2 font-weight-bold">{{ moment(goal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': moment(goal.date_to).locale(i18n.global.locale.value).format("D MMMM YYYY")  }}<template v-if="!isParentUser()"> {{ moment(goal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY") == 'Invalid date'? '': '('+moment(goal.ended_session).locale(i18n.global.locale.value).format("D MMMM YYYY")+')'  }}</template></span>
 
           </VCol>
         </VRow>
       </VCardText>
     </VCard>
-    <MessageSend v-if="selectedGoals != null && selectedGoals != '' && (can('edit_treatment-sessions','edit_treatment-sessions') || canDoes('parent'))" :isMeeting="false" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
+    <MessageSend v-if="selectedGoals != null && selectedGoals != '' && (canRunTreatmentSessions() || isParentUser())" :isMeeting="false" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
     <div>
       <Message v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_treatment-sessions','admin_treatment-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
     </div>

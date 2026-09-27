@@ -8,6 +8,7 @@ import { VDataTable } from 'vuetify/labs/VDataTable'
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {attendancesApi} from "@/plugins/apis/attendancesReqest"
 import { can } from '@layouts/plugins/casl'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 import {
   termItems,
   attendanceItems
@@ -144,7 +145,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
+  <div v-if="!isParentUser()">
     <VCard>
 
         <VCardText>

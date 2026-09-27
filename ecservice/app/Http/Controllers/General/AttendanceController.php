@@ -10,6 +10,7 @@ use App\Models\Center;
 use App\Http\Resources\Case\SCasesResource;
 use Carbon\Carbon;
 use App\Models\Log;
+use App\Models\Term;
 use App\Models\System\System;
 use App\Models\System\PDF;
 use App\Http\Resources\AttendanceResource;
@@ -21,6 +22,10 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
+
+        if (isParentUser($user)) {
+            return Term::forbiddenResponse();
+        }
 
         $perPage = resolvePerPage($request);
 
@@ -65,6 +70,10 @@ class AttendanceController extends Controller
 
     public function export(Request $request)
     {
+        if (isParentUser()) {
+            return Term::forbiddenResponse();
+        }
+
         $attendance_at = $request->attendance_at;
         $teacher_id = $request->teacher_id;
         $specialist_id = $request->specialist_id;
@@ -146,6 +155,9 @@ class AttendanceController extends Controller
     }
 
     public function put(Request $request, $id = null){
+        if (isParentUser()) {
+            return Term::forbiddenResponse();
+        }
 
         $input = $request->all();
         if($request->status == 'null' || (!$request->status && !($request->status === 0)))
@@ -177,6 +189,11 @@ class AttendanceController extends Controller
     public function index_for_case(Request $request)
     {
         $user = auth()->user();
+
+        if (isParentUser($user)) {
+            return Term::forbiddenResponse();
+        }
+
         $center = null;
         if($request->center_id && $user->isInCenter($request->center_id)) {
             $center = $request->center_id;

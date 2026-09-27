@@ -1,4 +1,5 @@
 import ability from '@/plugins/casl/ability'
+import { canAccessCasesList } from '@core/utils/caseListAccess'
 import { useSessionStore } from '@/stores/useSessionStore'
 
 /**
@@ -55,7 +56,19 @@ export const canNavigate = to => {
       return true;
     }
   } catch (error) { }
-  return to.matched.some(route => ability.can(route.meta.action, route.meta.subject))
+  return to.matched.some(route => {
+    if (route.meta.caseListAccess) {
+      return canAccessCasesList()
+    }
+
+    const action = route.meta.action || ''
+    const subject = route.meta.subject || ''
+    if (!action || !subject) {
+      return false
+    }
+
+    return ability.can(action, subject)
+  })
 }
 
 

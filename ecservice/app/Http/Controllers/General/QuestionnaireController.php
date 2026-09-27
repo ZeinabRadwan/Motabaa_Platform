@@ -68,13 +68,7 @@ class QuestionnaireController extends Controller
     public function questionnaireTask(Request $request){
             
         $user = auth()->user();
-        $center = null;
-        if($request->center_id && $user->isInCenter($request->center_id)) {
-            $center = $request->center_id;
-        }
-        else if($user->centers){ 
-            $center = $user->centers[0]->id;
-        }
+        $center = Term::resolveCenterId($user, $request->center_id);
         
         $currentDate = Carbon::now()->toDateString();
         $currentTerm = Term::whereDate('starts_at', '<=', $currentDate)
@@ -103,13 +97,7 @@ class QuestionnaireController extends Controller
         if($task) {
 
             $user = auth()->user();
-            $center = null;
-            if($request->center_id && $user->isInCenter($request->center_id)) {
-                $center = $request->center_id;
-            }
-            else if($user->centers){ 
-                $center = $user->centers[0]->id;
-            }
+            $center = Term::resolveCenterId($user, $request->center_id);
 
             $task = $task->load('questionnaire');
             if($task->center_id == $center)
@@ -244,13 +232,7 @@ class QuestionnaireController extends Controller
     public function fetchQuestionsWithAnswers(Request $request){
 
         $user = auth()->user();
-        $center = null;
-        if($request->center_id && $user->isInCenter($request->center_id)) {
-            $center = $request->center_id;
-        }
-        else if($user->centers){ 
-            $center = $user->centers[0]->id;
-        }
+        $center = Term::resolveCenterId($user, $request->center_id);
 
         $questionsData = [];
         $task = QuestionnaireTask::find($request->task_id);

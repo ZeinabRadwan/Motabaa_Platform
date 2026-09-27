@@ -106,7 +106,15 @@ class UserResource extends JsonResource
             'annual_leave_entitlement' => $this->annualLeaveEntitlement(),
             'has_password' => $this->password != null,
             'scaseParent'=> $this->whenLoaded('scaseParent'),
-            'roles' => $this->roles,
+            'roles' => collect($this->roles)->map(fn ($role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+                'default_name' => $role->default_name ?? null,
+            ])->values(),
+            'is_parent_user' => $this->when(
+                $this->includePermissions,
+                fn () => isParentUser($this->resource)
+            ),
             'centers' => CenterResource::collection($this->centers),
             'permissions' => $this->when($this->includePermissions, fn () => $this->getAllPermissions()),
             'created_at' => $this->created_at,

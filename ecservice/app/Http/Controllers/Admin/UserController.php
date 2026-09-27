@@ -100,11 +100,8 @@ class UserController extends Controller
             fn ($q) => $q->where('department', $request->department)
         )
         ->when(
-            User::hasWorkShiftColumn() && in_array($request->work_shift, [User::SHIFT_MORNING, User::SHIFT_EVENING], true),
-            fn ($q) => $q->where(function ($query) use ($request) {
-                $query->where('work_shift', $request->work_shift)
-                    ->orWhere('work_shift', User::SHIFT_BOTH);
-            })
+            $request->work_shift,
+            fn ($q) => $q->matchingWorkShift($request->work_shift)
         )
         ->when(
             $request->contract_type,
@@ -145,16 +142,14 @@ class UserController extends Controller
         if($request->export == 'export_employees') {
             
             $users = $users->get();
-            $users = UserResource::collection($users);
-            $fileName = 'Employees '.Carbon::now().'.xlsx';
+            $fileName = ExportExcel::defaultFileName('Employees');
             $token = ExportExcel::saveExcel(new ExportEmployees($users), $fileName);
             return success(['url'=> route('file.download', ['token'=> $token])]);
         }
         else if($request->export == 'export_parents') {
             
             $users = $users->get();
-            $users = UserResource::collection($users);
-            $fileName = 'Parents '.Carbon::now().'.xlsx';
+            $fileName = ExportExcel::defaultFileName('Parents');
             $token = ExportExcel::saveExcel(new ExportParents($users), $fileName);
             return success(['url'=> route('file.download', ['token'=> $token])]);
         }

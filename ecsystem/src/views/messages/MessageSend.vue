@@ -3,14 +3,27 @@ import {
 avatarText,
 kFormatter,
 } from '@core/utils/formatters'
-import { can, canDoes } from '@layouts/plugins/casl'
+import { can } from '@layouts/plugins/casl'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 
 const userListStore = useUserListStore()
 const emit = defineEmits();
-const props = defineProps(['errors', 'isMeeting', 'uploadPercentage']);
+const props = defineProps({
+  errors: { type: Object, default: () => ({}) },
+  isMeeting: { type: Boolean, default: false },
+  uploadPercentage: { type: Number, default: 0 },
+  isCenterActivity: { type: Boolean, default: false },
+  allowImage: { type: Boolean, default: true },
+  allowVideo: { type: Boolean, default: true },
+  allowFile: { type: Boolean, default: true },
+});
 
-const { errors, isMeeting } = toRefs(props);
+const { errors } = toRefs(props);
+
+const centerActivityMode = computed(() => props.isCenterActivity === true)
+const showSessionLogWorkCheckbox = computed(() => !centerActivityMode.value && !props.isMeeting)
+const showParentVisibilityCheckbox = computed(() => !props.isMeeting && !isParentUser())
 
 const userData = JSON.parse(localStorage.getItem('userData') || 'null')
 const fileUpload = ref('')
@@ -88,14 +101,29 @@ const onVideoSelected = () => {
 
 }
 
+const pickUploadedFile = value => {
+  if (typeof File !== 'undefined' && value instanceof File)
+    return value
+  if (Array.isArray(value) && value[0] instanceof File)
+    return value[0]
+  if (value && typeof value === 'object' && value[0] instanceof File)
+    return value[0]
+
+  return null
+}
+
 const send = () => {
 
-  if(isMeeting.value){
+  if (props.isMeeting) {
     parentsCanSee.value = false;
     logWork.value = false;
   }
+
+  if (centerActivityMode.value) {
+    logWork.value = false;
+  }
   
-  if(canDoes('parent')){
+  if (isParentUser()) {
     parentsCanSee.value = true;
     logWork.value = false;
   }
@@ -104,9 +132,9 @@ const send = () => {
     content: text.value,
     parents_can_see: Number(parentsCanSee.value),
     log_work: Number(logWork.value),
-    file: file.value[0] ?? null,
-    image: image.value[0] ?? null,
-    video: video.value[0] ?? null,
+    file: pickUploadedFile(file.value),
+    image: pickUploadedFile(image.value),
+    video: pickUploadedFile(video.value),
   }
   loading.value=true;
   emit('send-meesage', data, function () {
@@ -122,6 +150,9 @@ const send = () => {
     showVideoButton.value = true;
     showFileButton.value = true;
     showRemoveButton.value = false;
+    if (centerActivityMode.value) {
+      parentsCanSee.value = false;
+    }
   });
 }
 
@@ -143,6 +174,7 @@ if (userData && !userData.picture) {
     if(response.data.data) {
       userData.picture = response.data.data
     }
+  }).catch(() => {
   })
 }
 
@@ -153,7 +185,7 @@ if (userData && !userData.picture) {
     <VForm ref="refVForm"> 
       <VFileInput v-show="false" v-model="file" :rules="rules" ref="fileUpload" @change="onFileSelected" />
       <VFileInput v-show="false" v-model="image" :rules="rules" accept="image/png, image/jpeg, image/bmp" @change="onImageSelected" ref="imageUpload" />
-      <VFileInput v-show="false" v-model="video" :rules="rules" accept="video/mp4, video/mov, video/ogg, video/webm" @change="onVideoSelected" ref="videoUpload" />
+      <VFileInput v-show="false" v-model="video" :rules="rules" accept="video/mp4,video/quicktime,video/ogg,video/webm,.mp4,.mov,.ogg,.webm,.m4v" @change="onVideoSelected" ref="videoUpload" />
     </VForm>
     <VCard>
       <VCardText>
@@ -188,16 +220,18 @@ if (userData && !userData.picture) {
             />
           </VCol>
           <VCol
-            v-if="!canDoes('parent') && !isMeeting"
+            v-if="showSessionLogWorkCheckbox || showParentVisibilityCheckbox"
             cols="12"
           >
             <div class="demo-space-x">
               <VCheckbox
+                v-if="showSessionLogWorkCheckbox"
                 :disabled="loading"
                 v-model="logWork"
                 :label="$t('messages.log work')"
               />
               <VCheckbox
+                v-if="showParentVisibilityCheckbox"
                 :disabled="loading"
                 v-model="parentsCanSee"
                 :label="$t('messages.parents can see')"
@@ -210,7 +244,7 @@ if (userData && !userData.picture) {
       <VCardText>
         <VRow>
           <VCol
-            v-if="showImageButton"
+            v-if="showImageButton && allowImage !== false"
             class="pa-0 text-no-wrap"
             cols="6"
             :md="(showVideoButton && showFileButton) ? 3 : 9"
@@ -240,7 +274,7 @@ if (userData && !userData.picture) {
             </div>
           </VCol>
           <VCol
-            v-if="showVideoButton"
+            v-if="showVideoButton && allowVideo !== false"
             class="pa-0 text-no-wrap"
             cols="6"
             :md="(showImageButton && showFileButton) ? 3 : 9"
@@ -270,7 +304,7 @@ if (userData && !userData.picture) {
             </div>
           </VCol>
           <VCol
-            v-if="showFileButton"
+            v-if="showFileButton && allowFile !== false"
             class="pa-0 text-no-wrap"
             cols="6"
             :md="(showImageButton && showVideoButton) ? 3 : 9"

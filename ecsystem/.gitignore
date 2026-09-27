@@ -11,8 +11,6 @@ node_modules
 dist
 dist-ssr
 *.local
-.env
-dist.zip
 
 /cypress/videos/
 /cypress/screenshots/
@@ -31,8 +29,27 @@ dist.zip
 *.sw?
 .yarn
 
-# Generated icon and editor tooling files
+# iconify dist files
 src/@iconify/icons-bundle.js
+.env
+dist.zip
 .eslintrc-auto-import.json
 components.d.ts
+src/@iconify/icons-bundle.js
+yarn.lock
+.eslintrc-auto-import.json
+components.d.ts
+src/@iconify/icons-bundle.js
+yarn.lock
+.eslintrc-auto-import.json
+.eslintrc-auto-import.json
+.eslintrc-auto-import.json
+.eslintrc-auto-import.json
+.eslintrc-auto-import.json
+auto-imports.d.ts
+package-lock.json
+package.json
+src/@iconify/icons-bundle.js
+yarn.lock
+.eslintrc-auto-import.json
 auto-imports.d.ts
