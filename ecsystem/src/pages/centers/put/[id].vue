@@ -5,7 +5,7 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { centersApi } from "@/plugins/apis/centersRequest";
 import { useUserListStore } from '@/views/apps/user/useUserListStore';
 import cuntries from "@core/utils/cuntries";
-import logo from '@images/motabaah.png';
+import logo from '@images/athar.png';
 import { can } from '@layouts/plugins/casl';
 import {
   betweenValidator,
@@ -87,7 +87,7 @@ if(Number(route.params.id)>0) {
     email.value = center.value['email'];
     url.value = center.value['url'];
 
-    if(center.value['logo'] && center.value['logo']['file_name'] != 'motabaah')
+    if(center.value['logo'] && !['motabaah', 'athar'].includes(center.value['logo']['file_name']))
       canDelete.value = true;
   })
 }

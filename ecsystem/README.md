@@ -1,6 +1,6 @@
-# Motabaah — Frontend
+# Athar — Frontend
 
-Vue 3 application for Motabaah, a special-education / rehabilitation / therapy center platform.
+Vue 3 application for Athar, a special-education / rehabilitation / therapy center platform.
 
 The API lives in a separate repository: [ecservice](https://bitbucket.org/fekracomputers/ecservice).
 

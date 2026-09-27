@@ -10,7 +10,7 @@ use Spatie\Permission\PermissionRegistrar;
 class PermissionCatalog
 {
     /**
-     * Canonical Motabaah permissions grouped by real platform modules.
+     * Canonical Athar permissions grouped by real platform modules.
      * Names match frontend CASL keys. Existing rows are never deleted.
      */
     public static function modules(): array

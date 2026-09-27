@@ -1,158 +1,126 @@
 <script setup>
+import AuthPageShell from '@/components/auth/AuthPageShell.vue'
 import i18n from '@/plugins/i18n/index.js'
 import axios from '@axios'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue'
-import { useGenerateImageVariant } from '@core/composable/useGenerateImageVariant'
-import authV2MaskDark from '@images/pages/misc-mask-dark.png'
-import authV2MaskLight from '@images/pages/misc-mask-light.png'
-import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
-import { themeConfig } from '@themeConfig'
-import { BUNDLED_LOGIN_SIDE_IMAGE } from '@/utils/branding-login'
-
 import {
-emailValidator,
-requiredValidator,
+  emailValidator,
+  requiredValidator,
 } from '@validators'
+import { useI18n } from 'vue-i18n'
+import { VForm } from 'vuetify/components/VForm'
+
+const brandPrimary = '#075db8'
+
+const { locale, t } = useI18n()
+const isRtl = computed(() => locale.value === 'ar')
+const fieldDir = computed(() => (isRtl.value ? 'rtl' : 'ltr'))
 
 const refVForm = ref()
 const email = ref('')
-const authThemeMask = useGenerateImageVariant(authV2MaskLight, authV2MaskDark)
-
-
-const snackbarRef = ref(null);
+const isSubmitting = ref(false)
+const formErrorSummary = ref('')
+const snackbarRef = ref(null)
 
 const onSubmit = () => {
   refVForm.value?.validate().then(({ valid: isValid }) => {
-    if(isValid){
+    if (!isValid)
+      return
 
-      axios.post('/auth/password/reset', {
-        email: email.value,
-      }).then(r => {
-        if(r.data['status'] == true){
-          snackbarRef.value.exposevisibleSnackbar(i18n.global.t('reset_email_sent'), 'success');
-        }
-        
-      }).catch(e => {
-        if(e['response'].data['status'] == false){
-          snackbarRef.value.exposevisibleSnackbar(i18n.global.t('Failed to send reset link, Try again later.'), 'error');
-        }
-      })
+    isSubmitting.value = true
+    formErrorSummary.value = ''
 
-    }
+    axios.post('/auth/password/reset', {
+      email: email.value,
+    }).then(r => {
+      if (r.data.status === true)
+        snackbarRef.value.exposevisibleSnackbar(i18n.global.t('reset_email_sent'), 'success')
+    }).catch(e => {
+      if (e.response?.data?.status === false) {
+        formErrorSummary.value = t('Failed to send reset link, Try again later.')
+        snackbarRef.value.exposevisibleSnackbar(i18n.global.t('Failed to send reset link, Try again later.'), 'error')
+      }
+    }).finally(() => {
+      isSubmitting.value = false
+    })
   })
 }
-
 </script>
 
 <template>
-<div>
-  <VRow
-    class="auth-wrapper bg-surface"
-    no-gutters
+  <AuthPageShell
+    :dir="fieldDir"
+    lock-desktop-viewport
+    mobile-card-offset
   >
-    <VCol
-      cols="12"
-      lg="4"
-      class="auth-card-v2 d-flex align-center justify-center"
+    <header class="auth-page__intro">
+      <h1 class="auth-page__title">
+        {{ $t('Forgot Password?') }}
+      </h1>
+      <p class="auth-page__subtitle">
+        {{ $t('reset_email') }}
+      </p>
+    </header>
+
+    <VForm
+      ref="refVForm"
+      class="auth-page__form"
+      @submit.prevent="onSubmit"
     >
-      <VCard
-        flat
-        :max-width="500"
-        class="mt-12 mt-sm-0 pa-4"
+      <VAlert
+        v-if="formErrorSummary"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mb-1"
+        role="alert"
       >
+        {{ formErrorSummary }}
+      </VAlert>
 
-        <VCardItem class="justify-center">
-          <template #prepend>
-            <div class="d-flex">
-              <VNodeRenderer :nodes="themeConfig.app.login_logo" />
-            </div>
-          </template>
-        </VCardItem>
+      <AppTextField
+        v-model="email"
+        class="auth-field"
+        autofocus
+        :dir="fieldDir"
+        :label="$t('Email')"
+        name="email"
+        autocomplete="email"
+        hide-details="auto"
+        :rules="[requiredValidator, emailValidator]"
+        type="email"
+        append-inner-icon="tabler-mail"
+      />
 
-        <VCardText>
-          <h5 class="text-h5 mb-1">
-            {{ $t('Forgot Password?') }}
-          </h5>
-          <p class="mb-0">
-            {{$t('reset_email')}}
-          </p>
-        </VCardText>
-
-        <VCardText>
-          <VForm 
-            ref="refVForm"
-            @submit.prevent="onSubmit"
-          >
-            <VRow>
-              <!-- email -->
-              <VCol cols="12">
-                <AppTextField
-                  v-model="email"
-                  autofocus
-                  dir="ltr"
-                  :label="$t('Email')"
-                  :rules="[requiredValidator, emailValidator]"
-                  type="email"
-                />
-              </VCol>
-
-              <!-- Reset link -->
-              <VCol cols="12">
-                <VBtn
-                  block
-                  type="submit"
-                >
-                  {{ $t('Send Reset Link') }}
-                </VBtn>
-              </VCol>
-
-              <!-- back to login -->
-              <VCol cols="12">
-                <RouterLink
-                  class="d-flex align-center justify-center"
-                  :to="{ name: 'login' }"
-                >
-                  <VIcon
-                    icon="tabler-chevron-left"
-                    class="flip-in-rtl"
-                  />
-                  <span>{{ $t('Back to login') }}</span>
-                </RouterLink>
-              </VCol>
-            </VRow>
-          </VForm>
-        </VCardText>
-      </VCard>
-    </VCol>
-
-    <VCol
-      lg="8"
-      class="d-none d-lg-flex"
-    >
-      <div class="position-relative bg-background rounded-lg w-100 ma-8 me-0">
-        <div class="d-flex align-center justify-center w-100 h-100">
-          <VImg
-            max-width="1000"
-            :src="BUNDLED_LOGIN_SIDE_IMAGE"
-            class="auth-illustration mt-16 mb-2"
-          />
-        </div>
-
-        <VImg
-          max-width="1000"
-          :src="authThemeMask"
-          class="auth-footer-mask"
-        />
+      <div class="auth-page__meta auth-page__meta--single">
+        <RouterLink
+          class="auth-page__link"
+          :to="{ name: 'login' }"
+        >
+          {{ $t('Back to login') }}
+        </RouterLink>
       </div>
-    </VCol>
-  </VRow>
-  <SnackbarComponent ref="snackbarRef" />
-</div>
-</template>
 
-<style lang="scss">
-@use "@core/scss/template/pages/page-auth.scss";
-</style>
+      <VBtn
+        block
+        type="submit"
+        variant="flat"
+        class="auth-page__submit text-none"
+        :color="brandPrimary"
+        :loading="isSubmitting"
+        :disabled="isSubmitting"
+      >
+        {{ $t('Send Reset Link') }}
+      </VBtn>
+
+      <p class="auth-page__footer">
+        {{ $t('Auth platform footer') }}
+      </p>
+    </VForm>
+  </AuthPageShell>
+
+  <SnackbarComponent ref="snackbarRef" />
+</template>
 
 <route lang="yaml">
 meta:

@@ -16,8 +16,6 @@ import UserProfile from '@/layouts/components/UserProfile.vue'
 import { HorizontalNavLayout } from '@layouts'
 import { resolveSidebarLogoSrc, sidebarLogoWidth } from '@/utils/branding'
 
-const TheCustomizer = defineAsyncComponent(() => import('@core/components/TheCustomizer.vue'))
-
 const { appRouteTransition } = useThemeConfig()
 const route = useRoute()
 const sessionStore = useSessionStore()
@@ -72,7 +70,5 @@ const sidebarLogoSize = computed(() => sidebarLogoWidth(sessionStore.userData))
       <Footer />
     </template>
 
-    <!-- 👉 Customizer -->
-    <TheCustomizer />
   </HorizontalNavLayout>
 </template>

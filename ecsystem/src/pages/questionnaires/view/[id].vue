@@ -188,7 +188,6 @@ watchEffect(fetchQuestionsWithAnswers)
 
   .v-navigation-drawer,
   .layout-vertical-nav,
-  .app-customizer-toggler,
   .layout-footer,
   .layout-navbar,
   .layout-navbar-and-nav-container {

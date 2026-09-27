@@ -9,7 +9,7 @@ class SyncPermissionsCommand extends Command
 {
     protected $signature = 'permissions:sync {--no-admin : Do not grant catalog permissions to the admin role}';
 
-    protected $description = 'Create missing Motabaah permissions without deleting existing ones';
+    protected $description = 'Create missing Athar permissions without deleting existing ones';
 
     public function handle(): int
     {

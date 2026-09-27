@@ -70,6 +70,7 @@ export default defineConfig({
   ],
   define: { 'process.env': {} },
   resolve: {
+    dedupe: ['vue', 'pinia'],
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
       '@themeConfig': fileURLToPath(new URL('./themeConfig.js', import.meta.url)),

@@ -1,7 +1,6 @@
 import { resolveVuetifyTheme } from '@core/utils/vuetify'
-import { themeConfig } from '@themeConfig'
 
-export const staticPrimaryColor = '#7367F0'
+export const staticPrimaryColor = '#075db8'
 
 const theme = {
   defaultTheme: resolveVuetifyTheme(),
@@ -9,7 +8,7 @@ const theme = {
     light: {
       dark: false,
       colors: {
-        'primary': localStorage.getItem(`${themeConfig.app.title}-lightThemePrimaryColor`) || staticPrimaryColor,
+        'primary': staticPrimaryColor,
         'on-primary': '#fff',
         'secondary': '#A8AAAE',
         'on-secondary': '#fff',
@@ -66,7 +65,7 @@ const theme = {
     dark: {
       dark: true,
       colors: {
-        'primary': localStorage.getItem(`${themeConfig.app.title}-darkThemePrimaryColor`) || staticPrimaryColor,
+        'primary': staticPrimaryColor,
         'on-primary': '#fff',
         'secondary': '#A8AAAE',
         'on-secondary': '#fff',

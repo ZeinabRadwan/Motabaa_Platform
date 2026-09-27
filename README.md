@@ -1,6 +1,6 @@
-# Motabaah
+# Athar
 
-Motabaah is a center-management platform for special education, rehabilitation, and therapy centers.
+Athar is a center-management platform for special education, rehabilitation, and therapy centers.
 
 It is split into two Bitbucket repositories. This folder is a local workspace that contains both.
 

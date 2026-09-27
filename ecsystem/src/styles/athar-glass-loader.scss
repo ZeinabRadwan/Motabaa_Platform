@@ -13,30 +13,24 @@
     0 12px 40px rgba(15, 23, 42, 0.08);
 }
 
-body {
-  margin: 0;
-}
-
-html.athar-initial-loading {
-  overflow: hidden;
-}
-
-#loading-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
+.athar-glass-loader {
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--initial-loader-bg, var(--athar-loader-surface));
-  transition: opacity 0.35s ease, visibility 0.35s ease;
 }
 
-#loading-bg.athar-loader--hide,
-#loading-bg.athar-glass-loader--hide {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
+.athar-glass-loader:not(.athar-glass-loader--inline) {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.athar-glass-loader--inline {
+  position: relative;
+  min-block-size: 12rem;
+  padding: 2rem;
+  border-radius: 1rem;
 }
 
 .athar-glass-loader__stage {
@@ -93,7 +87,6 @@ html.athar-initial-loading {
 }
 
 .athar-glass-loader__ticks--active {
-  stroke: url(#athar-loader-track-gradient);
   stroke-width: 3;
   stroke-dasharray: 3 9.5;
   opacity: 0.95;

@@ -1,26 +1,31 @@
 <script setup>
+import AuthPageShell from '@/components/auth/AuthPageShell.vue'
 import { applyUserSession } from '@core/utils/impersonation'
 import { useSessionStore } from '@/stores/useSessionStore'
 import axios from '@axios'
-import { useGenerateImageVariant } from '@core/composable/useGenerateImageVariant'
-import authV2MaskDark from '@images/pages/misc-mask-dark.png'
-import authV2MaskLight from '@images/pages/misc-mask-light.png'
-import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
-import { BUNDLED_LOGIN_SIDE_IMAGE } from '@/utils/branding-login'
 import {
   getRememberedEmail,
   isRememberMeEnabled,
 } from '@core/utils/authStorage'
 
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
-import { themeConfig } from '@themeConfig'
 import {
   requiredValidator
 } from '@validators'
+import { useI18n } from 'vue-i18n'
 import { VForm } from 'vuetify/components/VForm'
 
-const authThemeMask = useGenerateImageVariant(authV2MaskLight, authV2MaskDark)
+const brandPrimary = '#075db8'
+
+const { t, locale } = useI18n()
+const isRtl = computed(() => locale.value === 'ar')
+const fieldDir = computed(() => (isRtl.value ? 'rtl' : 'ltr'))
+
 const isPasswordVisible = ref(false)
+const isSubmitting = ref(false)
+const loginErrorSummary = ref('')
+
+const passwordEyeIcon = computed(() => (isPasswordVisible.value ? 'tabler-eye-off' : 'tabler-eye'))
 const route = useRoute()
 const router = useRouter()
 const sessionStore = useSessionStore()
@@ -36,7 +41,14 @@ const email = ref(getRememberedEmail())
 const password = ref('')
 const rememberMe = ref(isRememberMeEnabled() || !!email.value)
 
+const togglePasswordVisibility = () => {
+  isPasswordVisible.value = !isPasswordVisible.value
+}
+
 const login = () => {
+  isSubmitting.value = true
+  loginErrorSummary.value = ''
+
   axios.post('/auth/login', {
     email: email.value,
     password: password.value,
@@ -66,8 +78,10 @@ const login = () => {
       go()
     }
   }).catch(e => {
-    const { errors: formErrors } = e.response.data
-    errors.value = formErrors
+    loginErrorSummary.value = t('Login credentials invalid')
+    errors.value = e.response?.data?.errors ?? {}
+  }).finally(() => {
+    isSubmitting.value = false
   })
 }
 
@@ -80,123 +94,113 @@ const onSubmit = () => {
 </script>
 
 <template>
-  <VRow
-    no-gutters
-    class="auth-wrapper bg-surface"
+  <AuthPageShell
+    :dir="fieldDir"
+    lock-desktop-viewport
+    mobile-card-offset
   >
+    <header class="auth-page__intro">
+      <h1 class="auth-page__title">
+        {{ $t('Welcome Back') }}
+      </h1>
+      <p class="auth-page__subtitle">
+        {{ $t('Login page subtitle') }}
+      </p>
+    </header>
 
-    <VCol
-      cols="12"
-      lg="4"
-      class="auth-card-v2 d-flex align-center justify-center"
+    <VForm
+      ref="refVForm"
+      class="auth-page__form"
+      @submit.prevent="onSubmit"
     >
-      <VCard
-        flat
-        :max-width="500"
-        class="mt-12 mt-sm-0 pa-4"
+      <VAlert
+        v-if="loginErrorSummary"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mb-1"
+        role="alert"
       >
-      <VCardItem class="justify-center">
-          <template #prepend>
-            <div class="d-flex">
-              <VNodeRenderer :nodes="themeConfig.app.login_logo" />
-            </div>
-          </template>
-        </VCardItem>
-        <VCardText>
-          <h5 class="text-h4 mb-1">
-            {{ $t('Welcome Back') }}
-          </h5>
-        </VCardText>
-        <VCardText>
-          <VForm
-            ref="refVForm"
-            @submit.prevent="onSubmit"
+        {{ loginErrorSummary }}
+      </VAlert>
+
+      <AppTextField
+        v-model="email"
+        class="auth-field"
+        :label="$t('Email/Phone Number')"
+        type="text"
+        :dir="fieldDir"
+        name="username"
+        autocomplete="username"
+        autofocus
+        hide-details="auto"
+        :rules="[requiredValidator]"
+        append-inner-icon="tabler-mail"
+      />
+
+      <AppTextField
+        v-model="password"
+        class="auth-field"
+        :dir="fieldDir"
+        :label="$t('Password')"
+        name="password"
+        autocomplete="current-password"
+        hide-details="auto"
+        :rules="[requiredValidator]"
+        :type="isPasswordVisible ? 'text' : 'password'"
+        :error-messages="errors.password"
+        append-inner-icon="tabler-lock"
+      >
+        <template #prepend-inner>
+          <button
+            type="button"
+            class="auth-page__icon-btn"
+            :aria-label="$t('Toggle password visibility')"
+            @click="togglePasswordVisibility"
           >
-            <VRow>
-              <!-- email -->
-              <VCol cols="12">
-                <AppTextField
-                  v-model="email"
-                  :label="$t('Email/Phone Number')"
-                  type="email"
-                  dir="ltr"
-                  autofocus
-                  :rules="[requiredValidator]"
-                />
-              </VCol>
+            <VIcon
+              :icon="passwordEyeIcon"
+              size="20"
+            />
+          </button>
+        </template>
+      </AppTextField>
 
-              <!-- password -->
-              <VCol cols="12">
-                <AppTextField
-                  v-model="password"
-                  dir="ltr"
-                  :label="$t('Password')"
-                  :rules="[requiredValidator]"
-                  :type="isPasswordVisible ? 'text' : 'password'"
-                  :error-messages="errors.password"
-                  :append-inner-icon="isPasswordVisible ? 'tabler-eye-off' : 'tabler-eye'"
-                  @click:append-inner="isPasswordVisible = !isPasswordVisible"
-                />
-
-                <div class="d-flex align-center flex-wrap justify-space-between mt-2 mb-1">
-                  <VCheckbox
-                    v-model="rememberMe"
-                    :label="$t('Remember me')"
-                  />
-                  <RouterLink
-                    class="text-primary ms-2 mb-1"
-                    :to="{ name: 'forgot-password' }"
-                  >
-                    {{ $t('Forgot Password?') }}
-                  </RouterLink>
-                </div>
-
-                <VCol
-                  cols="12"
-                  class="d-flex align-center mb-4"
-                >
-                  <VDivider />
-                </VCol>
-                
-                <VBtn
-                  block
-                  type="submit"
-                >
-                  {{ $t('Login') }}
-                </VBtn>
-              </VCol>
-            </VRow>
-          </VForm>
-        </VCardText>
-      </VCard>
-    </VCol>
-    
-    <VCol
-      lg="8"
-      class="d-none d-lg-flex"
-    >
-      <div class="position-relative bg-background rounded-lg w-100 ma-8 me-0">
-        <div class="d-flex align-center justify-center w-100 h-100">
-          <VImg
-            max-width="1000"
-            :src="BUNDLED_LOGIN_SIDE_IMAGE"
-            class="auth-illustration mt-16 mb-2"
-          />
-        </div>
-
-        <VImg
-          max-width="1000"
-          :src="authThemeMask"
-          class="auth-footer-mask"
+      <div class="auth-page__meta">
+        <VCheckbox
+          v-model="rememberMe"
+          class="auth-page__remember"
+          :color="brandPrimary"
+          hide-details
+          density="compact"
+          :label="$t('Remember me')"
         />
+        <RouterLink
+          class="auth-page__link"
+          :to="{ name: 'forgot-password' }"
+        >
+          {{ $t('Forgot Password?') }}
+        </RouterLink>
       </div>
-    </VCol>
-  </VRow>
-</template>
 
-<style lang="scss">
-@use "@core/scss/template/pages/page-auth.scss";
-</style>
+      <VBtn
+        block
+        type="submit"
+        variant="flat"
+        class="auth-page__submit text-none"
+        :color="brandPrimary"
+        :loading="isSubmitting"
+        :disabled="isSubmitting"
+      >
+        {{ $t('Login') }}
+      </VBtn>
+
+      <p class="auth-page__footer">
+        {{ $t('Auth platform footer') }}
+      </p>
+    </VForm>
+  </AuthPageShell>
+</template>
 
 <route lang="yaml">
 meta:

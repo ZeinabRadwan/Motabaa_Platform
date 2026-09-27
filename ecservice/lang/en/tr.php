@@ -52,7 +52,7 @@ return [
     "date" => "Date",
     "from" => "From",
     "to" => "To",
-    "copyright" => "Copyright [year], Taheel System",
+    "copyright" => "Copyright [year], Athar",
     "scalesCount" => "[totel] from [power]",
     "cantdeletescale" => "You must all subfields and goals to delete it",
     "educational" => "Educational",
