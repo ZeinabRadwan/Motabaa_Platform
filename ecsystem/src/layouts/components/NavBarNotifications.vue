@@ -33,7 +33,25 @@ const loadNotifications = () => {
   })
 }
 
-onMounted(loadNotifications)
+onMounted(() => {
+  const scheduleLoad = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden')
+      return
+    loadNotifications()
+  }
+
+  if (typeof window !== 'undefined' && window.requestIdleCallback)
+    window.requestIdleCallback(scheduleLoad)
+  else
+    scheduleLoad()
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible')
+        scheduleLoad()
+    })
+  }
+})
 
 const removeNotification = notificationId => {
   notifications.value = notifications.value.filter(item => item.id !== notificationId)

@@ -1,16 +1,17 @@
 <script setup>
 import i18n from '@/plugins/i18n/index.js'
-import chartsTabs from '@/views/dashboards/statistics/chartsTabs.vue';
-import DashboardDisabilitiesChart from '@/views/dashboards/statistics/DashboardDisabilitiesChart.vue'
-import DashboardStaffActivityRank from '@/views/dashboards/statistics/DashboardStaffActivityRank.vue'
 import DashboardQuickActions from '@/views/dashboards/statistics/DashboardQuickActions.vue'
+import DashboardStatisticsKpis from '@/views/dashboards/statistics/DashboardStatisticsKpis.vue'
+import DashboardWelcome from '@/views/dashboards/statistics/DashboardWelcome.vue'
 import { statisticsApi } from "@/plugins/apis/statisticsRequest";
 import { logsApi } from "@/plugins/apis/logsRequest";
 import { can } from '@layouts/plugins/casl'
-import DashboardGoalsTypesChart from '@/views/dashboards/statistics/DashboardGoalsTypesChart.vue'
-import DashboardStatisticsKpis from '@/views/dashboards/statistics/DashboardStatisticsKpis.vue'
-import DashboardWelcome from '@/views/dashboards/statistics/DashboardWelcome.vue'
 import dashboardBg from '@images/dashboard.png'
+
+const chartsTabs = defineAsyncComponent(() => import('@/views/dashboards/statistics/chartsTabs.vue'))
+const DashboardDisabilitiesChart = defineAsyncComponent(() => import('@/views/dashboards/statistics/DashboardDisabilitiesChart.vue'))
+const DashboardGoalsTypesChart = defineAsyncComponent(() => import('@/views/dashboards/statistics/DashboardGoalsTypesChart.vue'))
+const DashboardStaffActivityRank = defineAsyncComponent(() => import('@/views/dashboards/statistics/DashboardStaffActivityRank.vue'))
 
 const statisticsListStore = statisticsApi()
 const logsListStore = logsApi()

@@ -101,22 +101,27 @@ class LogController extends Controller
             $center = $user->centers[0]->id;
         }
 
-        $recentLogs = Log::selectRaw('logs.created_by as id, users.name as name, count(*) as count')
-        ->join('users', 'users.id', 'logs.created_by')
-        ->where('logs.center_id', $center)
-        ->when(
-            $request->category && $request->category != 'all',
-            fn ($q) => $q->join('logs_types', function($join) use($request) {
-                $join->on('logs_types.type', 'logs.type');
-                $join->Where('category', $request->category);
-            })
-        )
-        ->whereRaw('logs.created_at > DATE_ADD(NOW(), INTERVAL -1 MONTH)')
-        ->groupBy('logs.created_by')->groupBy('users.name')
-        ->orderBy('count', 'DESC')
-        ->limit(25)
-        ->get()
-        ->toArray();
+        $category = $request->category ?: 'all';
+
+        $recentLogs = ReferenceCache::remember('logs', 'stats:'.$center.':'.$category, function () use ($center, $category) {
+            return Log::selectRaw('logs.created_by as id, users.name as name, count(*) as count')
+            ->join('users', 'users.id', 'logs.created_by')
+            ->where('logs.center_id', $center)
+            ->when(
+                $category != 'all',
+                fn ($q) => $q->join('logs_types', function($join) use ($category) {
+                    $join->on('logs_types.type', 'logs.type');
+                    $join->Where('category', $category);
+                })
+            )
+            ->whereRaw('logs.created_at > DATE_ADD(NOW(), INTERVAL -1 MONTH)')
+            ->groupBy('logs.created_by')->groupBy('users.name')
+            ->orderBy('count', 'DESC')
+            ->limit(25)
+            ->get()
+            ->toArray();
+        }, 120);
+
         return apiResponse($recentLogs);
     }
 }

@@ -1,5 +1,4 @@
 /* eslint-disable import/order */
-import '@/@iconify/icons-bundle'
 import App from '@/App.vue'
 import ability from '@/plugins/casl/ability'
 import i18n from '@/plugins/i18n'
@@ -13,6 +12,7 @@ import '@styles/styles.scss'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import DisableAutocomplete from 'vue-disable-autocomplete'
+import { ensureLocale, preloadSecondaryLocale } from '@/plugins/i18n/localeLoader'
 
 loadFonts()
 
@@ -38,5 +38,20 @@ app.use(abilitiesPlugin, ability, {
   useGlobalProperties: true,
 })
 
-// Mount vue app
-app.mount('#app')
+async function bootstrap() {
+  const initialLocale = localStorage.getItem('getLocale') ?? 'ar'
+  if (initialLocale === 'en')
+    await ensureLocale('en')
+
+  app.mount('#app')
+
+  preloadSecondaryLocale()
+
+  const loadIcons = () => import('@/@iconify/icons-bundle')
+  if (typeof window !== 'undefined' && window.requestIdleCallback)
+    window.requestIdleCallback(() => loadIcons())
+  else
+    loadIcons()
+}
+
+bootstrap()

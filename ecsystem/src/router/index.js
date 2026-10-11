@@ -2,8 +2,8 @@ import { canNavigate } from '@layouts/plugins/casl'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { createRouter, createWebHistory } from 'vue-router'
 import routes from '~pages'
-import { isAdmin, isUserLoggedIn } from './utils'
 import { purgeExpiredSession } from '@core/utils/authStorage'
+import { useSessionStore } from '@/stores/useSessionStore'
 
 purgeExpiredSession()
 
@@ -15,9 +15,10 @@ const router = createRouter({
     {
       path: '/',
       redirect: to => {
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}')
-        const userRole = (userData && userData.role) ? userData.role : null
-        const userCenter = localStorage.getItem('center')
+        const sessionStore = useSessionStore()
+        const userData = sessionStore.userData || {}
+        const userRole = userData.role || null
+        const userCenter = sessionStore.center
 
         if (userCenter) {
           if (userRole === 'admin' || userRole === 'manager')
@@ -48,12 +49,12 @@ const router = createRouter({
 
 // Docs: https://router.vuejs.org/guide/advanced/navigation-guards.html#global-before-guards
 router.beforeEach(to => {
-  
-  const userData = JSON.parse(localStorage.getItem('userData') || '{}')
-  const userCenter = localStorage.getItem('center')
+  const sessionStore = useSessionStore()
+  const userData = sessionStore.userData || {}
+  const userCenter = sessionStore.center
 
-  const isLoggedIn = isUserLoggedIn()
-  const isUserAdmin = isAdmin()
+  const isLoggedIn = sessionStore.isLoggedIn
+  const isUserAdmin = sessionStore.isAdmin
   const isUserInActiveCenter = (userCenter && userData.centers && userData.centers.find(item => item.id == userCenter && item.status == 1 && item.is_paid))
   const center = (userData.centers ? userData.centers.find(item => item.id == userCenter) : '')
 

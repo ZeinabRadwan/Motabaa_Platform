@@ -63,7 +63,6 @@ export default defineConfig({
       compositionOnly: true,
       include: [
         fileURLToPath(new URL('./src/plugins/i18n/locales/ar.json', import.meta.url)),
-        fileURLToPath(new URL('./src/plugins/i18n/locales/en.json', import.meta.url)),
       ],
     }),
     DefineOptions(),
@@ -114,7 +113,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['vuetify'],
     entries: [
-      './src/**/*.vue',
+      './src/main.js',
     ],
   },
 })

@@ -1,5 +1,6 @@
 <script setup>
 import { isDarkPreferred, useThemeConfig } from '@core/composable/useThemeConfig'
+import { ensureLocale } from '@/plugins/i18n/localeLoader'
 import { useI18n } from 'vue-i18n'
 
 const { t, locale } = useI18n({ useScope: 'global' })
@@ -30,9 +31,10 @@ function toggleTheme() {
   theme.value = activeTheme.value === 'dark' ? 'light' : 'dark'
 }
 
-function toggleLanguage() {
+async function toggleLanguage() {
   const next = locale.value === 'ar' ? 'en' : 'ar'
 
+  await ensureLocale(next)
   locale.value = next
   isAppRtl.value = next === 'ar'
   document.documentElement.setAttribute('lang', next)

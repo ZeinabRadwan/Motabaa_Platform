@@ -1,4 +1,6 @@
 <script setup>
+import { ensureLocale } from '@/plugins/i18n/localeLoader'
+
 const props = defineProps({
   languages: {
     type: Array,
@@ -37,7 +39,8 @@ const currentLabel = computed(() => {
   return currentLanguage.value?.label || ''
 })
 
-function selectLanguage(lang) {
+async function selectLanguage(lang) {
+  await ensureLocale(lang.i18nLang)
   currentLang.value = lang.i18nLang
   document.documentElement.setAttribute('lang', lang.i18nLang)
   localStorage.setItem('getLocale', lang.i18nLang)
