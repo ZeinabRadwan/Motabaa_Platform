@@ -1,7 +1,7 @@
 import centerSidebarLogo from '@images/logo.png'
-import loginLogo from '@images/motabaah.png'
+import loginLogo from '@images/athar.png'
 import managerSidebarLogo from '@images/1logo.webp'
-import adminSidebarLogo from '@images/motabaah.png'
+import adminSidebarLogo from '@images/athar.png'
 
 export const BUNDLED_CENTER_SIDEBAR_LOGO = centerSidebarLogo
 export const BUNDLED_MANAGER_SIDEBAR_LOGO = managerSidebarLogo

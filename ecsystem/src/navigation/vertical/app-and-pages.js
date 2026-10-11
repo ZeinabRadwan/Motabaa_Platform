@@ -1,4 +1,4 @@
-const APP_AND_PAGES_TEMPLATE = [
+export const APP_AND_PAGES_TEMPLATE = [
   // { heading: '' },
   {
     identifier: 'cases-menu',

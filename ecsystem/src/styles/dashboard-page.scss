@@ -1,32 +1,23 @@
 @use '@/styles/athar-dashboard-tokens.scss' as athar;
 
 .layout-page-content:has(.athar-dashboard-view),
-.layout-page-content:has(.athar-app-page-view),
 .layout-page-content:has(.athar-dashboard-view) .page-content-container,
-.layout-page-content:has(.athar-app-page-view) .page-content-container,
-.layout-page-content:has(.athar-dashboard-view) .app-page-content,
-.layout-page-content:has(.athar-app-page-view) .app-page-content {
+.layout-page-content:has(.athar-dashboard-view) .app-page-content {
   background: transparent;
 }
 
-.layout-page-content:has(.athar-dashboard-view) .app-breadcrumb,
-.layout-page-content:has(.athar-app-page-view) .app-breadcrumb,
-.layout-page-content:has(.athar-dashboard-view) .general-page-header,
-.layout-page-content:has(.athar-app-page-view) .general-page-header,
-.app-page-content .general-page-header {
+.layout-page-content:has(.athar-dashboard-view) .app-breadcrumb {
   position: relative;
   z-index: 2;
 }
 
-.athar-dashboard-view,
-.athar-app-page-view {
+.athar-dashboard-view {
   position: relative;
   isolation: isolate;
   min-block-size: calc(100dvh - 5rem);
 }
 
-.athar-dashboard-view__backdrop,
-.athar-app-page-view__backdrop {
+.athar-dashboard-view__backdrop {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -59,31 +50,6 @@
   gap: 1.5rem;
   padding: 0.25rem 0.25rem 1.75rem;
   background: transparent;
-}
-
-.athar-page-body {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.25rem 0.25rem 1.75rem;
-}
-
-.athar-page-header {
-  margin: 0;
-  padding: 0;
-  background: none;
-  border: none;
-  box-shadow: none;
-}
-
-.athar-page-header__title {
-  margin: 0;
-  font-size: clamp(1.25rem, 2vw, 1.5rem);
-  font-weight: 700;
-  line-height: 1.35;
-  color: athar.$athar-navy-dark;
 }
 
 .athar-dashboard__zone {
@@ -149,8 +115,7 @@
 }
 
 .v-theme--dark {
-  .athar-dashboard-view__backdrop,
-  .athar-app-page-view__backdrop {
+  .athar-dashboard-view__backdrop {
     background-color: rgb(var(--v-theme-background));
 
     &::after {
@@ -165,9 +130,5 @@
 
   .athar-dashboard__zone-title {
     color: rgba(var(--v-theme-on-surface), 0.55);
-  }
-
-  .athar-page-header__title {
-    color: rgba(var(--v-theme-on-background), 0.92);
   }
 }
