@@ -8,19 +8,13 @@ import { can } from '@layouts/plugins/casl'
 const route = useRoute()
 const router = useRouter()
 const questionnaireListStore = questionnairesApi()
-const questionnaireTask = ref()
-const canCheckQuestionnaire = can('access_questionnaires', 'access_questionnaires')
-  || can('show_questionnaires', 'show_questionnaires')
-  || can('edit_questionnaires', 'edit_questionnaires')
-  || can('admin_questionnaires', 'admin_questionnaires')
+const questionnaireTasks = ref([])
 
-if (canCheckQuestionnaire) {
-  questionnaireListStore.isQuestionnaireOpen({}).then(response => {
-    questionnaireTask.value = response.data.data
-  }).catch(() => {
-    questionnaireTask.value = null
-  })
-}
+questionnaireListStore.fetchRespondentAvailableTasks().then(response => {
+  questionnaireTasks.value = response.data?.data ?? []
+}).catch(() => {
+  questionnaireTasks.value = []
+})
 
 </script>
 
@@ -51,12 +45,26 @@ if (canCheckQuestionnaire) {
               </VCard>
             </VCol>
             
-            <VCol md="4" v-if="questionnaireTask">
-              <VCard @click="router.push(`/questionnaires/questions/${questionnaireTask.id}`)" class="d-flex " height="250">
+            <VCol
+              v-if="questionnaireTasks.length"
+              md="4"
+            >
+              <VCard
+                class="d-flex"
+                height="250"
+                @click="router.push(questionnaireTasks.length === 1 ? `/questionnaires/questions/${questionnaireTasks[0].id}` : '/questionnaires/respondent')"
+              >
                 <v-card-text class="d-flex justify-center align-center">
                   <div class="align-center text-center">
-                    <VImg style="margin-right: 65px" :src="questionnaire_icon" width="120" height="120" />
-                    <div class="align-center"><h3> الساده اولياء الأمور اضغط للاستبيان </h3></div>
+                    <VImg
+                      style="margin-right: 65px"
+                      :src="questionnaire_icon"
+                      width="120"
+                      height="120"
+                    />
+                    <div class="align-center">
+                      <h3>{{ $t('questionnaires.parent_dashboard_questionnaire') }}</h3>
+                    </div>
                   </div>
                 </v-card-text>
               </VCard>

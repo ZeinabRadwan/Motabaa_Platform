@@ -24,9 +24,9 @@ Route::post('/auth/password/reset/{token}', 'App\Http\Controllers\Auth\Api\Passw
 Route::post('/users/register', [App\Http\Controllers\Admin\UserController::class, 'register']);
 Route::get('/users/verify/{token}', [App\Http\Controllers\Admin\UserController::class, 'verify'])->name('verify_user');
 
-Route::get('/file/download/{token}', [App\Http\Controllers\General\FileController::class, 'download'])->name('file.download');
+Route::get('/file/download', [App\Http\Controllers\General\FileController::class, 'download'])->name('file.download');
 
-Route::prefix('questionnaires')->group(function () {
+Route::prefix('questionnaires')->middleware(['auth.sanctum.optional'])->group(function () {
     Route::post('/{task}/fetch/questions', [App\Http\Controllers\General\QuestionnaireController::class, 'fetchQuestions']);
     Route::post('/{task}/add_answers', [App\Http\Controllers\General\QuestionnaireController::class, 'addAnswers']);
 });
@@ -218,12 +218,6 @@ Route::get('/fix', function () {
 
 Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
 
-    Route::prefix('account')->group(function () {
-        Route::get('/profile', [App\Http\Controllers\Account\ProfileController::class, 'show']);
-        Route::post('/profile', [App\Http\Controllers\Account\ProfileController::class, 'update']);
-        Route::put('/password', [App\Http\Controllers\Account\ProfileController::class, 'updatePassword']);
-    });
-
     Route::prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\UserController::class, 'index']);
         Route::post('/import', [App\Http\Controllers\Admin\UserController::class, 'import']);
@@ -268,7 +262,7 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
 
     Route::prefix('cases')->group(function () {
         Route::get('/', [App\Http\Controllers\General\SCaseController::class, 'index'])->middleware(['permission:'.App\Support\CaseListAccess::listPermissionMiddleware()]);
-        Route::get('/select-items', [App\Http\Controllers\General\SCaseController::class, 'selectItems'])->middleware(['permission:'.App\Support\CaseListAccess::listPermissionMiddleware()]);
+        Route::get('/select-items', [App\Http\Controllers\General\SCaseController::class, 'selectItems'])->middleware(['permission:'.App\Support\CaseListAccess::selectItemsPermissionMiddleware()]);
         Route::get('/assigned-staff', [App\Http\Controllers\General\SCaseController::class, 'assignedStaff'])->middleware(['permission:'.App\Support\CaseListAccess::allScopePermissionMiddleware()]);
         Route::post('/import', [App\Http\Controllers\General\SCaseController::class, 'import']);
         Route::get('/{case}/show', [App\Http\Controllers\General\SCaseController::class, 'show'])->name('case.show');
@@ -324,6 +318,7 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
     Route::prefix('goals')->group(function () {
         Route::get('/', [App\Http\Controllers\General\GoalController::class, 'index']);
         Route::get('/select-items', [App\Http\Controllers\General\GoalController::class, 'selectItems']);
+        Route::get('/select-case-items', [App\Http\Controllers\General\GoalController::class, 'selectCaseItems']);
         Route::get('/show/{goal}', [App\Http\Controllers\General\GoalController::class, 'show'])->name('goal.show');
         Route::post('/transfer_goal/{goal}', [App\Http\Controllers\General\GoalController::class, 'transferGoal']);
         Route::get('/period_status', [App\Http\Controllers\General\GoalController::class, 'periodStatus']);
@@ -355,6 +350,11 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
         Route::post('/put/{id}', [App\Http\Controllers\General\AttendanceController::class, 'put']);
     });
 
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [App\Http\Controllers\General\UserNotificationController::class, 'index']);
+        Route::post('/{id}/read', [App\Http\Controllers\General\UserNotificationController::class, 'markRead']);
+    });
+
     Route::prefix('messages')->group(function () {
         Route::get('/', [App\Http\Controllers\General\MessageController::class, 'index']);
         Route::post('/add', [App\Http\Controllers\General\MessageController::class, 'put']);
@@ -377,12 +377,19 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
     Route::prefix('questionnaires')->middleware(['module:questionnaires'])->group(function () {
         Route::get('/', [App\Http\Controllers\General\QuestionnaireController::class, 'index']);
         Route::post('/put', [App\Http\Controllers\General\QuestionnaireController::class, 'put'])->name('questionnaire.put');
+        Route::post('/put-custom', [App\Http\Controllers\General\QuestionnaireController::class, 'putCustom'])->name('questionnaire.put_custom');
         Route::get('/task', [App\Http\Controllers\General\QuestionnaireController::class, 'questionnaireTask']);
         Route::post('/task', [App\Http\Controllers\General\QuestionnaireController::class, 'questionnaireTask']);
+        Route::get('/respondent/tasks', [App\Http\Controllers\General\QuestionnaireController::class, 'respondentAvailableTasks']);
+        Route::get('/target-audience/roles', [App\Http\Controllers\General\QuestionnaireController::class, 'targetAudienceRoles']);
         Route::delete('/{id}', [App\Http\Controllers\General\QuestionnaireController::class, 'delete']);
         Route::patch('/{id}', [App\Http\Controllers\General\QuestionnaireController::class, 'restore']);
         Route::get('/{task}/show', [App\Http\Controllers\General\QuestionnaireController::class, 'show'])->name('questionnaire.show');
         Route::post('/fetch/questions_with_answers', [App\Http\Controllers\General\QuestionnaireController::class, 'fetchQuestionsWithAnswers'])->name('questionnaire.fetch_questions_with_answers');
+        Route::post('/{task}/analytics', [App\Http\Controllers\General\QuestionnaireController::class, 'questionnaireAnalytics'])->name('questionnaire.analytics');
+        Route::get('/{task}/respondents/search', [App\Http\Controllers\General\QuestionnaireController::class, 'searchQuestionnaireRespondents'])->name('questionnaire.respondents_search');
+        Route::get('/{task}/export/responses', [App\Http\Controllers\General\QuestionnaireController::class, 'exportQuestionnaireResponses'])->name('questionnaire.export_responses');
+        Route::get('/{task}/export/analytics-pdf', [App\Http\Controllers\General\QuestionnaireController::class, 'exportQuestionnaireAnalyticsPdf'])->name('questionnaire.export_analytics_pdf');
         Route::post('/{task}/fetch/questions_with_user_answer', [App\Http\Controllers\General\QuestionnaireController::class, 'fetchQuestions'])->name('questionnaire.fetch_questions');
         Route::post('/{task}/add_user_answers', [App\Http\Controllers\General\QuestionnaireController::class, 'addAnswers'])->name('questionnaire.add_answers');
     });
@@ -435,6 +442,7 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
 
     Route::prefix('logs')->middleware(['module:logs'])->group(function () {
         Route::get('/', [App\Http\Controllers\General\LogController::class, 'index']);
+        Route::get('/media-attachments', [App\Http\Controllers\General\MediaAttachmentAuditLogController::class, 'index']);
         Route::get('/models', [App\Http\Controllers\General\LogController::class, 'models']);
         Route::get('/types', [App\Http\Controllers\General\LogController::class, 'types']);
         Route::get('/statistics', [App\Http\Controllers\General\LogController::class, 'statistics']);

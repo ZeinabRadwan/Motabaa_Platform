@@ -5,6 +5,8 @@ import {roomsApi} from "@/plugins/apis/roomsReqest"
 import MessageSend from '@/views/messages/MessageSend.vue';
 import Message from '@/views/messages/Message.vue';
 import {messagesApi} from "@/plugins/apis/messagesReqest"
+import { useMessageSendHandler } from '@/composables/useMessageSendHandler'
+import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 import { can } from '@layouts/plugins/casl'
 import i18n from '@/plugins/i18n/index.js';
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
@@ -16,7 +18,6 @@ const roomsReqest = roomsApi()
 const route = useRoute()
 const snackbarRef = ref(null);
 const roomData = ref()
-const messages = ref([])
 const uploadPercentage = ref(0);
 
 const options = ref({
@@ -36,32 +37,27 @@ roomsReqest.show(Number(route.params.id)).then(response => {
 })
 
 
-const fetchMessages = () => {
-  messagesReqest.fetchAll({
-      meeting_room_id: route.params.id,
-      options: options.value,
-      page: options.value.page,
-  }).then(response => {
-    messages.value = response.data.data;
-  }).catch(error => {
-    console.error(error)
-  })
-}
+const {
+  messages,
+  fetchMessages,
+  loadOlderMessages,
+  hasOlderMessages,
+  loadingMore: messagesLoadingMore,
+} = usePaginatedSessionMessages({
+  fetchAll: params => messagesReqest.fetchAll(params),
+  getParams: () => ({ meeting_room_id: route.params.id }),
+  searchQuery: ref(''),
+})
 
 
-const sendMeesage = (data, callback) => {
-  data['meeting_room_id'] = route.params.id
-  messagesReqest.put(data, (progress)=>{
-      uploadPercentage.value = progress
-  }).then(() =>{
-    snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
-    fetchMessages();
-    callback()
-  }).catch(error => {
-    callback()
-    errorsMessage.value = error.response?.data?.errors || {}
-  })
-}
+const sendMeesage = useMessageSendHandler({
+  putFn: (data, onProgress) => messagesReqest.put(data, onProgress),
+  applyPayload: data => { data.meeting_room_id = route.params.id },
+  fetchMessages: () => fetchMessages(true),
+  snackbarRef,
+  errorsMessage,
+  uploadPercentage,
+})
 
 
 const deleteMessage = (id, callback) => {
@@ -96,6 +92,18 @@ const deleteMessage = (id, callback) => {
       <MessageSend v-if="can('show_meetings','show_meetings')" :isMeeting="true" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
       <div>
         <Message v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_meetings','admin_meetings') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
+        <div
+          v-if="hasOlderMessages"
+          class="d-flex justify-center mb-4"
+        >
+          <VBtn
+            variant="tonal"
+            :loading="messagesLoadingMore"
+            @click="loadOlderMessages"
+          >
+            {{ $t('messages.load_older_messages') }}
+          </VBtn>
+        </div>
       </div>
     </VCol> 
     <SnackbarComponent ref="snackbarRef" />

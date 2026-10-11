@@ -28,7 +28,11 @@ class ExportExcel {
     public static function saveExcel($excel, $fileName) {
 
         $storedName = uniqid('motabaa_export_', true).'.xlsx';
-        $newFilePath = sys_get_temp_dir().DIRECTORY_SEPARATOR.$storedName;
+        $directory = storage_path('app/temp/exports');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+        $newFilePath = $directory.DIRECTORY_SEPARATOR.$storedName;
 
         $binary = Excel::raw($excel, ExcelFormat::XLSX);
         if ($binary === false || $binary === '') {
@@ -46,5 +50,14 @@ class ExportExcel {
         ]));
 
         return $token;
+    }
+
+    /**
+     * Path for browser download relative to the frontend axios base (VITE_APP_API_URL, ends with /api).
+     * Token must be a query param — it may contain "/" characters.
+     */
+    public static function downloadUrl(string $token): string
+    {
+        return '/file/download?token='.rawurlencode($token);
     }
 }

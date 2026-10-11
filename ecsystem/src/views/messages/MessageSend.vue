@@ -136,9 +136,18 @@ const send = () => {
     image: pickUploadedFile(image.value),
     video: pickUploadedFile(video.value),
   }
-  loading.value=true;
-  emit('send-meesage', data, function () {
+  if (loading.value) {
+    return
+  }
+
+  loading.value = true;
+  emit('send-meesage', data, function (success) {
     loading.value = false;
+
+    if (!success) {
+      return
+    }
+
     imageName.value = 'Image';
     fileName.value = 'file';
     videoName.value = 'Video';

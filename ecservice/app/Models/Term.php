@@ -265,6 +265,70 @@ class Term extends Model
         return __('tr.goals.period_n', ['n' => $index + 1]);
     }
 
+    /**
+     * Restrict a goals query to rows whose date range falls in the configured period window.
+     * Windows use term evaluation milestones: [milestone[i], milestone[i+1]) or final [last, ends_at].
+     */
+    public function applyGoalPeriodWindowFilter($goalsQuery, int $periodIndex): bool
+    {
+        $periodIndex = (int) $periodIndex;
+        $lastIndex = $this->lastPeriodIndex();
+
+        if ($periodIndex < 0 || $periodIndex > $lastIndex) {
+            return false;
+        }
+
+        if ($lastIndex === 0) {
+            $milestone = $this->periodDate(0);
+            if (! $milestone || ! $this->ends_at) {
+                return false;
+            }
+
+            $goalsQuery->whereDate('goals.date_from', '>=', $milestone);
+            $goalsQuery->whereDate('goals.date_to', '<=', $this->ends_at);
+
+            return true;
+        }
+
+        if ($periodIndex === 0) {
+            if (! $this->starts_at) {
+                return false;
+            }
+            $nextMilestone = $this->periodDate(1);
+            if (! $nextMilestone) {
+                return false;
+            }
+
+            $goalsQuery->whereDate('goals.date_from', '>=', $this->starts_at);
+            $goalsQuery->whereDate('goals.date_to', '<', $nextMilestone);
+
+            return true;
+        }
+
+        if ($periodIndex === $lastIndex) {
+            $milestone = $this->periodDate($periodIndex);
+            if (! $milestone || ! $this->ends_at) {
+                return false;
+            }
+
+            $goalsQuery->whereDate('goals.date_from', '>=', $milestone);
+            $goalsQuery->whereDate('goals.date_to', '<=', $this->ends_at);
+
+            return true;
+        }
+
+        $startMilestone = $this->periodDate($periodIndex);
+        $endMilestone = $this->periodDate($periodIndex + 1);
+        if (! $startMilestone || ! $endMilestone) {
+            return false;
+        }
+
+        $goalsQuery->whereDate('goals.date_from', '>=', $startMilestone);
+        $goalsQuery->whereDate('goals.date_to', '<', $endMilestone);
+
+        return true;
+    }
+
     public function getNameAttribute()
     {
         $locale = App::getLocale();

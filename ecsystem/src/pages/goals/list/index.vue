@@ -20,13 +20,12 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
-import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
+import { sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
 
 const route = useRoute()
 const router = useRouter()
 const refVForm = ref()
-const casesReqest = casesApi()
 const userListStore = useUserListStore()
 const assessmentsReqest = assessmentsApi()
 const goalsReqest = goalsApi()
@@ -114,8 +113,18 @@ watch(editToDate, query => {
   } 
 })
 
+const casesFilterKey = computed(() => [
+  sessionTeacherFilterId(teacher.value),
+  selectedTerm.value,
+  selectedFeild.value,
+].join('|'))
+
 // A case belongs to a single teacher, so a previous pick may no longer be valid.
 watch(teacher, () => {
+  selectedCase.value = null
+})
+
+watch([selectedTerm, selectedFeild], () => {
   selectedCase.value = null
 })
 
@@ -126,7 +135,7 @@ const fetchGoals = () => {
     q: searchQuery.value,
     status: selectedStatus.value,
     category: 'educational',
-    teacher_id: teacher.value,
+    teacher_id: sessionTeacherFilterId(teacher.value),
     case_id: selectedCase.value,
     term_id: selectedTerm.value,
     feild_id: selectedFeild.value,
@@ -197,9 +206,12 @@ const searchTeachers = params => userListStore.searchItems({
   roles: ['teacher'],
 })
 
-const searchCases = params => casesReqest.selectItems({
+const searchCases = params => goalsReqest.selectCaseItems({
   ...params,
-  teacher_id: teacher.value,
+  category: 'educational',
+  teacher_id: sessionTeacherFilterId(teacher.value),
+  term_id: selectedTerm.value,
+  feild_id: selectedFeild.value,
 }).then(response => {
   casesItem.value = response.data.data ?? []
   return response
@@ -586,7 +598,8 @@ const transferGoal = () => {
                 v-model="selectedCase"
                 :server-search="searchCases"
                 preload
-                :preload-key="teacher"
+                :preload-limit="500"
+                :preload-key="casesFilterKey"
                 :label="$t('Cases')"
                 :item-title="'name'"
                 :item-value="'id'"

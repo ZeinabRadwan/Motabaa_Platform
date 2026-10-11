@@ -1,5 +1,5 @@
 <script setup>
-import { applyServerTableOptions, watchServerTableFetch } from '@core/utils/tableFetch'
+import { applyServerTableOptions, resetTablePage, watchServerTableFetch } from '@core/utils/tableFetch'
 import { paginationMeta } from '@/@fake-db/utils'
 import i18n from '@/plugins/i18n/index.js'
 import { avatarText } from '@core/utils/formatters'
@@ -20,13 +20,12 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
-import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
+import { sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
 
 const route = useRoute()
 const router = useRouter()
 const refVForm = ref()
-const casesReqest = casesApi()
 const userListStore = useUserListStore()
 const assessmentsReqest = assessmentsApi()
 const goalsReqest = goalsApi()
@@ -116,19 +115,54 @@ watch(editToDate, query => {
   } 
 })
 
-watch(teacher, query => {
+const casesFilterKey = computed(() => [
+  sessionTeacherFilterId(teacher.value),
+  selectedTerm.value,
+  selectedFeild.value,
+].join('|'))
+
+watch(teacher, () => {
   casesItem.value = []
   selectedCase.value = null
 })
 
+watch([selectedTerm, selectedFeild], () => {
+  selectedCase.value = null
+})
+
+const hasSelectedCase = computed(() =>
+  selectedCase.value != null && selectedCase.value !== '',
+)
+
+const clearGoalsTable = () => {
+  users.value = []
+  totalGoals.value = 0
+  totalPage.value = 1
+  loading.value.goals = false
+}
+
+watch(selectedCase, (value, previous) => {
+  if (value === previous)
+    return
+
+  resetTablePage(options)
+  if (!hasSelectedCase.value)
+    clearGoalsTable()
+})
+
 // 👉 Fetching users
 const fetchGoals = () => {
+  if (!hasSelectedCase.value) {
+    clearGoalsTable()
+    return
+  }
+
   loading.value.goals = true
   goalsReqest.fetchAll({
     q: searchQuery.value,
     status: selectedStatus.value,
     category: 'independent',
-    teacher_id: teacher.value,
+    teacher_id: sessionTeacherFilterId(teacher.value),
     case_id: selectedCase.value,
     term_id: selectedTerm.value,
     feild_id: selectedFeild.value,
@@ -190,9 +224,12 @@ const searchTeachers = params => userListStore.searchItems({
   roles: ['teacher'],
 })
 
-const searchCases = params => casesReqest.selectItems({
+const searchCases = params => goalsReqest.selectCaseItems({
   ...params,
-  teacher_id: teacher.value,
+  category: 'independent',
+  teacher_id: sessionTeacherFilterId(teacher.value),
+  term_id: selectedTerm.value,
+  feild_id: selectedFeild.value,
 }).then(response => {
   casesItem.value = response.data.data ?? []
   return response
@@ -570,7 +607,8 @@ const transferGoal = () => {
                 v-model="selectedCase"
                 :server-search="searchCases"
                 preload
-                :preload-key="teacher"
+                :preload-limit="500"
+                :preload-key="casesFilterKey"
                 :label="$t('Cases')"
                 :item-title="'name'"
                 :item-value="'id'"
@@ -710,13 +748,13 @@ const transferGoal = () => {
               </div>
 
               <!-- 👉 Add user button -->
-              <VBtn v-if="can('edit_independent-goals','edit_independent-goals')" color="success" @click="printPlans('independent_case_planning')" :loading="loading.plan_pdf" :disabled="selectedTerm == '' || selectedTerm == null">
+              <VBtn v-if="can('edit_independent-goals','edit_independent-goals')" color="success" @click="printPlans('independent_case_planning')" :loading="loading.plan_pdf" :disabled="!hasSelectedCase || selectedTerm == '' || selectedTerm == null">
                 {{ $t('goals.print_plans') }}
               </VBtn>
               <VMenu v-if="can('edit_independent-goals','edit_independent-goals')">
                 <template #activator="{ props }">
                   <VBtn
-                    :disabled="selectedTerm == '' || selectedTerm == null"
+                    :disabled="!hasSelectedCase || selectedTerm == '' || selectedTerm == null"
                     v-bind="props"
                   >
                     {{ $t('goals.add_goal') }}
@@ -744,6 +782,17 @@ const transferGoal = () => {
             class="dataTable"
             @update:options="onTableOptions"
           >
+            <template #no-data>
+              <div class="text-center pa-8 text-medium-emphasis">
+                <template v-if="!hasSelectedCase">
+                  {{ $t('independent.select_case_to_show_skills') }}
+                </template>
+                <template v-else>
+                  {{ $t('no_new_data_available') }}
+                </template>
+              </div>
+            </template>
+
             <template #item.case="{ item }">
               <div class="align-center">
                 {{ item.raw.case?.name }}

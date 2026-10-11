@@ -1,0 +1,204 @@
+@use '@/styles/athar-dashboard-tokens.scss' as athar;
+
+.athar-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid athar.$athar-border;
+  border-radius: athar.$athar-radius-md;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: athar.$athar-shadow-sm;
+}
+
+.athar-page-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-inline-start: auto;
+}
+
+.athar-page-toolbar__field {
+  inline-size: min(100%, 15rem);
+}
+
+.meeting-rooms-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.meeting-room-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-block-size: 100%;
+  padding: 1rem 1rem 0.95rem;
+  border: 1px solid athar.$athar-border;
+  border-radius: athar.$athar-radius-md;
+  background: athar.$athar-surface;
+  box-shadow: 0 1px 3px rgba(11, 45, 77, 0.06);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba(athar.$athar-primary, 0.22);
+    box-shadow: 0 6px 18px rgba(11, 45, 77, 0.08);
+    transform: translateY(-2px);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 6px 18px rgba(11, 45, 77, 0.08), 0 0 0 3px rgba(athar.$athar-primary, 0.16);
+  }
+}
+
+.meeting-room-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.meeting-room-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  border-radius: 12px;
+  color: #087ed9;
+  background: athar.$athar-light-blue;
+}
+
+.meeting-room-card__title-wrap {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.meeting-room-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: athar.$athar-navy-dark;
+}
+
+.meeting-room-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-block-start: 0.45rem;
+}
+
+.meeting-room-card__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.meeting-room-card__badge--active {
+  color: #0f766e;
+  background: rgba(15, 118, 110, 0.1);
+}
+
+.meeting-room-card__badge--inactive {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.08);
+}
+
+.meeting-room-card__badge--type {
+  color: athar.$athar-navy;
+  background: rgba(18, 59, 102, 0.07);
+}
+
+.meeting-room-card__meta {
+  padding-block-start: 0.15rem;
+  border-block-start: 1px solid rgba(18, 59, 102, 0.06);
+}
+
+.meeting-room-card__meta-label {
+  margin: 0 0 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: athar.$athar-muted;
+}
+
+.meeting-room-card__creator {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.meeting-room-card__creator-name {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: athar.$athar-navy-dark;
+}
+
+.meeting-room-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-block-start: auto;
+}
+
+.meeting-room-card__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.125rem;
+  block-size: 2.125rem;
+  border-radius: 50%;
+  color: #fff;
+  background: #123b66;
+}
+
+.meeting-rooms-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.meeting-rooms-empty {
+  padding: 2.5rem 1rem;
+  border: 1px dashed rgba(18, 59, 102, 0.14);
+  border-radius: athar.$athar-radius-md;
+  background: rgba(255, 255, 255, 0.88);
+  text-align: center;
+  color: athar.$athar-muted;
+  font-size: 0.9375rem;
+}
+
+.v-theme--dark {
+  .athar-page-header__title,
+  .meeting-room-card__title,
+  .meeting-room-card__creator-name {
+    color: rgba(var(--v-theme-on-surface), 0.92);
+  }
+
+  .athar-page-toolbar,
+  .meeting-room-card,
+  .meeting-rooms-empty {
+    background: rgb(var(--v-theme-surface));
+  }
+}

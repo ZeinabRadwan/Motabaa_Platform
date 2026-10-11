@@ -13,13 +13,13 @@ const props = defineProps({
   },
 })
 
-const { items: routeItems, visible: routeVisible } = useAppBreadcrumb()
+const { items: routeItems, ancestorItems, visible: routeVisible } = useAppBreadcrumb()
 
 const resolvedItems = computed(() => {
   if (Array.isArray(props.items))
     return props.items
 
-  return routeItems.value
+  return ancestorItems.value
 })
 
 const isVisible = computed(() => {

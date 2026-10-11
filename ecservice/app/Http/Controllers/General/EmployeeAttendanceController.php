@@ -104,7 +104,7 @@ class EmployeeAttendanceController extends Controller
                 'users' => $users,
                 'status_labels' => $statusLabels,
             ],'Employees Attendance '.$date.'.pdf');
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
 
         $users = $users->paginate($perPage);

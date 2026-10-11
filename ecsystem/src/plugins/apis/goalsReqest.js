@@ -14,6 +14,11 @@ export const goalsApi = defineStore('goals', {
       return axios.get('/goals/select-items', { params })
     },
 
+    selectCaseItems(params = {}) {
+      params['center_id'] = Number(localStorage.getItem('center'));
+      return axios.get('/goals/select-case-items', { params })
+    },
+
     fetchFilterItems(params) { 
       params['center_id'] = Number(localStorage.getItem('center'));
       return axios.get('/goals/filter', { params })

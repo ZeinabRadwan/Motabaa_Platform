@@ -22,6 +22,8 @@ import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
 import {messagesApi} from "@/plugins/apis/messagesReqest"
+import { useMessageSendHandler } from '@/composables/useMessageSendHandler'
+import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { useTheme } from 'vuetify'
 
@@ -47,7 +49,6 @@ const reinforcement = ref(null)
 const selectedGoal = ref(null)
 const goals = ref([])
 const steps = ref([])
-const messages = ref([])
 const adding = ref(false)
 const addAnother = ref(true);
 const isDialogVisible = ref(false)
@@ -76,19 +77,17 @@ const loading = ref({
 
 const updatingGoal = ref(false);
 
-const fetchMessages = () => {
-  messagesReqest.fetchAll({
-    q: searchQuery.value,
-    goal_id: route.params.goal,
-    options: { itemsPerPage: 50 },
-    page: 1,
-
-  }).then(response => {
-    messages.value = response.data.data;
-  }).catch(error => {
-    console.error(error)
-  })
-}
+const {
+  messages,
+  fetchMessages,
+  loadOlderMessages,
+  hasOlderMessages,
+  loadingMore: messagesLoadingMore,
+} = usePaginatedSessionMessages({
+  fetchAll: params => messagesReqest.fetchAll(params),
+  getParams: () => ({ goal_id: route.params.goal }),
+  searchQuery,
+})
 
 const fetchGoal = () => {
   goalsReqest.fetchGoal(route.params.goal).then(response => {
@@ -293,19 +292,14 @@ const saveStep = (closeDialog = false) => {
 
 }
 
-const sendMeesage = (data, callback) => {
-  data['goal_id'] = route.params.goal
-  messagesReqest.put(data, (progress)=>{
-      uploadPercentage.value = progress
-  }).then(() =>{
-    snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
-    fetchMessages();
-    callback()
-  }).catch(error => {
-    callback()
-    errorsMessage.value = error.response?.data?.errors || {}
-  })
-}
+const sendMeesage = useMessageSendHandler({
+  putFn: (data, onProgress) => messagesReqest.put(data, onProgress),
+  applyPayload: data => { data.goal_id = route.params.goal },
+  fetchMessages: () => fetchMessages(true),
+  snackbarRef,
+  errorsMessage,
+  uploadPercentage,
+})
 
 const deleteMessage = (id, callback) => {
   messagesReqest.delete(id).then(() =>{
@@ -536,6 +530,18 @@ const onDrop = (e) => {
     <div>
       <Message 
         v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_education-sessions','admin_education-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
+      <div
+        v-if="hasOlderMessages"
+        class="d-flex justify-center mb-4"
+      >
+        <VBtn
+          variant="tonal"
+          :loading="messagesLoadingMore"
+          @click="loadOlderMessages"
+        >
+          {{ $t('messages.load_older_messages') }}
+        </VBtn>
+      </div>
     </div>
     <VDialog
       persistent

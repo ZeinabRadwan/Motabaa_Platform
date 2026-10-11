@@ -223,23 +223,19 @@ onMounted(loadProfile)
 
 <template>
   <div class="account-profile">
-    <header class="account-profile__header">
-      <div class="account-profile__header-text">
-        <h1 class="account-profile__title">
-          {{ $t('account.profile_title') }}
-        </h1>
-      </div>
-
+    <Teleport
+      v-if="!loading && userData && activeTab === 'info' && !isEditing"
+      to="#general-page-header-actions"
+    >
       <VBtn
-        v-if="!loading && userData && activeTab === 'info' && !isEditing"
         color="primary"
         prepend-icon="tabler-edit"
-        class="account-profile__edit-btn"
+        class="general-page-header__btn-primary account-profile__edit-btn"
         @click="isEditing = true"
       >
         {{ $t('Edit') }}
       </VBtn>
-    </header>
+    </Teleport>
 
     <div
       v-if="loading"

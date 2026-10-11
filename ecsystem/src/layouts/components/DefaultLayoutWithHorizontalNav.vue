@@ -5,13 +5,18 @@ import { useThemeConfig } from '@core/composable/useThemeConfig'
 import { themeConfig } from '@themeConfig'
 
 // Components
-import AppPageContent from '@/layouts/components/AppPageContent.vue'
 import Footer from '@/layouts/components/Footer.vue'
+import NavBarI18n from '@/layouts/components/NavBarI18n.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavbarShortcuts from '@/layouts/components/NavbarShortcuts.vue'
+import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
+import ImpersonationBanner from '@/layouts/components/ImpersonationBanner.vue'
+import UserProfile from '@/layouts/components/UserProfile.vue'
 import { HorizontalNavLayout } from '@layouts'
 import { resolveSidebarLogoSrc, sidebarLogoWidth } from '@/utils/branding'
+
+const TheCustomizer = defineAsyncComponent(() => import('@core/components/TheCustomizer.vue'))
 
 const { appRouteTransition } = useThemeConfig()
 const route = useRoute()
@@ -44,26 +49,30 @@ const sidebarLogoSize = computed(() => sidebarLogoWidth(sessionStore.userData))
 
       <NavSearchBar trigger-btn-class="ms-lg-n3" />
 
+      <NavBarI18n class="me-1" />
+      <NavbarThemeSwitcher class="me-1" />
       <NavbarShortcuts class="me-1" />
       <NavBarNotifications class="me-2" />
+      <ImpersonationBanner />
+      <UserProfile />
     </template>
 
     <!-- 👉 Pages -->
-    <AppPageContent>
-      <RouterView v-slot="{ Component }">
-        <Transition
-          :name="appRouteTransition"
-          mode="out-in"
-        >
-          <Component :is="Component" :key="pageKey" />
-        </Transition>
-      </RouterView>
-    </AppPageContent>
+    <RouterView v-slot="{ Component }">
+      <Transition
+        :name="appRouteTransition"
+        mode="out-in"
+      >
+        <Component :is="Component" :key="pageKey" />
+      </Transition>
+    </RouterView>
 
     <!-- 👉 Footer -->
     <template #footer>
       <Footer />
     </template>
 
+    <!-- 👉 Customizer -->
+    <TheCustomizer />
   </HorizontalNavLayout>
 </template>

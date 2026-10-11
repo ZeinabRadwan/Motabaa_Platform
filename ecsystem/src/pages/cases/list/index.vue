@@ -10,6 +10,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { VDataTableServer } from 'vuetify/labs/VDataTable'
 import { can } from '@layouts/plugins/casl'
 import { canViewAllCenterCases } from '@core/utils/caseListAccess'
+import { openExportDownload } from '@core/utils/exportDownload'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import PreviewDataTable from '@/views/preview/DataTable.vue';
@@ -18,6 +20,7 @@ import {
   insuranceItems,
   periodItems,
   serviceitems as serviceitemsFetch,
+  termItems,
 } from '@core/utils/generalItems';
 
 const rules = [fileList => !fileList || !fileList.length || fileList[0].size < (100 * 1024 * 1024) || 'validtion.less_than_100MB']
@@ -36,6 +39,10 @@ const selectedServiceitems = ref()
 const selectedInsurance = ref()
 const selectedStatus = ref('active')
 const selectedPeriod = ref()
+const selectedTerm = ref()
+const selectedFrom = ref(null)
+const selectedTo = ref(null)
+const itemsTerm = ref([])
 const totalPage = ref(1)
 const totalUsers = ref(0)
 const users = ref([])
@@ -118,6 +125,14 @@ const loadAssignedStaff = () => casesReqest.fetchAssignedStaff().then(response =
 })
 
 onMounted(() => {
+  if (isParentUser()) {
+    loading.value.disabilities = false
+    loading.value.services = false
+    loading.value.staff = false
+
+    return
+  }
+
   disabilityTypesApi.fetch().then( response =>{
     typesDisability.value = response.data.data
     loading.value.disabilities = false
@@ -134,6 +149,12 @@ onMounted(() => {
   else {
     loading.value.staff = false
   }
+
+  termItems().then(data => {
+    itemsTerm.value = data || []
+  }).catch(() => {
+    itemsTerm.value = []
+  })
 });
 
 const options = ref({
@@ -147,20 +168,35 @@ const options = ref({
 const onTableSearch = debounceRefAssign(searchQuery)
 
 
+const buildCaseListParams = (extra = {}) => {
+  const params = {
+    q: searchQuery.value,
+    ...extra,
+  }
+
+  if (!isParentUser()) {
+    params.status = selectedStatus.value
+    params.insurance = selectedInsurance.value
+    params.disability = disability.value
+    params.specialist_teacher_id = specialist.value
+    params.service = selectedServiceitems.value
+    params.period = selectedPeriod.value
+    params.term_id = selectedTerm.value
+    params.date_from = selectedFrom.value
+    params.date_to = selectedTo.value
+  }
+
+  return params
+}
+
 // 👉 Fetching users
 const fetchCases = () => {
   loading.value.cases = true;
+
   casesReqest.fetchAll({
-    q: searchQuery.value,
-    status: selectedStatus.value,
-    insurance: selectedInsurance.value,
-    disability: disability.value,
-    specialist_teacher_id: specialist.value,
-    service: selectedServiceitems.value,
-    period: selectedPeriod.value,
+    ...buildCaseListParams(),
     options: options.value,
     page: options.value.page,
-
   }).then(response => {
     users.value = response.data.data
     totalPage.value = Math.ceil(response.data.total / response.data.perPage)
@@ -185,6 +221,9 @@ watchServerTableFetch(fetchCases, {
     disability.value,
     selectedInsurance.value,
     selectedPeriod.value,
+    selectedTerm.value,
+    selectedFrom.value,
+    selectedTo.value,
   ],
   options,
 })
@@ -195,43 +234,20 @@ const searchCaseNames = params => casesReqest.selectItems({
 })
 
 const translatedHeaders = () => {
-  let headers = [
-    {
-      title: 'Name',
-      key: 'user',
-      sortable: false,
-    },
-    {
-      title: 'parent',
-      key: 'parent',
-      sortable: false,
-    },
-    {
-      title: 'Types of disability',
-      key: 'disabilities',
-      sortable: false,
-    },
-    {
-      title: 'Services provided',
-      key: 'service',
-      sortable: false,
-    },
-    {
-      title: 'case type',
-      key: 'case_type',
-      sortable: false,
-    },
-    {
-      title: 'Active',
-      key: 'active',
-      sortable: false,
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      sortable: false,
-    },
-  ]
+  let headers = isParentUser()
+    ? [
+      { title: 'Name', key: 'user', sortable: false },
+      { title: 'Actions', key: 'actions', sortable: false },
+    ]
+    : [
+      { title: 'Name', key: 'user', sortable: false },
+      { title: 'parent', key: 'parent', sortable: false },
+      { title: 'Types of disability', key: 'disabilities', sortable: false },
+      { title: 'Services provided', key: 'service', sortable: false },
+      { title: 'case type', key: 'case_type', sortable: false },
+      { title: 'Active', key: 'active', sortable: false },
+      { title: 'Actions', key: 'actions', sortable: false },
+    ]
   let translatedHeaders = headers.map(header => ({
     ...header,
     title: i18n.global.t(header.title),
@@ -306,17 +322,10 @@ const restore = id => {
 const exportCases = () => {
   previewLoading.value = true;
   casesReqest.fetchAll({
-    q: searchQuery.value,
-    status: selectedStatus.value,
-    insurance: selectedInsurance.value,
-    disability: disability.value,
-    specialist_teacher_id: specialist.value,
-    service: selectedServiceitems.value,
-    period: selectedPeriod.value,
-    export: 'export_cases'
+    ...buildCaseListParams({ export: 'export_cases' }),
   }).then(response => {
     previewLoading.value = false;
-    window.open(response.data.data.url, '_blank');
+    openExportDownload(response.data.data.url)
   })
   .catch(error => {
     previewLoading.value = false;
@@ -397,7 +406,7 @@ const cancelImport = () => {
       <VCol cols="12">
         <VCard>
           <!-- 👉 Filters -->
-          <VCardText>
+          <VCardText v-if="!isParentUser()">
             <VRow>
               <VCol
                 v-if="canViewAllCenterCases()"
@@ -470,6 +479,44 @@ const cancelImport = () => {
                   clearable
                   clear-icon="tabler-x"
                 />
+              </VCol>
+              <VCol
+                cols="12"
+                sm="4"
+              >
+                <AppSelect
+                  v-model="selectedTerm"
+                  :label="$t('Qualifying class')"
+                  :items="itemsTerm"
+                  item-title="title"
+                  item-value="id"
+                  clearable
+                  clear-icon="tabler-x"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                sm="4"
+              >
+                <VLabel class="mb-1">{{ $t('date') }}</VLabel>
+                <VRow>
+                  <VCol cols="6">
+                    <AppDateTimePicker
+                      v-model="selectedFrom"
+                      clearable
+                      clear-icon="tabler-x"
+                      :placeholder="$t('from')"
+                    />
+                  </VCol>
+                  <VCol cols="6">
+                    <AppDateTimePicker
+                      v-model="selectedTo"
+                      clearable
+                      clear-icon="tabler-x"
+                      :placeholder="$t('to')"
+                    />
+                  </VCol>
+                </VRow>
               </VCol>
               <!-- 👉 Select Status -->
               <VCol

@@ -8,6 +8,7 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue'
 import i18n from '@/plugins/i18n/index.js'
 import { can } from '@layouts/plugins/casl'
 import axios from '@axios'
+import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 
 const route = useRoute()
 const activitiesStore = centerActivitiesApi()
@@ -15,7 +16,6 @@ const termsStore = termsApi()
 const snackbarRef = ref(null)
 
 const activity = ref(null)
-const entries = ref([])
 const errorsMessage = ref({})
 const uploadPercentage = ref(0)
 const editDialog = ref(false)
@@ -42,11 +42,19 @@ const fetchActivity = () => {
   })
 }
 
-const fetchEntries = () => {
-  activitiesStore.fetchEntries(route.params.id, { page: 1, options: { itemsPerPage: 50 } }).then(response => {
-    entries.value = response.data.data || []
-  })
-}
+const {
+  messages: entries,
+  fetchMessages: fetchEntriesPage,
+  loadOlderMessages: loadOlderEntries,
+  hasOlderMessages: hasOlderEntries,
+  loadingMore: entriesLoadingMore,
+} = usePaginatedSessionMessages({
+  fetchAll: params => activitiesStore.fetchEntries(route.params.id, params),
+  getParams: () => ({}),
+  searchQuery: ref(''),
+})
+
+const fetchEntries = () => fetchEntriesPage(true)
 
 const loadRoles = () => {
   axios.get('/roles/get/all').then(response => {
@@ -69,14 +77,26 @@ const loadTerms = () => {
 const sendEntry = (data, done) => {
   activitiesStore.addEntry(route.params.id, data, progress => {
     uploadPercentage.value = progress
-  }).then(() => {
+  }).then(response => {
     uploadPercentage.value = 0
+
+    if (response?.data?.status !== 'success') {
+      errorsMessage.value = { content: [i18n.global.t('File upload failed.')] }
+      if (done)
+        done(false)
+
+      return
+    }
+
+    snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success')
     fetchEntries()
     if (done)
-      done()
+      done(true)
   }).catch(error => {
     uploadPercentage.value = 0
     errorsMessage.value = error.response?.data?.errors || {}
+    if (done)
+      done(false)
   })
 }
 
@@ -202,6 +222,18 @@ onMounted(() => {
             is-center-activity-entry
             @delete-message="deleteEntry"
           />
+        </div>
+        <div
+          v-if="hasOlderEntries"
+          class="d-flex justify-center mt-4 mb-4"
+        >
+          <VBtn
+            variant="tonal"
+            :loading="entriesLoadingMore"
+            @click="loadOlderEntries"
+          >
+            {{ $t('messages.load_older_messages') }}
+          </VBtn>
         </div>
       </VCol>
     </VRow>

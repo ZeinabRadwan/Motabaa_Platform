@@ -8,6 +8,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 use App\Models\Concerns\StoresNamedFilePath;
+use App\Services\MediaAttachmentService;
 
 class Message extends Model
 {
@@ -59,23 +60,33 @@ class Message extends Model
         return $path;
     }
 
-    public function saveFile($file, $type) {
+    /**
+     * @return array<string, mixed>
+     */
+    public function saveFile($file, $type, array $auditContext = []) {
 
-        $fileName = '';
-        if($type == 'image') {
-            $fileName = self::IMAGE_NAME;
-        }
-        else if($type == 'file') {
-            $fileName = self::FILE_NAME;
-        }
-        else if($type == 'video') {
-            $fileName = self::VIDEO_NAME;
-        }
+        $baseName = match ($type) {
+            'image' => self::IMAGE_NAME,
+            'file' => self::FILE_NAME,
+            'video' => self::VIDEO_NAME,
+            default => throw new \InvalidArgumentException('Invalid media type'),
+        };
 
-        $fileName = $fileName .'.'.$file->getClientOriginalExtension();
-        saveFile($this->storagePath(), $fileName, $file);
         $column = $type === 'image' ? 'image_path' : ($type === 'video' ? 'video_path' : 'file_path');
-        $this->persistStoredNamedPath($column, $fileName);
+        $service = app(MediaAttachmentService::class);
+
+        return $service->upload(
+            $this,
+            $file,
+            $type,
+            $baseName,
+            fn () => $this->storagePath(),
+            fn (string $storedBasename) => $this->persistStoredNamedPath($column, $storedBasename),
+            array_merge([
+                'context_type' => $this->goal_id ? 'goal_message' : 'meeting_room_message',
+                'context_id' => $this->goal_id ?: $this->meeting_room_id,
+            ], $auditContext),
+        );
     }
 
     public function isSystemMessage(): bool
@@ -135,8 +146,15 @@ class Message extends Model
         return resolveStoredNamedFile($this->storagePath(), self::VIDEO_NAME, $this->video_path);
     }
 
-    public function deleteFolder() {
-        return deleteFile($this->storagePath());
+    public function deleteFolder(array $auditContext = []) {
+        app(MediaAttachmentService::class)->deleteAttachableStorage(
+            $this,
+            fn () => $this->storagePath(),
+            array_merge([
+                'context_type' => $this->goal_id ? 'goal_message' : 'meeting_room_message',
+                'context_id' => $this->goal_id ?: $this->meeting_room_id,
+            ], $auditContext),
+        );
     }
 
     protected function storedNamedFileColumns(): array

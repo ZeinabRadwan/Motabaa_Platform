@@ -1,4 +1,4 @@
-export const APP_AND_PAGES_TEMPLATE = [
+const APP_AND_PAGES_TEMPLATE = [
   // { heading: '' },
   {
     identifier: 'cases-menu',
@@ -95,12 +95,12 @@ export const APP_AND_PAGES_TEMPLATE = [
   {
     identifier: 'system_settings',
     title: 'system_settings',
-    icon: { icon: 'tabler-settings' },
+    icon: { icon: 'tabler-building-skyscraper' },
     children: [
-      { identifier: 'centers', title: 'Centers', icon: { icon: 'tabler-building' }, to: { name: 'centers-list' }, action: 'access_centers', subject: 'access_centers' },
-      { identifier: 'centers-payments', title: 'centers.payments', icon: { icon: 'tabler-credit-card' }, to: { name: 'centers-payments-list' }, action: 'access_centers', subject: 'access_centers' },
-      { identifier: 'centers-users', title: 'centers.users', icon: { icon: 'tabler-users' }, to: { name: 'centers-users-list' }, action: 'access_centers', subject: 'access_centers' },
-      { identifier: 'roles', title: 'Roles & Permissions', icon: { icon: 'tabler-shield-lock' }, to: { name: 'roles-list' }, action: 'access_roles', subject: 'access_roles' },
+      { identifier: 'centers', title: 'Centers', to: { name: 'centers-list' }, action: 'access_centers', subject: 'access_centers' },
+      { identifier: 'centers-payments', title: 'centers.payments', to: { name: 'centers-payments-list' }, action: 'access_centers', subject: 'access_centers' },
+      { identifier: 'centers-users', title: 'centers.users', to: { name: 'centers-users-list' }, action: 'access_centers', subject: 'access_centers' },
+      { identifier: 'roles', title: 'Roles & Permissions', to: { name: 'roles-list' }, action: 'access_roles', subject: 'access_roles' },
     ],
   },
   {
@@ -112,6 +112,7 @@ export const APP_AND_PAGES_TEMPLATE = [
       { identifier: 'scales', title: 'Scales', to: { name: 'scales-list' }, action: 'access_scales', subject: 'access_scales' },
       { identifier: 'plans', title: 'Operational plan', to: { name: 'plans-list' }, action: 'access_operation-plans', subject: 'access_operation-plans' },
       { identifier: 'logs', title: 'Logs', to: { name: 'logs-list' }, action: 'access_logs', subject: 'access_logs' },
+      { identifier: 'media_attachment_audit', title: 'Media attachment audit', to: { name: 'logs-media-attachments-list' }, action: 'access_logs', subject: 'access_logs' },
       { identifier: 'questionnaires', title: 'Questionnaires', to: { name: 'questionnaires-list' }, action: 'access_questionnaires', subject: 'access_questionnaires' },
     ],
   },

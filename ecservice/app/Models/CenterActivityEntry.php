@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\StoresNamedFilePath;
+use App\Services\MediaAttachmentService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -47,21 +48,33 @@ class CenterActivityEntry extends Model
         return $path."center_activities/{$this->center_activity_id}/entries/{$this->id}";
     }
 
-    public function saveFile($file, $type): void
+    /**
+     * @return array<string, mixed>
+     */
+    public function saveFile($file, $type, array $auditContext = []): array
     {
-        $fileName = '';
-        if ($type == 'image') {
-            $fileName = self::IMAGE_NAME;
-        } elseif ($type == 'file') {
-            $fileName = self::FILE_NAME;
-        } elseif ($type == 'video') {
-            $fileName = self::VIDEO_NAME;
-        }
+        $baseName = match ($type) {
+            'image' => self::IMAGE_NAME,
+            'file' => self::FILE_NAME,
+            'video' => self::VIDEO_NAME,
+            default => throw new \InvalidArgumentException('Invalid media type'),
+        };
 
-        $fileName = $fileName.'.'.$file->getClientOriginalExtension();
-        saveFile($this->storagePath(), $fileName, $file);
         $column = $type === 'image' ? 'image_path' : ($type === 'video' ? 'video_path' : 'file_path');
-        $this->persistStoredNamedPath($column, $fileName);
+        $service = app(MediaAttachmentService::class);
+
+        return $service->upload(
+            $this,
+            $file,
+            $type,
+            $baseName,
+            fn () => $this->storagePath(),
+            fn (string $storedBasename) => $this->persistStoredNamedPath($column, $storedBasename),
+            array_merge([
+                'context_type' => 'center_activity_entry',
+                'context_id' => $this->center_activity_id,
+            ], $auditContext),
+        );
     }
 
     public function skipsAttachmentLookup(): bool
@@ -109,9 +122,16 @@ class CenterActivityEntry extends Model
         return resolveStoredNamedFile($this->storagePath(), self::VIDEO_NAME, $this->video_path);
     }
 
-    public function deleteFolder()
+    public function deleteFolder(array $auditContext = [])
     {
-        return deleteFile($this->storagePath());
+        app(MediaAttachmentService::class)->deleteAttachableStorage(
+            $this,
+            fn () => $this->storagePath(),
+            array_merge([
+                'context_type' => 'center_activity_entry',
+                'context_id' => $this->center_activity_id,
+            ], $auditContext),
+        );
     }
 
     protected function storedNamedFileColumns(): array

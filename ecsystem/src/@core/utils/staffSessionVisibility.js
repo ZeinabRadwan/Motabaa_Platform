@@ -1,4 +1,5 @@
 import ability from '@/plugins/casl/ability'
+import { can } from '@layouts/plugins/casl'
 import { useSessionStore } from '@/stores/useSessionStore'
 
 const PARENT_ROLE_KEY = 'parent'
@@ -39,6 +40,21 @@ export const canRunIndependentSessions = () => canRunSessions(
   'access_independent-sessions',
   'edit_independent-sessions',
 )
+
+/**
+ * Session goal/case filters: teacher_id must only apply for teacher accounts (or admin picker).
+ * Specialists must not send their user id as teacher_id (would require TEACHER pivot on cases).
+ */
+export const sessionTeacherFilterId = teacherValue => {
+  if (can('admin', 'admin')) {
+    return teacherValue || undefined
+  }
+  if (can('teacher', 'teacher')) {
+    return teacherValue ?? undefined
+  }
+
+  return undefined
+}
 
 function readSessionUser() {
   try {

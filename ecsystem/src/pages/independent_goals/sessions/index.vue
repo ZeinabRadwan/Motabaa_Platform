@@ -22,16 +22,16 @@ requiredValidator
 
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
-import {casesApi} from "@/plugins/apis/casesReqest"
 import {messagesApi} from "@/plugins/apis/messagesReqest"
+import { useMessageSendHandler } from '@/composables/useMessageSendHandler'
+import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
-import { canRunIndependentSessions, filterIndependentSessionHeaders, goalAutocompleteTitle, isParentUser } from '@core/utils/staffSessionVisibility'
+import { canRunIndependentSessions, filterIndependentSessionHeaders, goalAutocompleteTitle, isParentUser, sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
 import { useTheme } from 'vuetify'
 
 
 const route = useRoute()
 const router = useRouter()
-const casesReqest = casesApi()
 const messagesReqest = messagesApi()
 const userListStore = useUserListStore()
 const goalsReqest = goalsApi()
@@ -58,7 +58,6 @@ const performance_evaluation = ref(null)
 const reinforcement = ref(null)
 const selectedGoals = ref(null)
 const goals = ref([])
-const messages = ref([])
 const adding = ref(false)
 const addAnother = ref(true);
 const isDialogVisible = ref(false)
@@ -125,37 +124,49 @@ const goalsFilterKey = computed(() => [
   selectedTerm.value,
 ].join('|'))
 
+const casesFilterKey = computed(() => [
+  teacher.value,
+  selectedTerm.value,
+  selectedGoals.value,
+].join('|'))
+
 watch(goalsFilterKey, () => {
   selectedGoals.value = null
 })
 
-watch(selectedGoals, query => {
-  if(query == null){
+const {
+  messages,
+  fetchMessages: fetchMessagesPage,
+  loadOlderMessages,
+  hasOlderMessages,
+  loadingMore: messagesLoadingMore,
+} = usePaginatedSessionMessages({
+  fetchAll: params => messagesReqest.fetchAll(params),
+  getParams: () => ({ goal_id: selectedGoals.value }),
+  searchQuery,
+})
+
+const fetchMessages = () => {
+  if (selectedGoals.value == null || selectedGoals.value === '') {
     messages.value = []
-  }else{
+
+    return Promise.resolve()
+  }
+
+  return fetchMessagesPage(true)
+}
+
+watch(selectedGoals, query => {
+  if (query == null) {
+    messages.value = []
+  } else {
     query && fetchMessages()
   }
 })
 
-const fetchMessages = () => {
-  if(selectedGoals.value != null && selectedGoals.value != ''){
-    messagesReqest.fetchAll({
-      q: searchQuery.value,
-      goal_id: selectedGoals.value,
-      options: { itemsPerPage: 50 },
-      page: 1,
-
-    }).then(response => {
-      messages.value = response.data.data;
-    }).catch(error => {
-      console.error(error)
-    })
-  }
-}
-
 const searchGoals = params => goalsReqest.selectItems({
   ...params,
-  teacher_id: teacher.value,
+  teacher_id: sessionTeacherFilterId(teacher.value),
   case_id: selectedCase.value,
   term_id: selectedTerm.value,
   category: 'independent',
@@ -200,9 +211,12 @@ const searchTeachers = params => userListStore.searchItems({
   roles: ['teacher'],
 })
 
-const searchCases = params => casesReqest.selectItems({
+const searchCases = params => goalsReqest.selectCaseItems({
   ...params,
-  teacher_id: teacher.value,
+  category: 'independent',
+  teacher_id: sessionTeacherFilterId(teacher.value),
+  term_id: selectedTerm.value,
+  goal_id: selectedGoals.value,
 }).then(response => {
   casesItem.value = response.data.data ?? []
   return response
@@ -274,19 +288,14 @@ const selectedGoal = (value) => {
   }
 }
 
-const sendMeesage = (data, callback) => {
-  data['goal_id'] = selectedGoals.value
-  messagesReqest.put(data, (progress)=>{
-      uploadPercentage.value = progress
-  }).then(() =>{
-    snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
-    fetchMessages();
-    callback()
-  }).catch(error => {
-    callback()
-    errorsMessage.value = error.response?.data?.errors || {}
-  })
-}
+const sendMeesage = useMessageSendHandler({
+  putFn: (data, onProgress) => messagesReqest.put(data, onProgress),
+  applyPayload: data => { data.goal_id = selectedGoals.value },
+  fetchMessages: () => fetchMessages(),
+  snackbarRef,
+  errorsMessage,
+  uploadPercentage,
+})
 
 const deleteMessage = (id, callback) => {
   messagesReqest.delete(id).then(() =>{
@@ -462,7 +471,8 @@ const sessionTimeLabel = value => {
                   v-model="selectedCase"
                   :server-search="searchCases"
                   preload
-                  :preload-key="teacher"
+                  :preload-limit="200"
+                  :preload-key="casesFilterKey"
                   :label="$t('Cases')"
                   :item-title="'name'"
                   :item-value="'id'"
@@ -635,6 +645,18 @@ const sessionTimeLabel = value => {
     <div>
       <Message 
         v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_independent-sessions','admin_independent-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
+      <div
+        v-if="hasOlderMessages"
+        class="d-flex justify-center mb-4"
+      >
+        <VBtn
+          variant="tonal"
+          :loading="messagesLoadingMore"
+          @click="loadOlderMessages"
+        >
+          {{ $t('messages.load_older_messages') }}
+        </VBtn>
+      </div>
     </div>
     <VDialog
       persistent

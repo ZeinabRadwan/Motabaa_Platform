@@ -23,6 +23,7 @@ use App\Exports\ExportEmployees;
 use App\Exports\ExportParents;
 use App\Mail\SystemMail;
 use App\Models\UserFileMeta;
+use App\Models\Term;
 
 class UserController extends Controller
 {
@@ -138,20 +139,30 @@ class UserController extends Controller
                 });
             })
         );
+
+        if ($request->filled('term_id')) {
+            $denied = Term::abortIfInaccessible($user, $center, $request->term_id);
+            if ($denied) {
+                return $denied;
+            }
+            $this->applyUserTermFilter($users, (int) $request->term_id, $center);
+        }
+
+        $this->applyUserCreatedAtFilter($users, $request);
         
         if($request->export == 'export_employees') {
             
             $users = $users->get();
             $fileName = ExportExcel::defaultFileName('Employees');
             $token = ExportExcel::saveExcel(new ExportEmployees($users), $fileName);
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
         else if($request->export == 'export_parents') {
             
             $users = $users->get();
             $fileName = ExportExcel::defaultFileName('Parents');
             $token = ExportExcel::saveExcel(new ExportParents($users), $fileName);
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
         else {
 
@@ -175,19 +186,14 @@ class UserController extends Controller
             $center = $currentUser->centers[0]->id;
         }
 
-        if ($currentUser->id == $user && ! $center) {
-            $userData = User::with(['roles', 'centers'])->withTrashed()->find($user);
-        }
-        else {
-            $userData = User::with(['roles', 'centers'])
-                ->whereHas('centers', function ($query) use ($center) {
-                    $query->where('centers.id', $center);
-                })
-                ->withTrashed()
-                ->find($user);
-        }
+        $userData = User::with(['roles', 'centers'])
+        ->whereHas('centers', function ($query) use ($center) {
+            $query->where('centers.id', $center);
+        })
+        ->withTrashed()
+        ->find($user);
 
-        if ($userData)
+        if($userData)
             $userData = UserResource::forSession($userData);
         else
             $userData = null;
@@ -277,10 +283,6 @@ class UserController extends Controller
     }
 
     public function update(PutRequest $request, User $user) {
-        $currentUser = auth()->user();
-        if ($currentUser->id != $user->id && ! can('edit_users')) {
-            return response()->json(['errors' => ['error' => [__("validation.You don't have permission to access this page.")]]], 422);
-        }
 
         $input = $request->validated();
         if (!User::hasWorkShiftColumn()) {
@@ -311,11 +313,6 @@ class UserController extends Controller
     }
 
     public function change_password(PutRequest $request, User $user){
-        $currentUser = auth()->user();
-        if ($currentUser->id != $user->id && ! canAny(['admin_users', 'access_centers', 'admin_centers'])) {
-            return response()->json(['errors' => ['error' => [__("validation.You don't have permission to access this page.")]]], 422);
-        }
-
         $input = $request->validated();
         $user->update([
             'password' => bcrypt($input['password']),
@@ -1175,5 +1172,62 @@ class UserController extends Controller
         }
 
         return 'Out';
+    }
+
+    private function applyUserCreatedAtFilter($query, Request $request): void
+    {
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        if ($dateFrom && $dateTo) {
+            $query->whereDate('users.created_at', '>=', $dateFrom)
+                ->whereDate('users.created_at', '<=', $dateTo);
+        } elseif ($dateFrom) {
+            $query->whereDate('users.created_at', '>=', $dateFrom);
+        } elseif ($dateTo) {
+            $query->whereDate('users.created_at', '<=', $dateTo);
+        }
+    }
+
+    private function applyUserTermFilter($query, int $termId, $center): void
+    {
+        $term = Term::find($termId);
+        if (! $term || (int) $term->center_id !== (int) $center) {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $query->where(function ($assigned) use ($termId, $term) {
+            $hasAssignment = false;
+
+            if (Term::hasUserAssignmentTable()) {
+                $hasAssignment = true;
+                $assigned->whereHas('terms', function ($terms) use ($termId) {
+                    $terms->where('terms.id', $termId);
+                });
+            }
+
+            if ($term->assignsAllUsers()) {
+                $staffScope = function ($staff) {
+                    $staff->where('users.status', User::STATUS_CAN_LOGIN)
+                        ->whereDoesntHave('roles', function ($roles) {
+                            $roles->where('default_name', 'parent');
+                        });
+                };
+
+                if ($hasAssignment) {
+                    $assigned->orWhere($staffScope);
+                } else {
+                    $assigned->where($staffScope);
+                }
+
+                return;
+            }
+
+            if (! $hasAssignment) {
+                $assigned->whereRaw('0 = 1');
+            }
+        });
     }
 }

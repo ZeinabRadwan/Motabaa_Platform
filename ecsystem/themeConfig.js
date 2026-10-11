@@ -26,13 +26,13 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
     iconRenderer: VIcon,
   },
   navbar: {
-    type: NavbarType.Hidden,
+    type: NavbarType.Sticky,
     navbarBlur: true,
   },
   footer: { type: FooterType.Static },
   verticalNav: {
     isVerticalNavCollapsed: false,
-    defaultNavItemIconProps: { icon: 'tabler-point', size: 14 },
+    defaultNavItemIconProps: { icon: 'tabler-circle', size: 10 },
     isVerticalNavSemiDark: false,
   },
   horizontalNav: {
@@ -41,10 +41,10 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
   },
   icons: {
     chevronDown: { icon: 'tabler-chevron-down' },
-    chevronRight: { icon: 'tabler-chevron-down', size: 18 },
+    chevronRight: { icon: 'tabler-chevron-right', size: 18 },
     close: { icon: 'tabler-x' },
-    verticalNavPinned: { icon: 'tabler-layout-sidebar-right-collapse', size: 20 },
-    verticalNavUnPinned: { icon: 'tabler-layout-sidebar-right-expand', size: 20 },
+    verticalNavPinned: { icon: 'tabler-circle-dot' },
+    verticalNavUnPinned: { icon: 'tabler-circle' },
     sectionTitlePlaceholder: { icon: 'tabler-separator' },
   },
 })

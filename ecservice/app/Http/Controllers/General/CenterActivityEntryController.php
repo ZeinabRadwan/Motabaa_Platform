@@ -102,16 +102,22 @@ class CenterActivityEntryController extends Controller
             'parents_can_see' => ! empty($input['parents_can_see']) ? 1 : 0,
         ]);
 
+        $auditContext = [
+            'center_id' => $request->integer('center_id') ?: ($activity->center_id ?? null),
+            'user_id' => $user->id,
+        ];
+
+        $attachmentMeta = null;
         try {
             if ($request->hasFile('image') || $request->hasFile('file') || $request->hasFile('video')) {
                 ini_set('max_execution_time', '600');
             }
             if ($request->hasFile('image')) {
-                $entry->saveFile($request->file('image'), 'image');
+                $attachmentMeta = $entry->saveFile($request->file('image'), 'image', $auditContext);
             } elseif ($request->hasFile('file')) {
-                $entry->saveFile($request->file('file'), 'file');
+                $attachmentMeta = $entry->saveFile($request->file('file'), 'file', $auditContext);
             } elseif ($request->hasFile('video')) {
-                $entry->saveFile($request->file('video'), 'video');
+                $attachmentMeta = $entry->saveFile($request->file('video'), 'video', $auditContext);
             }
         } catch (\Throwable $e) {
             \Log::error('Center activity entry upload failed', [
@@ -119,7 +125,14 @@ class CenterActivityEntryController extends Controller
                 'error' => $e->getMessage(),
             ]);
             $field = $request->hasFile('video') ? 'video' : ($request->hasFile('image') ? 'image' : 'file');
-            $entry->deleteFolder();
+            try {
+                $entry->deleteFolder($auditContext);
+            } catch (\Throwable $cleanupError) {
+                \Log::error('Center activity entry upload cleanup failed', [
+                    'entry_id' => $entry->id,
+                    'error' => $cleanupError->getMessage(),
+                ]);
+            }
             $entry->delete();
 
             return response()->json([
@@ -131,7 +144,13 @@ class CenterActivityEntryController extends Controller
 
         Log::add('add_center_activity_entry', $entry, $entry->id, '');
 
-        return success(['id' => $entry->id]);
+        $entry->load(['user.roles:id,name,default_name']);
+
+        return success([
+            'id' => $entry->id,
+            'entry' => new CenterActivityEntryResource($entry),
+            'attachment' => $attachmentMeta,
+        ]);
     }
 
     public function delete(Request $request, $entryId)
@@ -151,7 +170,26 @@ class CenterActivityEntryController extends Controller
             return error(403);
         }
 
-        $entry->deleteFolder();
+        $auditContext = [
+            'center_id' => $request->integer('center_id') ?: ($entry->activity->center_id ?? null),
+            'user_id' => $user->id,
+        ];
+
+        try {
+            $entry->deleteFolder($auditContext);
+        } catch (\Throwable $e) {
+            \Log::error('Center activity entry delete storage failed', [
+                'entry_id' => $entry->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'errors' => [
+                    'delete' => [__('File delete failed.')],
+                ],
+            ], 422);
+        }
+
         $entry->delete();
         Log::add('delete_center_activity_entry', $entry, $entry->id, '');
 

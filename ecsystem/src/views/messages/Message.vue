@@ -55,34 +55,39 @@ const deleteMessage = (id) => {
 
 const sysMessageTypes = ['started_session', 'ended_session', 'start_now_meeting', 'start_later_meeting', 'SYS']
 const hasAttachedMedia = !!(message.value.file || message.value.image || message.value.video)
-const attachmentsResolved = Object.prototype.hasOwnProperty.call(message.value, 'file')
-  || Object.prototype.hasOwnProperty.call(message.value, 'image')
-  || Object.prototype.hasOwnProperty.call(message.value, 'video')
 
 const entryFileStore = isCenterActivityEntry?.value ? centerActivitiesApi() : messagesReqest
 const fetchAttachment = isCenterActivityEntry?.value
   ? id => entryFileStore.fetchEntryFile(id)
   : id => messagesReqest.fetchFile(id)
 
-if (!sysMessageTypes.includes(message.value.type) && !hasAttachedMedia && !attachmentsResolved) {
+const resolveAttachmentFromApi = () => {
+  if (message.value._attachmentFetchAttempted) {
+    return
+  }
+
+  message.value._attachmentFetchAttempted = true
+
   fetchAttachment(Number(message.value.id)).then(response => {
-
-    if(response.data.data) {
-
-      let file = response.data.data.file
+    if (response.data.data) {
+      const file = response.data.data.file
       message.value.is_file_video = response.data.data.is_file_video
-      if(file.file_name == "message_image") {
+      const baseName = file?.file_name?.split('_')[0] ?? file?.file_name
+
+      if (baseName === 'message_image' || file?.file_name === 'message_image') {
         message.value.image = response.data.data.file
-      }
-      else if(file.file_name == "message_file") {
-        message.value.file = response.data.data.file
-      }
-      else if(file.file_name == "message_video") {
+      } else if (baseName === 'message_video' || file?.file_name === 'message_video' || response.data.data.is_file_video) {
         message.value.video = response.data.data.file
+      } else if (baseName === 'message_file' || file?.file_name === 'message_file') {
+        message.value.file = response.data.data.file
       }
     }
   }).catch(() => {
   })
+}
+
+if (!sysMessageTypes.includes(message.value.type) && !hasAttachedMedia) {
+  resolveAttachmentFromApi()
 }
 
 if (message.value.user && message.value.user.picture === undefined) {

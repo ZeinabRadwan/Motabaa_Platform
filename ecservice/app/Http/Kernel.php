@@ -70,5 +70,6 @@ class Kernel extends HttpKernel
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         'module' => \App\Http\Middleware\EnsureModulePermission::class,
         'auth.relations' => \App\Http\Middleware\LoadAuthUserRelations::class,
+        'auth.sanctum.optional' => \App\Http\Middleware\OptionalSanctumAuth::class,
     ];
 }

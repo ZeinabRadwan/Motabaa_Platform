@@ -150,7 +150,7 @@ class AttendanceController extends Controller
         if($pdfPath) {
 
             $token = PDF::savePdf($pdfPath, $data, 'Cases Attendance '.$date.'.pdf');
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
     }
 
@@ -225,7 +225,7 @@ class AttendanceController extends Controller
                 'attendances' => $attendances->get(),
                 'statusLabels' => $statusLabels,
             ],'Case Attendances '.$date.'.pdf');
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
 
         $attendances = $attendances->paginate($perPage);

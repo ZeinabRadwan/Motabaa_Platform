@@ -17,9 +17,11 @@ class QuestionnaireQuestionResource extends JsonResource
         return [
             'id' => $this->id,
             'questionnaire_id' => $this->questionnaire_id,
+            'section_id' => $this->section_id ? (int) $this->section_id : null,
             'title' => $this->getNameAttribute(),
             'type' => $this->type,
             'required' => $this->required,
+            'options' => $this->choiceOptions(),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->deleted_at,

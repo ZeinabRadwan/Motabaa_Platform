@@ -89,7 +89,8 @@ router.beforeEach(to => {
       else if(center && Number(center.package_id) == 2 && !isUserAdmin) {
 
         var notAccessibleRoutes = ['independent_goals-', 'attendances-', 'plans-', 'fees-', 'payments-', 'questionnaires-', 'employees_attendance-'];
-        if(notAccessibleRoutes.some(word => to.name.toLowerCase().includes(word.toLowerCase())) && !to.name.toLowerCase().includes('centers-payments')) {
+        const isQuestionnaireRespondPage = String(to.name || '').toLowerCase() === 'questionnaires-questions-id'
+        if(!isQuestionnaireRespondPage && notAccessibleRoutes.some(word => to.name.toLowerCase().includes(word.toLowerCase())) && !to.name.toLowerCase().includes('centers-payments')) {
           return { name: 'not-authorized' }
         }
         else if (to.meta.redirectIfLoggedIn) {
@@ -99,7 +100,8 @@ router.beforeEach(to => {
       else if(center && Number(center.package_id) == 3 && !isUserAdmin) {
 
         var notAccessibleRoutes = ['plans-', 'questionnaires-', 'employees_attendance-'];
-        if(notAccessibleRoutes.some(word => to.name.toLowerCase().includes(word.toLowerCase())) && !to.name.toLowerCase().includes('centers-payments')) {
+        const isQuestionnaireRespondPage = String(to.name || '').toLowerCase() === 'questionnaires-questions-id'
+        if(!isQuestionnaireRespondPage && notAccessibleRoutes.some(word => to.name.toLowerCase().includes(word.toLowerCase())) && !to.name.toLowerCase().includes('centers-payments')) {
           return { name: 'not-authorized' }
         }
         else if (to.meta.redirectIfLoggedIn) {

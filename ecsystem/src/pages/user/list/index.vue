@@ -14,8 +14,10 @@ import PreviewDataTable from '@/views/preview/DataTable.vue';
 import {
   departmentItems,
   hrAlertItems,
+  termItems,
   workShiftItems,
 } from '@core/utils/generalItems'
+import { openExportDownload } from '@core/utils/exportDownload'
 
 const rules = [fileList => !fileList || !fileList.length || fileList[0].size < (100 * 1024 * 1024) || 'validtion.less_than_100MB']
 
@@ -32,6 +34,10 @@ const selectedStatus = ref(route.query.status || 'active')
 const selectedDepartment = ref()
 const selectedWorkShift = ref()
 const selectedHrAlert = ref(route.query.hr_alert || undefined)
+const selectedCreatedFrom = ref(null)
+const selectedCreatedTo = ref(null)
+const selectedTerm = ref()
+const itemsTerm = ref([])
 const totalPage = ref(1)
 const totalUsers = ref(0)
 const users = ref([])
@@ -62,6 +68,12 @@ onMounted(() => {
   roleStore.fetchOnlyRoles().then( response =>{
     roles.value  = response.data.data['roles'].filter(item => item.default_name !== "parent")
   });
+
+  termItems().then(data => {
+    itemsTerm.value = data || []
+  }).catch(() => {
+    itemsTerm.value = []
+  })
 });
 
 const searchStaffNames = params => userListStore.searchItems({
@@ -72,18 +84,26 @@ const searchStaffNames = params => userListStore.searchItems({
 
 const onTableSearch = debounceRefAssign(searchQuery)
 
+const buildEmployeeListParams = (extra = {}) => ({
+  q: searchQuery.value,
+  status: selectedStatus.value,
+  plan: selectedPlan.value,
+  excludeParent: true,
+  roles: selectedRoles.value,
+  department: selectedDepartment.value,
+  work_shift: selectedWorkShift.value,
+  hr_alert: selectedHrAlert.value,
+  date_from: selectedCreatedFrom.value,
+  date_to: selectedCreatedTo.value,
+  term_id: selectedTerm.value,
+  ...extra,
+})
+
 // 👉 Fetching users
 const fetchUsers = () => {
   loading.value = true;
   userListStore.fetchUsers({
-    q: searchQuery.value,
-    status: selectedStatus.value,
-    plan: selectedPlan.value,
-    excludeParent: true,
-    roles: selectedRoles.value,
-    department: selectedDepartment.value,
-    work_shift: selectedWorkShift.value,
-    hr_alert: selectedHrAlert.value,
+    ...buildEmployeeListParams(),
     options: options.value,
     page: options.value.page,
 
@@ -110,6 +130,9 @@ watchServerTableFetch(fetchUsers, {
     selectedDepartment.value,
     selectedWorkShift.value,
     selectedHrAlert.value,
+    selectedCreatedFrom.value,
+    selectedCreatedTo.value,
+    selectedTerm.value,
   ],
   options,
 })
@@ -278,18 +301,10 @@ const restoreUser = id => {
 const exportEmployees = () => {
   previewLoading.value = true;
   userListStore.fetchUsers({
-    q: searchQuery.value,
-    status: selectedStatus.value,
-    plan: selectedPlan.value,
-    excludeParent: true,
-    roles: selectedRoles.value,
-    department: selectedDepartment.value,
-    work_shift: selectedWorkShift.value,
-    hr_alert: selectedHrAlert.value,
-    export: 'export_employees'
+    ...buildEmployeeListParams({ export: 'export_employees' }),
   }).then(response => {
     previewLoading.value = false;
-    window.open(response.data.data.url, '_blank');
+    openExportDownload(response.data.data.url)
   })
   .catch(error => {
   })
@@ -467,6 +482,44 @@ const cancelImport = () => {
                   clearable
                   clear-icon="tabler-x"
                 />
+              </VCol>
+              <VCol
+                cols="12"
+                sm="4"
+              >
+                <AppSelect
+                  v-model="selectedTerm"
+                  :label="$t('Qualifying class')"
+                  :items="itemsTerm"
+                  item-title="title"
+                  item-value="id"
+                  clearable
+                  clear-icon="tabler-x"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                sm="4"
+              >
+                <VLabel class="mb-1">{{ $t('employee_affairs.created_at') }}</VLabel>
+                <VRow>
+                  <VCol cols="6">
+                    <AppDateTimePicker
+                      v-model="selectedCreatedFrom"
+                      clearable
+                      clear-icon="tabler-x"
+                      :placeholder="$t('from')"
+                    />
+                  </VCol>
+                  <VCol cols="6">
+                    <AppDateTimePicker
+                      v-model="selectedCreatedTo"
+                      clearable
+                      clear-icon="tabler-x"
+                      :placeholder="$t('to')"
+                    />
+                  </VCol>
+                </VRow>
               </VCol>
             </VRow>
           </VCardText>

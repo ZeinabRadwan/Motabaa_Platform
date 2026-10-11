@@ -20,6 +20,8 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {messagesApi} from "@/plugins/apis/messagesReqest"
+import { useMessageSendHandler } from '@/composables/useMessageSendHandler'
+import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 import {termsApi} from "@/plugins/apis/termsRequest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 
@@ -51,7 +53,6 @@ const currentDateInYmdFormat = `${today.getFullYear()}-${(today.getMonth() + 1).
 const selectedGoal = ref(null)
 const goals = ref([])
 const goal = ref(null)
-const messages = ref([])
 const search = ref()
 const casesItem = ref([]);
 const selectedCase = ref(null);
@@ -93,19 +94,17 @@ watch(isDialogVisibleDate, query => {
   });
 })
 
-const fetchMessages = () => {
-  messagesReqest.fetchAll({
-    q: searchQuery.value,
-    goal_id: route.params.goal,
-    options: { itemsPerPage: 50 },
-    page: 1,
-
-  }).then(response => {
-    messages.value = response.data.data;
-  }).catch(error => {
-    console.error(error)
-  })
-}
+const {
+  messages,
+  fetchMessages,
+  loadOlderMessages,
+  hasOlderMessages,
+  loadingMore: messagesLoadingMore,
+} = usePaginatedSessionMessages({
+  fetchAll: params => messagesReqest.fetchAll(params),
+  getParams: () => ({ goal_id: route.params.goal }),
+  searchQuery,
+})
 
 const fetchGoal = () => {
   goalsReqest.fetchGoal(route.params.goal).then(response => {
@@ -165,19 +164,14 @@ const startSession = () => {
   }
 }
 
-const sendMeesage = (data, callback) => {
-  data['goal_id'] = route.params.goal
-  messagesReqest.put(data, (progress)=>{
-      uploadPercentage.value = progress
-  }).then(() =>{
-    snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
-    fetchMessages();
-    callback()
-  }).catch(error => {
-    callback()
-    errorsMessage.value = error.response?.data?.errors || {}
-  })
-}
+const sendMeesage = useMessageSendHandler({
+  putFn: (data, onProgress) => messagesReqest.put(data, onProgress),
+  applyPayload: data => { data.goal_id = route.params.goal },
+  fetchMessages: () => fetchMessages(true),
+  snackbarRef,
+  errorsMessage,
+  uploadPercentage,
+})
 
 const deleteMessage = (id, callback) => {
   messagesReqest.delete(id).then(() =>{
@@ -389,6 +383,18 @@ const putGoal = () =>{
     <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (canRunTreatmentSessions() || isParentUser())" :isMeeting="false" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
     <div>
       <Message v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_treatment-sessions','admin_treatment-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
+      <div
+        v-if="hasOlderMessages"
+        class="d-flex justify-center mb-4"
+      >
+        <VBtn
+          variant="tonal"
+          :loading="messagesLoadingMore"
+          @click="loadOlderMessages"
+        >
+          {{ $t('messages.load_older_messages') }}
+        </VBtn>
+      </div>
     </div>
 
     <VDialog

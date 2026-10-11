@@ -1,6 +1,8 @@
 <script setup>
 import add_case from '@images/svg/add_case.svg'
 import show_cases from '@images/svg/show_cases.svg'
+import { can } from '@layouts/plugins/casl'
+
 const route = useRoute()
 const router = useRouter()
 </script>
@@ -11,11 +13,22 @@ const router = useRouter()
       cols="12"
       md="12">
         <VRow>
-          <VCol md="4">
-            <VCard @click="router.push('/cases/add')" class="d-flex justify-center align-center" height="250">
+          <VCol
+            v-if="can('edit_cases', 'edit_cases')"
+            md="4"
+          >
+            <VCard
+              class="d-flex justify-center align-center"
+              height="250"
+              @click="router.push({ name: 'cases-add' })"
+            >
               <v-card-text class="d-flex justify-center align-center text-center">
                 <div>
-                  <VImg :src="add_case" width="120" height="120" />
+                  <VImg
+                    :src="add_case"
+                    width="120"
+                    height="120"
+                  />
                   <h3>{{ $t('Register Case') }}</h3>
                 </div>
               </v-card-text>

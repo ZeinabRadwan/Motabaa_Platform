@@ -68,6 +68,11 @@ class SCase extends Model
         return $this->hasMany(Attendance::class, 'case_id');
     }
 
+    public function goals()
+    {
+        return $this->hasMany(Goal::class, 'case_id');
+    }
+
     public function disabilities()
     {
         return $this->belongsToMany(Disability::class, 'scase_disability', 'scase_id', 'disability_id');
@@ -216,6 +221,38 @@ class SCase extends Model
         });
     }
 
+    /**
+     * Cases linked to the parent account via scase_user (relationship_type = parent).
+     */
+    public function scopeLinkedToParentUser(Builder $query, $userId): void
+    {
+        $query->whereHas('parents', function ($parentQuery) use ($userId) {
+            $parentQuery->where('users.id', $userId);
+        });
+    }
+
+    public static function applyCaseListCenterScope(Builder $query, $user, ?int $center): void
+    {
+        if (isParentUser($user)) {
+            return;
+        }
+
+        $query->where('scases.center_id', $center);
+    }
+
+    public static function applyCaseListVisibilityScope(Builder $query, $user, bool $viewAllCenterCases): void
+    {
+        if (isParentUser($user)) {
+            $query->linkedToParentUser($user->id);
+
+            return;
+        }
+
+        if (! $viewAllCenterCases) {
+            $query->assignedToStaffUser($user->id);
+        }
+    }
+
     public function scopeUsersRoles(Builder $query, $roles, $userId): void
     {
         $this->userRoles = $roles;
@@ -257,9 +294,10 @@ class SCase extends Model
                 ->where('scase_user.user_id', $userId)
                 ->whereNull('users.deleted_at');
             if ($types === []) {
-                $pivot->whereRaw('0 = 1');
+                // Custom job titles (no default_name): any staff assignment on the case.
+                $pivot->where('scase_user.relationship_type', '!=', System::USER_TYPE_PARENT);
             } else {
-                $pivot->whereIn('scase_user.relationship_type', $types);
+                $pivot->whereIn('scase_user.relationship_type', array_values(array_unique($types)));
             }
         });
     }
@@ -276,6 +314,13 @@ class SCase extends Model
 
         if (\App\Support\CaseListAccess::canViewAllCenterCases($user)) {
             return $user->isInCenter($case->center_id) || Term::canViewPastTerms($user);
+        }
+
+        if (isParentUser($user)) {
+            return static::query()
+                ->where('scases.id', $case->id)
+                ->linkedToParentUser($user->id)
+                ->exists();
         }
 
         return static::query()

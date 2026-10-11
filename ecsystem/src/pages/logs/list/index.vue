@@ -125,6 +125,15 @@ watchServerTableFetch(fetchLogs, {
 
       <VCol cols="12">
         <VCard>
+          <VCardText class="d-flex justify-end pb-0">
+            <VBtn
+              variant="tonal"
+              color="primary"
+              :to="{ name: 'logs-media-attachments-list' }"
+            >
+              {{ $t('Media attachment audit') }}
+            </VBtn>
+          </VCardText>
           <!-- 👉 Filters -->
           <VCardText>
             <VRow>

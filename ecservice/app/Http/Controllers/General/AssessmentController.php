@@ -82,7 +82,7 @@ class AssessmentController extends Controller
             
             $fileName = 'Assessments '.Carbon::now().'.xlsx';
             $token = ExportExcel::saveExcel(new ExportAssessmentsSheets($data), $fileName);
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
         else {
             

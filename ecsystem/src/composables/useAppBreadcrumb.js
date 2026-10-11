@@ -1,8 +1,5 @@
 import i18n from '@/plugins/i18n/index.js'
-import {
-  buildDynamicTrail,
-  getBreadcrumbRegistry,
-} from '@/utils/breadcrumb/buildRegistry'
+import { resolveBreadcrumbTrail } from '@/utils/breadcrumb/resolveTrail'
 
 function resolveLink(routeName) {
   if (!routeName || routeName === '__home__')
@@ -31,31 +28,35 @@ export function useAppBreadcrumb() {
   const router = useRouter()
 
   const items = computed(() => {
-    if (route.meta?.layout === 'blank')
-      return []
-
-    if (route.meta?.breadcrumb === false)
-      return []
-
-    if (Array.isArray(route.meta?.breadcrumbItems))
-      return route.meta.breadcrumbItems
-
-    const registry = getBreadcrumbRegistry()
-    let trail = registry.get(route.name)
-
-    if (!trail)
-      trail = buildDynamicTrail(route, registry, router)
-
-    if (!trail?.length)
+    const trail = resolveBreadcrumbTrail(route, router)
+    if (!trail.length)
       return []
 
     return translateTrail(trail)
   })
 
-  const visible = computed(() => items.value.length > 0)
+  /** Ancestors only — current page title is shown in GeneralPageHeader */
+  const ancestorItems = computed(() => {
+    const list = items.value
+    if (!list.length)
+      return []
+
+    const last = list[list.length - 1]
+    if (last.disabled) {
+      if (list.length === 1)
+        return []
+
+      return list.slice(0, -1)
+    }
+
+    return list
+  })
+
+  const visible = computed(() => ancestorItems.value.length > 0)
 
   return {
     items,
+    ancestorItems,
     visible,
   }
 }

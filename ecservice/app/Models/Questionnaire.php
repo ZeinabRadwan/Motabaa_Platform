@@ -14,7 +14,26 @@ class Questionnaire extends Model
     protected $fillable = [
         'title',
         'title_local',
+        'allow_parent_edit_after_submit',
     ];
+
+    protected $casts = [
+        'allow_parent_edit_after_submit' => 'boolean',
+    ];
+
+    public function sections()
+    {
+        return $this->hasMany(QuestionnaireSection::class, 'questionnaire_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function questions()
+    {
+        return $this->hasMany(QuestionnaireQuestion::class, 'questionnaire_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
 
     public function getNameAttribute()
     {

@@ -7,6 +7,8 @@ import i18n from '@/plugins/i18n/index.js'
 import {assessmentEvaluationsApi} from "@/plugins/apis/assessmentEvaluationsReqest"
 import {assessmentsApi} from "@/plugins/apis/assessmentReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
+import { searchCasesListDropdown } from '@core/utils/caseListAutocomplete'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 import { can } from '@layouts/plugins/casl'
 import {
   termItems
@@ -45,9 +47,11 @@ const leaveDialogSecondValue = ref();
 const loading = ref(false)
 const answerGoals = ref(null);
 
-const searchCases = params => casesReqest.selectItems(params).then(response => {
-    casesItem.value = response.data.data ?? []
-    return response
+const searchCases = params => searchCasesListDropdown(casesReqest, params, {
+  isParent: isParentUser(),
+}).then(response => {
+  casesItem.value = response.data.data ?? []
+  return response
 })
 
 watch(selectedCase, caseId => {
@@ -269,6 +273,8 @@ const leaveFunction = () => {
                         <AppAutocomplete
                             v-model="selectedCase"
                             :server-search="searchCases"
+                            preload
+                            :preload-limit="500"
                             :label="$t('Cases')"
                             :item-title="'name'"
                             :item-value="'id'"

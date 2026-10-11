@@ -40,6 +40,17 @@ class GoalController extends Controller
         
         $center = Term::resolveCenterId($user, $request->center_id);
 
+        // Independent skills list: require a case before returning rows (see /independent_goals/list).
+        if (
+            $request->category === 'independent'
+            && ! $request->pdf
+            && ! $request->filled('case_id')
+        ) {
+            $emptyPage = new \Illuminate\Pagination\LengthAwarePaginator([], 0, max($perPage, 1), 1);
+
+            return apiPaginateResponse($emptyPage, GoalsResource::listCollection(collect([])));
+        }
+
         // Listing goals must not widen what this user can see, even when a case_id is sent.
         $restrictCases = !$user->can('admin_cases')
             && !Term::canManageAllCenterTerms($user, $center);
@@ -53,20 +64,7 @@ class GoalController extends Controller
         ->whereHas('case', function ($query) use ($center, $restrictCases, $user) {
             $query->where('scases.center_id', $center);
             if ($restrictCases) {
-                $types = $this->scaseRelationshipTypesForRoles($user->roles);
-                $query->whereExists(function ($pivot) use ($user, $types) {
-                    $pivot->selectRaw('1')
-                        ->from('scase_user')
-                        ->join('users', 'users.id', '=', 'scase_user.user_id')
-                        ->whereColumn('scase_user.scase_id', 'scases.id')
-                        ->where('scase_user.user_id', $user->id)
-                        ->whereNull('users.deleted_at');
-                    if ($types === []) {
-                        $pivot->whereRaw('0 = 1');
-                    } else {
-                        $pivot->whereIn('scase_user.relationship_type', $types);
-                    }
-                });
+                $query->usersRoles($user->roles, $user->id);
             }
         })
         ->when(
@@ -182,32 +180,8 @@ class GoalController extends Controller
             }
         )
         ->when(
-            $request->period !== null && $request->period !== '' && Term::hasPeriodsTable(),
-            function ($q) use ($request) {
-                $periodIndex = (int) $request->period;
-
-                $q->whereHas('term.periods', function ($query) use ($periodIndex) {
-                    $query->where('period_index', $periodIndex)
-                        ->where('term_periods.evaluation_at', '>=', DB::raw('goals.date_to'));
-                });
-
-                if ($periodIndex === 0) {
-                    $q->whereHas('term', function ($query) {
-                        $query->where('terms.starts_at', '<=', DB::raw('goals.date_from'));
-                    });
-                } else {
-                    $q->where(function ($query) use ($periodIndex) {
-                        $query->whereHas('term.periods', function ($subQuery) use ($periodIndex) {
-                            $subQuery->where('period_index', $periodIndex - 1)
-                                ->where('term_periods.evaluation_at', '<', DB::raw('goals.date_from'));
-                        });
-                        $query->orWhereNull('goals.value_id');
-                        $query->orWhereHas('evaluationMethodValue', function ($hasQuery) {
-                            $hasQuery->where('evaluation_methods_values.ability', '!=', 'power');
-                        });
-                    });
-                }
-            }
+            $request->period !== null && $request->period !== '',
+            fn ($q) => $this->applyGoalListPeriodFilter($q, $request)
         )
         ->when(
             $request->period || $request->period == '0',
@@ -349,7 +323,7 @@ class GoalController extends Controller
             if($title && $bladePath && $pdfData) {
 
                 $token = PDF::savePdf($bladePath, $pdfData,"{$title} {$dateNow}.pdf");
-                return success(['url'=> route('file.download', ['token'=> $token])]);
+                return success(['url'=> exportDownloadUrl($token)]);
             }
         }
 
@@ -395,41 +369,6 @@ class GoalController extends Controller
         Assessment::primeLookups($goals->getCollection()->pluck('assesment'));
 
         return apiPaginateResponse($goals, GoalsResource::listCollection($goals));
-    }
-
-    private function scaseRelationshipTypesForRoles($roles): array
-    {
-        $types = [];
-        foreach ($roles as $role) {
-            switch ($role->default_name) {
-                case 'parent':
-                    $types[] = System::USER_TYPE_PARENT;
-                    break;
-                case 'teacher':
-                    $types[] = System::USER_TYPE_TEACHER;
-                    break;
-                case 'physiotherapist_specialist':
-                    $types[] = System::USER_TYPE_PHYSIOTHERAPIST;
-                    break;
-                case 'occupational_specialist':
-                    $types[] = System::USER_TYPE_OCCUPATIONAL_THERAPY;
-                    break;
-                case 'psychotherapist_specialist':
-                    $types[] = System::USER_TYPE_PSYCHOTHERAPIST;
-                    break;
-                case 'social_specialist':
-                    $types[] = System::USER_TYPE_SOCIAL;
-                    break;
-                case 'pronunciation_speech_specialist':
-                    $types[] = System::USER_TYPE_PRONUNCIATION_SPEECH;
-                    break;
-                case 'mental_disability_specialist':
-                    $types[] = System::USER_TYPE_MENTAL;
-                    break;
-            }
-        }
-
-        return $types;
     }
 
     public function show(Request $request, Goal $goal){
@@ -746,30 +685,6 @@ class GoalController extends Controller
                 })
             )
             ->when(
-                $request->category,
-                fn ($q) => $q->where('category', $request->category)
-            )
-            ->when(
-                !$request->category,
-                fn ($q) => $q->where('category', '!=', 'educational')
-            )
-            ->when(
-                $request->case_id,
-                fn ($q) => $q->where('case_id', $request->case_id)
-            )
-            ->when(
-                $request->teacher_id,
-                fn ($q) => $q->whereExists(function ($pivot) use ($request) {
-                    $pivot->selectRaw('1')
-                        ->from('scase_user')
-                        ->join('users', 'users.id', '=', 'scase_user.user_id')
-                        ->whereColumn('scase_user.scase_id', 'goals.case_id')
-                        ->where('scase_user.user_id', $request->teacher_id)
-                        ->where('scase_user.relationship_type', System::USER_TYPE_TEACHER)
-                        ->whereNull('users.deleted_at');
-                })
-            )
-            ->when(
                 $request->specialist_id,
                 fn ($q) => $q->whereExists(function ($pivot) use ($request) {
                     $pivot->selectRaw('1')
@@ -788,14 +703,7 @@ class GoalController extends Controller
                         ->whereNull('users.deleted_at');
                 })
             )
-            ->when(
-                $visibleTerm['term_id'] === 0,
-                fn ($q) => $q->whereRaw('0 = 1')
-            )
-            ->when(
-                $visibleTerm['term_id'],
-                fn ($q) => $q->where('term_id', $visibleTerm['term_id'])
-            )
+            ->tap(fn ($q) => $this->applyGoalSessionScopeFilters($q, $request, $visibleTerm))
             ->when(
                 $request->date_from && $request->date_to,
                 fn ($q) => $q->where(function ($query) use ($date_from, $date_to) {
@@ -867,6 +775,159 @@ class GoalController extends Controller
             });
 
         return apiResponse($goals);
+    }
+
+    /**
+     * Cases that have at least one goal visible under the same rules as /goals/select-items
+     * (used by education / independent session filters).
+     */
+    public function selectCaseItems(Request $request)
+    {
+        $autocomplete = parseAutocompleteRequest($request);
+        if ($request->boolean('preload')) {
+            $autocomplete['run'] = true;
+        }
+        if (! $autocomplete['run']) {
+            return apiResponse([]);
+        }
+
+        $user = auth()->user();
+        $limit = $autocomplete['limit'];
+        if ($request->boolean('preload')) {
+            $limit = min(max((int) $request->get('limit', 500), 1), 500);
+        }
+        $keywords = $autocomplete['keywords'];
+
+        $center = Term::resolveCenterId($user, $request->center_id);
+        $visibleTerm = Term::visibleTermId($user, $center, $request->term_id);
+        if (! $visibleTerm['ok']) {
+            return Term::forbiddenResponse();
+        }
+
+        $restrictCases = ! $user->can('admin_cases')
+            && ! Term::canManageAllCenterTerms($user, $center);
+
+        $goalsForCases = Goal::query()
+            ->select('goals.case_id')
+            ->whereHas('case', function ($query) use ($center, $restrictCases, $user) {
+                $query->where('scases.center_id', $center);
+                if ($restrictCases) {
+                    $query->usersRoles($user->roles, $user->id);
+                }
+            });
+
+        $this->applyGoalSessionScopeFilters($goalsForCases, $request, $visibleTerm);
+
+        $feildId = $request->feild_id;
+        $goalsForCases
+            ->when(
+                $feildId && $feildId != 'without_feild',
+                fn ($q) => $q->whereExists(function ($assessment) use ($feildId) {
+                    $assessment->selectRaw('1')
+                        ->from('assessments')
+                        ->whereColumn('assessments.id', 'goals.assessment_id')
+                        ->where('assessments.parents_ids', 'like', "%#{$feildId}_%")
+                        ->whereNull('assessments.deleted_at');
+                })
+            )
+            ->when(
+                $feildId == 'without_feild',
+                fn ($q) => $q->whereNull('assessment_id')
+            );
+
+        $goalsForCases->when(
+            $request->specialist_id,
+            fn ($q) => $q->whereExists(function ($pivot) use ($request) {
+                $pivot->selectRaw('1')
+                    ->from('scase_user')
+                    ->join('users', 'users.id', '=', 'scase_user.user_id')
+                    ->whereColumn('scase_user.scase_id', 'goals.case_id')
+                    ->where('scase_user.user_id', $request->specialist_id)
+                    ->whereIn('scase_user.relationship_type', [
+                        System::USER_TYPE_PHYSIOTHERAPIST,
+                        System::USER_TYPE_OCCUPATIONAL_THERAPY,
+                        System::USER_TYPE_SOCIAL,
+                        System::USER_TYPE_PRONUNCIATION_SPEECH,
+                        System::USER_TYPE_MENTAL,
+                        System::USER_TYPE_PSYCHOTHERAPIST,
+                    ])
+                    ->whereNull('users.deleted_at');
+            })
+        );
+
+        $caseIds = $goalsForCases->distinct()->pluck('case_id')->filter()->values();
+
+        if ($caseIds->isEmpty()) {
+            return apiResponse([]);
+        }
+
+        $cases = SCase::query()
+            ->select('scases.id', 'scases.name')
+            ->whereIn('scases.id', $caseIds)
+            ->when(
+                $keywords && $autocomplete['ids'],
+                fn ($q) => $q->where(function ($inner) use ($keywords, $autocomplete) {
+                    $inner->where('search_text', 'like', "%{$keywords}%")
+                        ->orWhereIn('scases.id', $autocomplete['ids']);
+                })
+            )
+            ->when(
+                $keywords && ! $autocomplete['ids'],
+                fn ($q) => $q->where('search_text', 'like', "%{$keywords}%")
+            )
+            ->when(
+                ! $keywords && $autocomplete['ids'],
+                fn ($q) => $q->whereIn('scases.id', $autocomplete['ids'])
+            )
+            ->orderBy('scases.name')
+            ->limit($limit)
+            ->get();
+
+        return apiResponse($cases);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $goalQuery
+     */
+    private function applyGoalSessionScopeFilters($goalQuery, Request $request, array $visibleTerm): void
+    {
+        $goalQuery
+            ->when(
+                $request->category,
+                fn ($q) => $q->where('category', $request->category)
+            )
+            ->when(
+                ! $request->category,
+                fn ($q) => $q->where('category', '!=', 'educational')
+            )
+            ->when(
+                $request->case_id,
+                fn ($q) => $q->where('case_id', $request->case_id)
+            )
+            ->when(
+                $request->goal_id,
+                fn ($q) => $q->where('goals.id', $request->goal_id)
+            )
+            ->when(
+                $request->teacher_id,
+                fn ($q) => $q->whereExists(function ($pivot) use ($request) {
+                    $pivot->selectRaw('1')
+                        ->from('scase_user')
+                        ->join('users', 'users.id', '=', 'scase_user.user_id')
+                        ->whereColumn('scase_user.scase_id', 'goals.case_id')
+                        ->where('scase_user.user_id', $request->teacher_id)
+                        ->where('scase_user.relationship_type', System::USER_TYPE_TEACHER)
+                        ->whereNull('users.deleted_at');
+                })
+            )
+            ->when(
+                $visibleTerm['term_id'] === 0,
+                fn ($q) => $q->whereRaw('0 = 1')
+            )
+            ->when(
+                $visibleTerm['term_id'],
+                fn ($q) => $q->where('term_id', $visibleTerm['term_id'])
+            );
     }
 
     public function filter(Request $request){
@@ -1048,5 +1109,96 @@ class GoalController extends Controller
         $record->delete();
         Log::add('delete_goal_evaluation_step', $oldRecord, $oldRecord->id, '');
         return response()->json(['message' => 'Record deleted successfully', 'status' => true]);
+    }
+
+    /**
+     * Restrict goals to those whose date range falls in the selected term period window.
+     * Period indices match the UI (0 = first period, last index = final evaluation).
+     */
+    private function applyGoalListPeriodFilter($query, Request $request): void
+    {
+        $periodIndex = (int) $request->period;
+
+        $query->whereNotNull('goals.date_from')->whereNotNull('goals.date_to');
+
+        if ($request->filled('term_id')) {
+            $term = Term::withPeriods()->find($request->term_id);
+            if ($term && $term->applyGoalPeriodWindowFilter($query, $periodIndex)) {
+                return;
+            }
+        }
+
+        if (! Term::hasPeriodsTable()) {
+            return;
+        }
+
+        $this->applyGoalPeriodWindowFilterForGoalTerm($query, $periodIndex);
+    }
+
+    /**
+     * Same milestone windows as Term::applyGoalPeriodWindowFilter, correlated per goal.term_id.
+     */
+    private function applyGoalPeriodWindowFilterForGoalTerm($query, int $periodIndex): void
+    {
+        if ($periodIndex === 0) {
+            $query->whereHas('term', function ($termQuery) {
+                $termQuery->where(function ($window) {
+                    $window->where(function ($firstOfMany) {
+                        $firstOfMany->whereColumn('goals.date_from', '>=', 'terms.starts_at')
+                            ->whereExists(function ($exists) {
+                                $exists->selectRaw('1')
+                                    ->from('term_periods as tp_next')
+                                    ->whereColumn('tp_next.term_id', 'terms.id')
+                                    ->where('tp_next.period_index', 1)
+                                    ->whereColumn('goals.date_to', '<', 'tp_next.evaluation_at');
+                            });
+                    })->orWhere(function ($singlePeriod) {
+                        $singlePeriod->whereNotExists(function ($missing) {
+                            $missing->selectRaw('1')
+                                ->from('term_periods as tp_second')
+                                ->whereColumn('tp_second.term_id', 'terms.id')
+                                ->where('tp_second.period_index', 1);
+                        })
+                            ->whereExists(function ($exists) {
+                                $exists->selectRaw('1')
+                                    ->from('term_periods as tp_only')
+                                    ->whereColumn('tp_only.term_id', 'terms.id')
+                                    ->where('tp_only.period_index', 0)
+                                    ->whereColumn('goals.date_from', '>=', 'tp_only.evaluation_at');
+                            })
+                            ->whereColumn('goals.date_to', '<=', 'terms.ends_at');
+                    });
+                });
+            });
+
+            return;
+        }
+
+        $query->whereHas('term', function ($termQuery) use ($periodIndex) {
+            $termQuery->whereExists(function ($start) use ($periodIndex) {
+                $start->selectRaw('1')
+                    ->from('term_periods as tp_start')
+                    ->whereColumn('tp_start.term_id', 'terms.id')
+                    ->where('tp_start.period_index', $periodIndex)
+                    ->whereColumn('goals.date_from', '>=', 'tp_start.evaluation_at');
+            })->where(function ($upper) use ($periodIndex) {
+                $upper->whereExists(function ($beforeNext) use ($periodIndex) {
+                    $beforeNext->selectRaw('1')
+                        ->from('term_periods as tp_end')
+                        ->whereColumn('tp_end.term_id', 'terms.id')
+                        ->where('tp_end.period_index', $periodIndex + 1)
+                        ->whereColumn('goals.date_to', '<', 'tp_end.evaluation_at');
+                })->orWhere(function ($final) use ($periodIndex) {
+                    $nextIndex = $periodIndex + 1;
+                    $final->whereNotExists(function ($missing) use ($nextIndex) {
+                        $missing->selectRaw('1')
+                            ->from('term_periods as tp_after')
+                            ->whereColumn('tp_after.term_id', 'terms.id')
+                            ->where('tp_after.period_index', $nextIndex);
+                    })
+                        ->whereColumn('goals.date_to', '<=', 'terms.ends_at');
+                });
+            });
+        });
     }
 }

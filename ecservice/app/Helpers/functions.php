@@ -728,7 +728,14 @@ if (!function_exists('downloadFile')) {
             'content_type' => $contentType
         ]));
 
-        return route('file.download', ['token'=> $token]);
+        return \App\Models\System\ExportExcel::downloadUrl($token);
+    }
+}
+
+if (! function_exists('exportDownloadUrl')) {
+    function exportDownloadUrl(string $token): string
+    {
+        return \App\Models\System\ExportExcel::downloadUrl($token);
     }
 }
 

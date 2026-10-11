@@ -48,6 +48,12 @@ class CaseListAccess
         ]);
     }
 
+    /** Case autocomplete for list + comprehensive case assessments dropdown. */
+    public static function selectItemsPermissionMiddleware(): string
+    {
+        return self::listPermissionMiddleware().'|apply_assessments_cases';
+    }
+
     public static function allScopePermissionMiddleware(): string
     {
         return self::PERM_ALL.'|admin_cases';

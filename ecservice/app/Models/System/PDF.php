@@ -2,24 +2,60 @@
 
 namespace App\Models\System;
 
-class PDF {    
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\File;
 
-    public static function savePdf($view, $data, $fileName, $config=[]) {
+class PDF
+{
+    public static function defaultFileName(string $prefix): string
+    {
+        $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
 
-        $pdf = \PDF::loadView('pdf.'.$view,  compact('data'), [], $config);
-        $tempFileName = uniqid() . '.pdf';
-        // $pdf->save(storage_path( System::PDF_SAVE_PATH . $tempFileName));
-        $tempFilePath = tempnam(sys_get_temp_dir(), $tempFileName);
-        $newFilePath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $tempFileName;
-        rename($tempFilePath, $newFilePath);
+        return ExportExcel::safeDownloadFileName($prefix.' '.$timestamp.'.pdf');
+    }
+
+    public static function savePdf($view, $data, $fileName, $config = [])
+    {
+        $tempDir = storage_path('app/temp/mpdf');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $exportDir = storage_path('app/temp/exports');
+        if (! is_dir($exportDir)) {
+            mkdir($exportDir, 0755, true);
+        }
+
+        $mergedConfig = array_merge([
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'orientation' => 'P',
+            'default_font' => 'xbriyaz',
+            'temp_dir' => $tempDir,
+            'margin_left' => 10,
+            'margin_right' => 10,
+            'margin_top' => 12,
+            'margin_bottom' => 12,
+        ], $config);
+
+        $pdf = \PDF::loadView('pdf.'.$view, compact('data'), [], $mergedConfig);
+
+        $storedName = uniqid('motabaa_pdf_', true).'.pdf';
+        $newFilePath = $exportDir.DIRECTORY_SEPARATOR.$storedName;
+
         $pdf->save($newFilePath);
-        $token = \Illuminate\Support\Facades\Crypt::encryptString(json_encode([
-            'file_path' => $newFilePath,
-            'file_name' => $fileName,
-            'content_type' => 'application/pdf'
-        ]));
-        return $token;
-    }    
 
-    
+        if (! File::exists($newFilePath) || File::size($newFilePath) < 1) {
+            throw new \RuntimeException('PDF export produced an empty file.');
+        }
+
+        $token = Crypt::encryptString(json_encode([
+            'file_path' => $newFilePath,
+            'file_name' => ExportExcel::safeDownloadFileName($fileName),
+            'content_type' => 'application/pdf',
+        ]));
+
+        return $token;
+    }
 }

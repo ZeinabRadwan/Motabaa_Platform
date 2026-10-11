@@ -7,11 +7,10 @@ import layoutsPlugin from '@/plugins/layouts'
 import vuetify from '@/plugins/vuetify'
 import { loadFonts } from '@/plugins/webfontloader'
 import router from '@/router'
-import { dismissInitialLoader } from '@/utils/dismissInitialLoader'
-import { createPinia } from 'pinia'
 import { abilitiesPlugin } from '@casl/vue'
 import '@core/scss/template/index.scss'
 import '@styles/styles.scss'
+import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import DisableAutocomplete from 'vue-disable-autocomplete'
 
@@ -41,13 +40,3 @@ app.use(abilitiesPlugin, ability, {
 
 // Mount vue app
 app.mount('#app')
-
-router.isReady()
-  .then(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(dismissInitialLoader)
-    })
-  })
-  .catch(dismissInitialLoader)
-
-window.setTimeout(dismissInitialLoader, 12_000)

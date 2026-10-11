@@ -12,6 +12,7 @@ use App\Models\MeetingRoom;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\MessagesResource;
 use App\Http\Requests\MessageRequest;
+use App\Models\MediaAttachmentAuditLog;
 use App\Models\System\System;
 use PhpParser\Node\Stmt\TryCatch;
 use App\Models\Log;
@@ -183,26 +184,40 @@ class MessageController extends Controller
             }
         } catch (\Throwable $th) {}
 
+        $auditContext = [
+            'center_id' => $request->integer('center_id') ?: null,
+            'user_id' => auth()->id(),
+        ];
+
+        $attachmentMeta = null;
         try {
             if($request->hasFile('image') || $request->hasFile('file') || $request->hasFile('video')) {
                 ini_set('max_execution_time', '600');
             }
             if($request->hasFile('image')) {
-                $message->saveFile($input['image'], 'image');
+                $attachmentMeta = $message->saveFile($input['image'], 'image', $auditContext);
             }
             else if($request->hasFile('file')) {
-                $message->saveFile($input['file'], 'file');
+                $attachmentMeta = $message->saveFile($input['file'], 'file', $auditContext);
             }
             else if($request->hasFile('video')) {
-                $message->saveFile($input['video'], 'video');
+                $attachmentMeta = $message->saveFile($input['video'], 'video', $auditContext);
             }
         } catch (\Throwable $e) {
             \Log::error('Message attachment upload failed', [
                 'message_id' => $message->id,
+                'correlation_id' => MediaAttachmentAuditLog::correlationIdFromRequest(),
                 'error' => $e->getMessage(),
             ]);
             $field = $request->hasFile('video') ? 'video' : ($request->hasFile('image') ? 'image' : 'file');
-            $message->deleteFolder();
+            try {
+                $message->deleteFolder($auditContext);
+            } catch (\Throwable $cleanupError) {
+                \Log::error('Message attachment upload cleanup failed', [
+                    'message_id' => $message->id,
+                    'error' => $cleanupError->getMessage(),
+                ]);
+            }
             $message->delete();
 
             return response()->json([
@@ -212,13 +227,41 @@ class MessageController extends Controller
             ], 422);
         }
 
-        return success();
+        $message->load(['user.roles:id,name,default_name', 'goal:id,title']);
+
+        return success([
+            'message' => new MessagesResource($message),
+            'attachment' => $attachmentMeta,
+        ]);
     }
 
     public function delete($id) {
 
         $record = Message::find($id);
-        $record->deleteFolder();
+        if (! $record) {
+            return error(404);
+        }
+
+        $auditContext = [
+            'center_id' => request()->integer('center_id') ?: null,
+            'user_id' => auth()->id(),
+        ];
+
+        try {
+            $record->deleteFolder($auditContext);
+        } catch (\Throwable $e) {
+            \Log::error('Message attachment delete storage failed', [
+                'message_id' => $record->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'errors' => [
+                    'delete' => [__('File delete failed.')],
+                ],
+            ], 422);
+        }
+
         $record->delete();
         Log::add('delete_message', $record, $record->id, '');
         return response()->json(['message' => 'Deleted successfully.', 'status' => true]);

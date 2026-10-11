@@ -15,7 +15,7 @@ export const buildVerticalNav = (userData, centerId, userAbilities) => {
     return [...dashboardItems, ...appItems]
 
   if (isAdminUser)
-    return [...dashboardItems, ...appItems]
+    return [...appItems]
 
   return []
 }

@@ -92,7 +92,7 @@ class CenterController extends Controller
             if($fileName && $bladePath && $data) {
 
                 $token = PDF::savePdf($bladePath, $data, $fileName);
-                return success(['url'=> route('file.download', ['token'=> $token])]);
+                return success(['url'=> exportDownloadUrl($token)]);
             }
         }
 
@@ -366,7 +366,7 @@ class CenterController extends Controller
                 'items' => $payments
             ];
             $token = PDF::savePdf('centers.payments', $pdfData, $fileName);
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
         else {
 

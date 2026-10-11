@@ -16,7 +16,6 @@ requiredValidator
 } from '@validators';
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
-import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 
@@ -24,7 +23,6 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 const route = useRoute()
 const router = useRouter()
 const refVForm = ref()
-const casesReqest = casesApi()
 const userListStore = useUserListStore()
 const assessmentsReqest = assessmentsApi()
 const goalsReqest = goalsApi()
@@ -121,8 +119,19 @@ watch(specialist, query => {
   selectedCase.value = null
 })
 
+const casesFilterKey = computed(() => [
+  specialist.value,
+  selectedScaleType.value,
+  selectedTerm.value,
+].join('|'))
+
 watch(selectedScaleType, () => {
   fetchFeilds()
+  selectedCase.value = null
+})
+
+watch(selectedTerm, () => {
+  selectedCase.value = null
 })
 
 
@@ -198,9 +207,11 @@ const searchSpecialists = params => userListStore.searchItems({
   roles: ['physiotherapist_specialist', 'occupational_specialist', 'psychotherapist_specialist', 'pronunciation_speech_specialist'],
 })
 
-const searchCases = params => casesReqest.selectItems({
+const searchCases = params => goalsReqest.selectCaseItems({
   ...params,
   specialist_id: specialist.value,
+  category: selectedScaleType.value,
+  term_id: selectedTerm.value,
 }).then(response => {
   casesItem.value = response.data.data ?? []
   return response
@@ -597,7 +608,7 @@ const transferGoal = () => {
                 v-model="selectedCase"
                 :server-search="searchCases"
                 preload
-                :preload-key="specialist"
+                :preload-key="casesFilterKey"
                 :label="$t('Cases')"
                 :item-title="'name'"
                 :item-value="'id'"

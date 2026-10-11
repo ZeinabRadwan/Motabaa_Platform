@@ -1,153 +1,83 @@
-:root {
-  --athar-loader-blue-deep: #024282;
-  --athar-loader-blue-bright: #00a3ff;
-  --athar-loader-surface: #eef2f7;
-  --athar-loader-glass-border: transparent;
-  --athar-loader-glass-bg: transparent;
-  --athar-loader-glow: 0 0 40px rgba(0, 163, 255, 0.18), 0 0 72px rgba(2, 66, 130, 0.1);
-}
-
 body {
   margin: 0;
 }
 
-html.athar-initial-loading {
-  overflow: hidden;
+html {
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 #loading-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--initial-loader-bg, var(--athar-loader-surface));
-  transition: opacity 0.35s ease, visibility 0.35s ease;
-}
-
-#loading-bg.athar-loader--hide,
-#loading-bg.athar-glass-loader--hide {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-}
-
-.athar-glass-loader__stage {
-  position: relative;
-  display: grid;
-  place-items: center;
-  inline-size: clamp(10.5rem, 28vw, 13.75rem);
-  block-size: clamp(10.5rem, 28vw, 13.75rem);
-  animation: athar-glass-loader-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.athar-glass-loader__orbit {
   position: absolute;
-  inset: 0;
-}
-
-.athar-glass-loader__svg {
-  inline-size: 100%;
+  display: block;
+  background: var(--initial-loader-bg, #fff);
   block-size: 100%;
+  inline-size: 100%;
 }
 
-.athar-glass-loader__ring {
-  fill: none;
-  stroke-linecap: round;
+.loading-logo {
+  position: absolute;
+  inset-block-start: 36%;
+  inset-inline-start: calc(50% - 35px);
 }
 
-.athar-glass-loader__ring--outer {
-  stroke: rgba(255, 255, 255, 0.85);
-  stroke-width: 1.25;
-  filter: drop-shadow(0 1px 2px rgba(2, 66, 130, 0.15));
-}
-
-.athar-glass-loader__ring--inner {
-  stroke: rgba(148, 163, 184, 0.35);
-  stroke-width: 0.75;
-}
-
-.athar-glass-loader__ticks {
-  fill: none;
-  stroke-linecap: round;
-  transform-origin: 100px 100px;
-}
-
-.athar-glass-loader__ticks--inactive {
-  stroke: var(--athar-loader-blue-deep);
-  stroke-opacity: 0.12;
-  stroke-width: 2.5;
-  stroke-dasharray: 2 10.5;
-}
-
-.athar-glass-loader__ticks-spin {
-  transform-origin: 100px 100px;
-  animation: athar-glass-loader-spin 3s linear infinite;
-}
-
-.athar-glass-loader__ticks--active {
-  stroke: url(#athar-loader-track-gradient);
-  stroke-width: 3;
-  stroke-dasharray: 3 9.5;
-  opacity: 0.95;
-}
-
-.athar-glass-loader__glass {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  inline-size: 62%;
-  aspect-ratio: 1;
+.loading {
+  position: absolute;
+  box-sizing: border-box;
+  border: 3px solid transparent;
+  block-size: 55px;
   border-radius: 50%;
-  background: var(--athar-loader-glass-bg);
-  border: none;
-  box-shadow: none;
-  animation: athar-glass-loader-breathe 2.8s ease-in-out infinite;
+  inline-size: 55px;
+  inset-block-start: 50%;
+  inset-inline-start: calc(50% - 35px);
 }
 
-.athar-glass-loader__logo {
-  inline-size: 72%;
-  filter: drop-shadow(0 0 40px rgba(0, 163, 255, 0.18)) drop-shadow(0 0 72px rgba(2, 66, 130, 0.1));
-  block-size: auto;
-  object-fit: contain;
+.loading .effect-1,
+.loading .effect-2,
+.loading .effect-3 {
+  position: absolute;
+  box-sizing: border-box;
+  border: 3px solid transparent;
+  block-size: 100%;
+  border-inline-start: 3px solid var(--initial-loader-color, #eee);
+  border-radius: 50%;
+  inline-size: 100%;
 }
 
-@keyframes athar-glass-loader-enter {
-  from {
-    opacity: 0;
-    transform: scale(0.94);
+.loading .effect-1 {
+  animation: rotate 1s ease infinite;
+}
+
+.loading .effect-2 {
+  animation: rotate-opacity 1s ease infinite 0.1s;
+}
+
+.loading .effect-3 {
+  animation: rotate-opacity 1s ease infinite 0.2s;
+}
+
+.loading .effects {
+  transition: all 0.3s ease;
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
   }
 
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes athar-glass-loader-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes athar-glass-loader-breathe {
-  0%,
   100% {
-    transform: scale(0.98);
-  }
-
-  50% {
-    transform: scale(1.02);
+    transform: rotate(1turn);
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .athar-glass-loader__stage,
-  .athar-glass-loader__ticks-spin,
-  .athar-glass-loader__glass {
-    animation: none !important;
+@keyframes rotate-opacity {
+  0% {
+    opacity: 0.1;
+    transform: rotate(0deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: rotate(1turn);
   }
 }

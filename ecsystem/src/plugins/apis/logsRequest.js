@@ -19,5 +19,11 @@ export const logsApi = defineStore('logsRequest', {
       params['center_id'] = Number(localStorage.getItem('center'));
       return axios.get('/logs/statistics', { params })
     },
+
+    fetchMediaAttachmentLogs(params) {
+      params.center_id = Number(localStorage.getItem('center'));
+
+      return axios.get('/logs/media-attachments', { params })
+    },
   },
 })

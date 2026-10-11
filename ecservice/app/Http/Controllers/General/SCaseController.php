@@ -49,13 +49,21 @@ class SCaseController extends Controller
         
         $center = Term::resolveCenterId($user, $request->center_id);
 
+        if ($request->filled('term_id')) {
+            $denied = Term::abortIfInaccessible($user, $center, $request->term_id);
+            if ($denied) {
+                return $denied;
+            }
+        }
+
         $cases = SCase::query()
         ->with([
             'disabilities:id,name_ar,name_en',
             'services:id,name_ar,name_en',
             'parents:id,name',
-        ])
-        ->where('scases.center_id', $center)
+        ]);
+        SCase::applyCaseListCenterScope($cases, $user, $center ? (int) $center : null);
+        $cases
         ->when(
             $request->q,
             fn ($q) => $q->where('search_text', 'like',"%{$keywords}%")
@@ -102,11 +110,10 @@ class SCaseController extends Controller
             $period !== null,
             fn ($q) => $q->where('scases.period', $period)
         )
-        ->when(
-            !$viewAllCenterCases,
-            fn ($q) => $q->assignedToStaffUser($user->id)
-        )
-        ->when(
+        ;
+        $this->applyCaseListTermAndDateFilters($cases, $request);
+        SCase::applyCaseListVisibilityScope($cases, $user, $viewAllCenterCases);
+        $cases->when(
             $request->task,
             fn ($q) => $q->where($request->task,'1')
         )
@@ -124,7 +131,7 @@ class SCaseController extends Controller
             $cases = $cases->get();
             $fileName = 'Cases '.Carbon::now().'.xlsx';
             $token = ExportExcel::saveExcel(new ExportCases($cases), $fileName);
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
         else {
             $cases->select([
@@ -169,8 +176,9 @@ class SCaseController extends Controller
         // without their own center (platform admin) still gets the right scope.
         $center = Term::resolveCenterId($user, $request->center_id);
 
-        $cases = SCase::select('scases.id', 'scases.name')
-            ->where('scases.center_id', $center)
+        $cases = SCase::select('scases.id', 'scases.name');
+        SCase::applyCaseListCenterScope($cases, $user, $center ? (int) $center : null);
+        $cases
             ->when(
                 $keywords && $autocomplete['ids'],
                 fn ($q) => $q->where(function ($inner) use ($keywords, $autocomplete) {
@@ -220,11 +228,9 @@ class SCaseController extends Controller
                     $query->whereIn('services.id', $service);
                 })
             )
-            ->when(
-                !$viewAllCenterCases,
-                fn ($q) => $q->assignedToStaffUser($user->id)
-            )
-            ->when(
+            ;
+        SCase::applyCaseListVisibilityScope($cases, $user, $viewAllCenterCases);
+        $cases->when(
                 $request->status && $request->status == 'all',
                 fn ($q) => $q->withTrashed()
             )
@@ -290,21 +296,24 @@ class SCaseController extends Controller
         $user = auth()->user();
         $center = Term::resolveCenterId($user, $request->center_id);
 
-        $case = SCase::with(
-            'disabilities', 
-            'services', 
-            'parents', 
-            'teacher', 
-            'psychotherapist', 
-            'occupational_therapy', 
-            'physiotherapist', 
+        $caseQuery = SCase::with(
+            'disabilities',
+            'services',
+            'parents',
+            'teacher',
+            'psychotherapist',
+            'occupational_therapy',
+            'physiotherapist',
             'pronunciation_speech'
-        )
-        ->where('scases.center_id', $center)
-        ->withTrashed()
-        ->find($case);
+        )->withTrashed();
 
-        if ($case && !SCase::userCanAccessCase($user, $case)) {
+        if (! isParentUser($user)) {
+            $caseQuery->where('scases.center_id', $center);
+        }
+
+        $case = $caseQuery->find($case);
+
+        if ($case && ! SCase::userCanAccessCase($user, $case)) {
             return Term::forbiddenResponse();
         }
 
@@ -340,8 +349,16 @@ class SCaseController extends Controller
         $case->disabilities()->sync(json_decode($input['disability_type_ids'], true));
         $case->services()->sync(json_decode($input['services_provided'], true));
 
-        $case->parents()->syncWithPivotValues(json_decode($input['parent_id'], true), ['relationship_type' => System::USER_TYPE_PARENT]);
-        $case->teacher()->syncWithPivotValues(json_decode($input['teacher_id'], true), ['relationship_type' => System::USER_TYPE_TEACHER]);
+        $parentIds = $this->normalizeRelatedUserIds($input['parent_id'] ?? null);
+        if ($parentIds === []) {
+            return response()->json(['errors' => ['parent_id' => [__('validation.required', ['attribute' => 'parent_id'])]]], 422);
+        }
+
+        $case->parents()->syncWithPivotValues($parentIds, ['relationship_type' => System::USER_TYPE_PARENT]);
+        $case->teacher()->syncWithPivotValues(
+            $this->normalizeRelatedUserIds($input['teacher_id'] ?? null),
+            ['relationship_type' => System::USER_TYPE_TEACHER]
+        );
 
         $case->physiotherapist()->syncWithPivotValues($input['physiotherapist_id'] ? [$input['physiotherapist_id']] : [], ['relationship_type' => System::USER_TYPE_PHYSIOTHERAPIST]);
         $case->occupational_therapy()->syncWithPivotValues($input['occupational_therapy_id'] ? [$input['occupational_therapy_id']] : [], ['relationship_type' => System::USER_TYPE_OCCUPATIONAL_THERAPY]);
@@ -462,7 +479,7 @@ class SCaseController extends Controller
                 'case' => $case,
                 'questions' => json_decode($case->general_questions, true),
             ],'Case General Data '.$date.'.pdf');
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
         else if($pdfType && $pdfType == 'case_study'){
             $token = PDF::savePdf('cases.case_study',[
@@ -470,7 +487,7 @@ class SCaseController extends Controller
                 'case' => $case,
                 'case_study' => json_decode($case->case_study, true),
             ],'Case Case Study '.$date.'.pdf');
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
         else if($pdfType && $pdfType == 'psychological_study'){
             $token = PDF::savePdf('cases.psychological_study',[
@@ -478,7 +495,7 @@ class SCaseController extends Controller
                 'case' => $case,
                 'psychological_study' => json_decode($case->psychological_study, true),
             ],'Case Psychological Study '.$date.'.pdf');
-            return success(['url'=> route('file.download', ['token'=> $token])]);
+            return success(['url'=> exportDownloadUrl($token)]);
         }
     }
 
@@ -572,7 +589,7 @@ class SCaseController extends Controller
             if($title && $bladePath && $pdfData) {
         
                 $token = PDF::savePdf($bladePath, $pdfData,"{$title} {$dateNow}.pdf");
-                return success(['url'=> route('file.download', ['token'=> $token])]);
+                return success(['url'=> exportDownloadUrl($token)]);
             }
         }
 
@@ -789,7 +806,7 @@ class SCaseController extends Controller
             if($title && $bladePath && $pdfData) {
 
                 $token = PDF::savePdf($bladePath, $pdfData,"{$title} {$dateNow}.pdf");
-                return success(['url'=> route('file.download', ['token'=> $token])]);
+                return success(['url'=> exportDownloadUrl($token)]);
             }
         }
 
@@ -1210,6 +1227,40 @@ class SCaseController extends Controller
         }
     }
 
+    /**
+     * @return int[]
+     */
+    private function normalizeRelatedUserIds(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (is_array($value)) {
+            return array_values(array_filter(array_map('intval', $value)));
+        }
+
+        if (is_numeric($value)) {
+            return [(int) $value];
+        }
+
+        if (! is_string($value)) {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            if (is_array($decoded)) {
+                return array_values(array_filter(array_map('intval', $decoded)));
+            }
+            if (is_numeric($decoded)) {
+                return [(int) $decoded];
+            }
+        }
+
+        return [];
+    }
+
     private function requestedCasePeriod(Request $request): ?int
     {
         $period = $request->input('period');
@@ -1218,5 +1269,37 @@ class SCaseController extends Controller
         }
 
         return (int) $period;
+    }
+
+    /**
+     * Qualifying term + case registration date (scases.created_at).
+     */
+    private function applyCaseListTermAndDateFilters($query, Request $request): void
+    {
+        if ($request->filled('term_id')) {
+            $termId = (int) $request->term_id;
+            $query->where(function ($scoped) use ($termId) {
+                $scoped->whereHas('goals', function ($goals) use ($termId) {
+                    $goals->where('goals.term_id', $termId);
+                })->orWhereExists(function ($fees) use ($termId) {
+                    $fees->selectRaw('1')
+                        ->from('scases_fees')
+                        ->whereColumn('scases_fees.case_id', 'scases.id')
+                        ->where('scases_fees.term_id', $termId)
+                        ->whereNull('scases_fees.deleted_at');
+                });
+            });
+        }
+
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        if ($dateFrom && $dateTo) {
+            $query->whereDate('scases.created_at', '>=', $dateFrom)
+                ->whereDate('scases.created_at', '<=', $dateTo);
+        } elseif ($dateFrom) {
+            $query->whereDate('scases.created_at', '>=', $dateFrom);
+        } elseif ($dateTo) {
+            $query->whereDate('scases.created_at', '<=', $dateTo);
+        }
     }
 }

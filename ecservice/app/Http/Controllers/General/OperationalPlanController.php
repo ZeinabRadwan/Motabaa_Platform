@@ -120,7 +120,7 @@ class OperationalPlanController extends Controller
         ];
         $token = PDF::savePdf('operational_plan', $data, 'Operational Plan '.$date.'.pdf', $config);
 
-        return success(['url'=> route('file.download', ['token'=> $token])]);
+        return success(['url'=> exportDownloadUrl($token)]);
     }
 
     public function put(Request $request, $plan){

@@ -15,13 +15,11 @@ import {
 
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
-import {casesApi} from "@/plugins/apis/casesReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 
 
 const route = useRoute()
 const router = useRouter()
-const casesReqest = casesApi()
 const userListStore = useUserListStore()
 const goalsReqest = goalsApi()
 
@@ -110,10 +108,23 @@ watch(specialist, () => {
   }
 })
 
+const casesFilterKey = computed(() => [
+  specialist.value,
+  selectedScaleType.value,
+  selectedTerm.value,
+  selectedFeild.value,
+].join('|'))
+
 watch(selectedScaleType, () => {
   if(!updatingGoal.value) {
     fetchFeilds()
+    selectedCase.value = null
   }
+})
+
+watch([selectedTerm, selectedFeild], () => {
+  if (!updatingGoal.value)
+    selectedCase.value = null
 })
 
 watch(selectedTerm, () => {
@@ -227,9 +238,12 @@ const searchSpecialists = params => userListStore.searchItems({
   roles: ['physiotherapist_specialist', 'occupational_specialist', 'psychotherapist_specialist', 'pronunciation_speech_specialist'],
 })
 
-const searchCases = params => casesReqest.selectItems({
+const searchCases = params => goalsReqest.selectCaseItems({
   ...params,
   specialist_id: specialist.value,
+  category: selectedScaleType.value,
+  term_id: selectedTerm.value,
+  feild_id: selectedFeild.value,
 }).then(response => {
   casesItem.value = response.data.data ?? []
   return response
@@ -497,7 +511,8 @@ watchAssessmentTableFetch({
                 v-model="selectedCase"
                 :server-search="searchCases"
                 preload
-                :preload-key="specialist"
+                :preload-limit="500"
+                :preload-key="casesFilterKey"
                 :label="$t('Cases')"
                 :item-title="'name'"
                 :item-value="'id'"
