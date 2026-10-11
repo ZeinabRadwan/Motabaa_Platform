@@ -6,7 +6,6 @@ import { useThemeConfig } from '@core/composable/useThemeConfig'
 // Components
 import AppPageContent from '@/layouts/components/AppPageContent.vue'
 import Footer from '@/layouts/components/Footer.vue'
-import TheCustomizer from '@core/components/TheCustomizer.vue'
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
 
@@ -38,6 +37,5 @@ const pageKey = computed(() => `${sessionStore.userData?.id || 'anon'}:${session
       <Footer />
     </template>
 
-    <TheCustomizer />
   </VerticalNavLayout>
 </template>
