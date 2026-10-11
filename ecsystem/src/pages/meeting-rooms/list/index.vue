@@ -88,9 +88,7 @@ watchServerTableFetch(fetchAllRooms, {
                 <template v-slot:title>
                     <VRow>
                         <span class="v-col v-col-12 justify-lg-space-between d-flex align-center gap-4"> 
-                            <div style="inline-size: 15rem;">
-                                <h4 class="text-h4">{{ $t('Meeting rooms') }}</h4>
-                            </div>
+                            <VSpacer />
                             <div  class="d-flex gap-4">
                                 <AppTextField
                                 style="inline-size: 15rem;"

@@ -117,11 +117,7 @@ onMounted(fetchActivities)
             <template #title>
               <VRow>
                 <span class="v-col v-col-12 justify-lg-space-between d-flex align-center gap-4">
-                  <div style="inline-size: 15rem;">
-                    <h4 class="text-h4">
-                      {{ $t('center_activities.title') }}
-                    </h4>
-                  </div>
+                  <VSpacer />
                   <div class="d-flex gap-4">
                     <AppTextField
                       v-model="searchQuery"

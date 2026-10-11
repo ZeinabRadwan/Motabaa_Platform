@@ -240,10 +240,6 @@ const actionColor = action => {
   <div>
     <VRow>
       <VCol cols="12">
-        <h2 class="mb-4">
-          {{ $t('Roles & Permissions') }}
-        </h2>
-
         <VCard v-if="canShowRoles">
           <VCardText>
             <VTabs

@@ -140,21 +140,18 @@ const save = async () => {
               ref="refVForm"
             >
         <VCard class="padding-30p">    
-          <template v-slot:title>
+          <template #title>
             <VRow>
-            <h3 class="v-col v-col-6 d-flex gap-4"> {{ $t('Register Case') }}</h3>
-
-            <VCol
-              cols="6"
-              class="d-flex gap-4 justify-end"
-            >
-              <VBtn @click="save">
-                {{ $t('Save') }}
-              </VBtn>
-            </VCol>
-          </VRow>
-
-        </template>
+              <VCol
+                cols="12"
+                class="d-flex gap-4 justify-end"
+              >
+                <VBtn @click="save">
+                  {{ $t('Save') }}
+                </VBtn>
+              </VCol>
+            </VRow>
+          </template>
         <VCard class="border-1p">
           <v-card-text>
             <VTabs

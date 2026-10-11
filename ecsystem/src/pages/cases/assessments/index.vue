@@ -259,12 +259,6 @@ const leaveFunction = () => {
     <VRow v-if="!isEndingAssessment">
       <VCol cols="12">
         <VCard>   
-            <template v-slot:title>
-            <VRow>
-                <span class="v-col v-col-6 d-flex gap-4"> {{ $t('Add Assessment') }}</span>
-            </VRow>
-            </template>
-
             <VCardText>
             
                 <div class="justify-lg-space-between d-flex align-center flex-wrap gap-4 pb-9">

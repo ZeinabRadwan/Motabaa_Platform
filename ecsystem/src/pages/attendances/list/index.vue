@@ -315,10 +315,10 @@ const onFileSelected = () => {
         <VCard>
           <VCardText>
             <VRow>
-              <VCol cols="8">
-                <span class="text-h4">{{ $t('Attendance') }}</span>
-              </VCol>
-              <VCol cols="4" class="d-flex gap-4 justify-end"> 
+              <VCol
+                cols="12"
+                class="d-flex gap-4 justify-end"
+              > 
                 <VBtn
                   v-if="can('edit_attendance','edit_attendance')"
                   color="success" 

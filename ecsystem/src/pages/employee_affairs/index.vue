@@ -23,8 +23,6 @@ const go = (path) => {
 
 <template>
   <section>
-    <h4 class="text-h4 mb-6">{{ $t('employee_affairs.dashboard') }}</h4>
-
     <VRow v-if="statistics">
       <VCol cols="12" sm="6" md="4" lg="3">
         <VCard class="cursor-pointer" color="#1A75CF26" @click="go('/user/list?status=all')">

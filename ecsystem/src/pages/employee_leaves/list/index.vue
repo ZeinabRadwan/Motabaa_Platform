@@ -9,7 +9,6 @@ const route = useRoute()
   <section>
     <VRow>
       <VCol cols="12">
-        <h4 class="text-h4 mb-4">{{ $t('employee_leaves.leaves') }}</h4>
         <UserLeaves
           :initial-status="route.query.status"
           :current-only="route.query.current == '1'"

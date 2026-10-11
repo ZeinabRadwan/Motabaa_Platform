@@ -113,7 +113,7 @@ watchServerTableFetch(fetchRows, {
   <section>
     <VRow>
       <VCol cols="12">
-        <VCard :title="$t('media_attachment_audit.title')">
+        <VCard>
           <VCardText class="d-flex flex-wrap gap-3 align-center justify-space-between pb-0">
             <p class="text-medium-emphasis mb-0">
               {{ $t('media_attachment_audit.subtitle') }}
