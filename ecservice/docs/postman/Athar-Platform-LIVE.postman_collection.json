@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Motabaa Mobile App - LIVE API",
-    "description": "Live Motabaa admin API (`https://api.motabaah.com/api`). Run **Login** first (uses `{{login_email}}` / `{{login_password}}`); Bearer `{{token}}` is applied collection-wide.\n\n**Safe testing:** Prefer GET requests to read data. POST, PUT, PATCH, and DELETE change production data — run those manually only; nothing runs on import.\n\n**IDs:** Run **List cases**, **Terms dropdown**, or goal list GETs; their test scripts can refresh `case_id`, `term_id`, and `goal_id` from LIVE responses.",
+    "name": "Athar Platform - LIVE API",
+    "description": "Live admin API (`https://api.athrplatform.com/api`). Frontend: `https://platform.athrplatform.com`. Run **Login** first (uses `{{login_email}}` / `{{login_password}}`); Bearer `{{token}}` is applied collection-wide.\n\n**Safe testing:** Prefer GET requests to read data. POST, PUT, PATCH, and DELETE change production data — run those manually only; nothing runs on import.\n\n**IDs:** Run **List cases**, **Terms dropdown**, or goal list GETs; their test scripts can refresh `case_id`, `term_id`, and `goal_id` from LIVE responses.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -17,7 +17,7 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "https://api.motabaah.com/api"
+      "value": "https://api.athrplatform.com/api"
     },
     {
       "key": "token",
@@ -33,11 +33,11 @@
     },
     {
       "key": "login_email",
-      "value": "alfawwazm@gmail.com"
+      "value": ""
     },
     {
       "key": "login_password",
-      "value": "Mu@12345678"
+      "value": ""
     },
     {
       "key": "case_id",
