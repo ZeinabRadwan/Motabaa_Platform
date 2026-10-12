@@ -13,8 +13,7 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import DisableAutocomplete from 'vue-disable-autocomplete'
 import { ensureLocale, preloadSecondaryLocale } from '@/plugins/i18n/localeLoader'
-
-loadFonts()
+import { dismissInitialLoader } from '@/utils/dismissInitialLoader'
 
 
 // Create vue app
@@ -44,14 +43,18 @@ async function bootstrap() {
     await ensureLocale('en')
 
   app.mount('#app')
+  dismissInitialLoader()
 
   preloadSecondaryLocale()
 
-  const loadIcons = () => import('@/@iconify/icons-bundle')
-  if (typeof window !== 'undefined' && window.requestIdleCallback)
-    window.requestIdleCallback(() => loadIcons())
-  else
-    loadIcons()
+  const idle = typeof window !== 'undefined' && window.requestIdleCallback
+    ? window.requestIdleCallback
+    : cb => setTimeout(cb, 1)
+
+  idle(() => {
+    loadFonts()
+    import('@/@iconify/icons-bundle')
+  })
 }
 
 bootstrap()

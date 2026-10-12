@@ -132,9 +132,11 @@
       document.documentElement.style.setProperty('--initial-loader-color', blueDeep)
     })()
 
-    window.addEventListener('load', function () {
-      window.setTimeout(window.dismissInitialLoader, 4000)
-    })
+    // Fallback only if the app bundle fails to boot (no artificial delay).
+    window.setTimeout(function () {
+      if (typeof window.dismissInitialLoader === 'function')
+        window.dismissInitialLoader()
+    }, 15000)
   </script>
 </body>
 
