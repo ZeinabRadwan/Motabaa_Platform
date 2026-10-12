@@ -19,7 +19,25 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    /*
+    | CORS_ALLOWED_ORIGINS: comma-separated list (production). Falls back to FRONT_URL, then *.
+    */
+    'allowed_origins' => (static function (): array {
+        $configured = env('CORS_ALLOWED_ORIGINS');
+        if (is_string($configured) && trim($configured) !== '') {
+            return array_values(array_filter(array_map(
+                static fn (string $origin): string => rtrim(trim($origin), '/'),
+                explode(',', $configured),
+            )));
+        }
+
+        $front = env('FRONT_URL');
+        if (is_string($front) && trim($front) !== '') {
+            return [rtrim(trim($front), '/')];
+        }
+
+        return ['*'];
+    })(),
 
     'allowed_origins_patterns' => [],
 
