@@ -2,6 +2,7 @@
 import { useLayouts } from '@layouts'
 import { config } from '@layouts/config'
 import { can } from '@layouts/plugins/casl'
+import { canAccessMeetingRooms } from '@core/utils/meetingRoomAccess'
 import {
   getComputedNavLinkToProp,
   isNavLinkActive,
@@ -19,6 +20,10 @@ const { isVerticalNavMini, dynamicI18nProps } = useLayouts()
 const hideTitleAndBadge = isVerticalNavMini(windowWidth)
 
 const isVisible = computed(() => {
+  if (props.item.meetingRoomNav) {
+    return canAccessMeetingRooms()
+  }
+
   if (Array.isArray(props.item.actionsAny) && props.item.actionsAny.length) {
     return props.item.actionsAny.some(action => can(action, action))
   }

@@ -10,6 +10,9 @@ class QuestionnaireAnalyticsPdfData
 {
     public const MAX_TEXT_ANSWERS_PER_QUESTION = 250;
 
+    /** Keep individual answers short enough for mPDF / PCRE byte limits on large reports. */
+    public const MAX_TEXT_ANSWER_BYTE_LENGTH = 1200;
+
     /**
      * @param  Collection<int, QuestionnaireQuestion>  $questions
      * @param  array<string, mixed>  $filterLabels
@@ -78,10 +81,13 @@ class QuestionnaireAnalyticsPdfData
                     $row['answers_truncated'] = $total - self::MAX_TEXT_ANSWERS_PER_QUESTION;
                 }
                 $row['answers'] = array_map(function ($answerRow) {
+                    [$answerText, $truncated] = self::truncateForPdf($answerRow['answer'] ?? '');
+
                     return [
                         'id' => (int) ($answerRow['id'] ?? 0),
                         'account_name' => self::cleanString($answerRow['account_name'] ?? __('tr.questionnaires.metadata_unavailable')),
-                        'answer' => self::cleanString($answerRow['answer'] ?? ''),
+                        'answer' => $answerText,
+                        'answer_truncated' => $truncated,
                     ];
                 }, $answers);
             }
@@ -122,5 +128,22 @@ class QuestionnaireAnalyticsPdfData
         }
 
         return trim(strip_tags($text));
+    }
+
+    /**
+     * @return array{0: string, 1: bool}
+     */
+    private static function truncateForPdf($value): array
+    {
+        $text = self::cleanString($value);
+        if ($text === '') {
+            return ['', false];
+        }
+
+        if (strlen($text) <= self::MAX_TEXT_ANSWER_BYTE_LENGTH) {
+            return [$text, false];
+        }
+
+        return [mb_strcut($text, 0, self::MAX_TEXT_ANSWER_BYTE_LENGTH, 'UTF-8').'…', true];
     }
 }

@@ -2,6 +2,7 @@
 import { useLayouts } from '@layouts'
 import { config } from '@layouts/config'
 import { can } from '@layouts/plugins/casl'
+import { canAccessMeetingRooms } from '@core/utils/meetingRoomAccess'
 import {
   getComputedNavLinkToProp,
   isNavLinkActive,
@@ -20,11 +21,19 @@ const props = defineProps({
 })
 
 const { dynamicI18nProps } = useLayouts()
+
+const isVisible = computed(() => {
+  if (props.item.meetingRoomNav) {
+    return canAccessMeetingRooms()
+  }
+
+  return can(props.item.action, props.item.subject)
+})
 </script>
 
 <template>
   <li
-    v-if="can(item.action, item.subject)"
+    v-if="isVisible"
     class="nav-link"
     :class="[{
       'sub-item': props.isSubItem,

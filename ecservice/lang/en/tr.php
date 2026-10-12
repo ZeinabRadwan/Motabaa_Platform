@@ -1010,6 +1010,9 @@ return [
         "pdf_no_questions" => "This questionnaire has no questions.",
         "pdf_no_question_responses" => "No responses match this question for the current filters.",
         "pdf_answers_truncated" => "Only part of the text answers are shown. Additional answers not shown: :count",
+        "pdf_answer_truncated" => "Long text shortened",
+        "template_export_title" => "Questionnaire",
+        "template_export_generated_at" => "Exported at",
     ],
     "messages" => [
         "log work" => "Recording of actions",
@@ -1083,6 +1086,20 @@ return [
         "later" => "Start meeting later",
         "start_later" => "We will have a lecture on [day] [date] at [time].\nYou can join by clicking the 'Start Online Conversation' button or use the following link=>",
         "started_now" => "The meeting has started now"
+    ],
+    "meeting_rooms" => [
+        "audience_general_label" => "Public",
+        "audience_parents_label" => "Assigned parents",
+        "audience_type" => "Room audience",
+        "audience_general" => "Public room (existing access rules)",
+        "audience_parents" => "Room for selected parents",
+        "target_parents" => "Target parents",
+        "notification_new_title" => "New meeting room",
+        "notification_new_body" => "A meeting room is available for you: :room. Please open it to join.",
+        "Access denied" => "You do not have access to this meeting room.",
+        "Parents required" => "Select at least one parent for a parent-specific room.",
+        "Invalid parent selection" => "One or more selected parents are invalid for this center.",
+        "Room not found" => "Meeting room not found.",
     ],
     "attendances" => [
         "attend" => "Attend",

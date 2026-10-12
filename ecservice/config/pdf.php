@@ -1,10 +1,10 @@
 <?php
 
 return [
-    'mode'                     => '',
+    'mode'                     => 'utf-8',
     'format'                   => 'A4',
     'default_font_size'        => '12',
-    'default_font'             => 'XBRiyaz',
+    'default_font'             => 'xbriyaz',
     'margin_left'              => 10,
     'margin_right'             => 10,
     'margin_top'               => 10,
@@ -18,7 +18,7 @@ return [
     'watermark'                => '',
     'show_watermark'           => true,
     'show_watermark_image'     => true,
-    'watermark_font'           => 'XBRiyaz',
+    'watermark_font'           => 'xbriyaz',
     'display_mode'             => 'fullpage',
     'watermark_text_alpha'     => 0.1,
     'watermark_image_path'     => '',
@@ -27,7 +27,7 @@ return [
     'watermark_image_position' => 'P',
     // 'custom_font_dir'          => '',
     // 'custom_font_data'         => [],
-    'auto_language_detection'  => false,
+    'auto_language_detection'  => true,
     'temp_dir'                 => storage_path('app'),
     'pdfa'                     => false,
     'pdfaauto'                 => false,

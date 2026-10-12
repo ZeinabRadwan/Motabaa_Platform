@@ -205,6 +205,12 @@ return [
         "Evaluation dates must be in order" => "##terms.Evaluation dates must be in order&&",
         "Term not accessible" => "##terms.Term not accessible&&",
     ],
+    'meeting_rooms' => [
+        'Access denied' => '##meeting_rooms.Access denied&&',
+        'Parents required' => '##meeting_rooms.Parents required&&',
+        'Invalid parent selection' => '##meeting_rooms.Invalid parent selection&&',
+        'Room not found' => '##meeting_rooms.Room not found&&',
+    ],
     'questionnaires' => [
         "Questionnaire already exists" => "##questionnaires.Questionnaire already exists&&",
         "Questionnaire closed" => "##questionnaires.Questionnaire closed&&",

@@ -29,9 +29,14 @@ class FileController extends Controller
 
         $filePath = $decryptedData['file_path'];
         if (file_exists($filePath)) {
+            $fileName = $decryptedData['file_name'] ?? 'export.bin';
+            $contentType = $decryptedData['content_type'] ?? 'application/octet-stream';
+            $asciiFallback = preg_replace('/[^\x20-\x7E]/', '_', $fileName) ?: 'export.bin';
+            $disposition = 'attachment; filename="'.$asciiFallback.'"; filename*=UTF-8\'\''.rawurlencode($fileName);
+
             $headers = [
-                'Content-Type' => $decryptedData['content_type'] ?? 'application/octet-stream',
-                'Content-Disposition' => 'attachment; filename="'.$decryptedData['file_name'].'"',
+                'Content-Type' => $contentType,
+                'Content-Disposition' => $disposition,
             ];
 
             return response()->file($filePath, $headers)->deleteFileAfterSend(true);

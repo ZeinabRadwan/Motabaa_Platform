@@ -28,6 +28,7 @@
             <td>{{ data_get($data, 'filter_labels.respondent') ?: '—' }}</td>
         </tr>
     </table>
+    <!--mpdf-chunk-->
 
     <h3>{{ __('tr.questionnaires.analytics_report_summary') }}</h3>
     <table class="summary-table">
@@ -48,6 +49,7 @@
             <td>{{ data_get($data, 'kpis.response_rate_percent', 0) }}%</td>
         </tr>
     </table>
+    <!--mpdf-chunk-->
 
     <h3>{{ __('tr.questionnaires.analytics_report_questions') }}</h3>
     @forelse(($data['questions'] ?? []) as $question)
@@ -106,24 +108,35 @@
                     </tbody>
                 </table>
             @elseif(!empty($question['answers']))
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>{{ __('tr.questionnaires.export_account_name') }}</th>
-                            <th>{{ __('tr.questionnaires.text_answer') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($question['answers'] as $row)
+                @php($answerChunks = array_chunk($question['answers'], 15))
+                @foreach($answerChunks as $chunkIndex => $answerChunk)
+                    @if($chunkIndex > 0)
+                        <!--mpdf-chunk-->
+                    @endif
+                    <table>
+                        <thead>
                             <tr>
-                                <td>{{ $row['id'] ?? '' }}</td>
-                                <td>{{ $row['account_name'] ?? __('tr.questionnaires.metadata_unavailable') }}</td>
-                                <td>{{ $row['answer'] ?? '' }}</td>
+                                <th>#</th>
+                                <th>{{ __('tr.questionnaires.export_account_name') }}</th>
+                                <th>{{ __('tr.questionnaires.text_answer') }}</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach($answerChunk as $row)
+                                <tr>
+                                    <td>{{ $row['id'] ?? '' }}</td>
+                                    <td>{{ $row['account_name'] ?? __('tr.questionnaires.metadata_unavailable') }}</td>
+                                    <td>
+                                        {{ $row['answer'] ?? '' }}
+                                        @if(!empty($row['answer_truncated']))
+                                            <span class="muted"> ({{ __('tr.questionnaires.pdf_answer_truncated') }})</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @endforeach
                 @if(!empty($question['answers_truncated']))
                     <p class="muted">
                         {{ __('tr.questionnaires.pdf_answers_truncated', ['count' => $question['answers_truncated']]) }}
@@ -133,6 +146,7 @@
                 <p class="muted">{{ __('tr.questionnaires.pdf_no_question_responses') }}</p>
             @endif
         </div>
+        <!--mpdf-chunk-->
     @empty
         <p class="muted">{{ __('tr.questionnaires.pdf_no_questions') }}</p>
     @endforelse

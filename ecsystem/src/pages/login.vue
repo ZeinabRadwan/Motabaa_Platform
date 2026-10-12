@@ -10,20 +10,22 @@ import {
 
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {
-  requiredValidator
+  loginEmailOrPhoneValidator,
+  loginIdentifierRequiredValidator,
+  loginPasswordRequiredValidator,
 } from '@validators'
 import { useI18n } from 'vue-i18n'
 import { VForm } from 'vuetify/components/VForm'
 
+const NETWORK_ERROR_MESSAGE = 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى.'
 const brandPrimary = '#075db8'
 
-const { t, locale } = useI18n()
+const { locale } = useI18n()
 const isRtl = computed(() => locale.value === 'ar')
 const fieldDir = computed(() => (isRtl.value ? 'rtl' : 'ltr'))
 
 const isPasswordVisible = ref(false)
 const isSubmitting = ref(false)
-const loginErrorSummary = ref('')
 
 const passwordEyeIcon = computed(() => (isPasswordVisible.value ? 'tabler-eye-off' : 'tabler-eye'))
 const route = useRoute()
@@ -41,16 +43,44 @@ const email = ref(getRememberedEmail())
 const password = ref('')
 const rememberMe = ref(isRememberMeEnabled() || !!email.value)
 
+watch(email, () => {
+  errors.value.email = undefined
+})
+
+watch(password, () => {
+  errors.value.password = undefined
+})
+
+const normalizeFieldErrors = formErrors => {
+  if (!formErrors || typeof formErrors !== 'object')
+    return { email: undefined, password: undefined }
+
+  const pick = key => {
+    const value = formErrors[key]
+    if (value === undefined || value === null)
+      return undefined
+    if (Array.isArray(value))
+      return value[0]
+
+    return String(value)
+  }
+
+  return {
+    email: pick('email'),
+    password: pick('password'),
+  }
+}
+
 const togglePasswordVisibility = () => {
   isPasswordVisible.value = !isPasswordVisible.value
 }
 
 const login = () => {
   isSubmitting.value = true
-  loginErrorSummary.value = ''
+  const loginIdentifier = String(email.value ?? '').trim()
 
   axios.post('/auth/login', {
-    email: email.value,
+    email: loginIdentifier,
     password: password.value,
   }).then(r => {
     const { token, user } = r.data
@@ -59,7 +89,7 @@ const login = () => {
       token,
       user,
       remember: rememberMe.value,
-      email: email.value,
+      email: loginIdentifier,
     })
 
     const redirectTo = route.query.to ? String(route.query.to) : '/'
@@ -78,8 +108,13 @@ const login = () => {
       go()
     }
   }).catch(e => {
-    loginErrorSummary.value = t('Login credentials invalid')
-    errors.value = e.response?.data?.errors ?? {}
+    if (!e.response?.data) {
+      errors.value = { email: NETWORK_ERROR_MESSAGE, password: undefined }
+
+      return
+    }
+
+    errors.value = normalizeFieldErrors(e.response.data.errors)
   }).finally(() => {
     isSubmitting.value = false
   })
@@ -113,17 +148,6 @@ const onSubmit = () => {
       class="auth-page__form"
       @submit.prevent="onSubmit"
     >
-      <VAlert
-        v-if="loginErrorSummary"
-        type="error"
-        variant="tonal"
-        density="compact"
-        class="mb-1"
-        role="alert"
-      >
-        {{ loginErrorSummary }}
-      </VAlert>
-
       <AppTextField
         v-model="email"
         class="auth-field"
@@ -134,7 +158,8 @@ const onSubmit = () => {
         autocomplete="username"
         autofocus
         hide-details="auto"
-        :rules="[requiredValidator]"
+        :rules="[loginIdentifierRequiredValidator, loginEmailOrPhoneValidator]"
+        :error-messages="errors.email"
         append-inner-icon="tabler-mail"
       />
 
@@ -146,7 +171,7 @@ const onSubmit = () => {
         name="password"
         autocomplete="current-password"
         hide-details="auto"
-        :rules="[requiredValidator]"
+        :rules="[loginPasswordRequiredValidator]"
         :type="isPasswordVisible ? 'text' : 'password'"
         :error-messages="errors.password"
         append-inner-icon="tabler-lock"

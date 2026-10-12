@@ -490,7 +490,7 @@ class UserController extends Controller
             $roles = array_filter(explode(',', $roles));
         }
 
-        $query = User::select('users.id', 'users.name', 'users.job_title')
+        $query = User::select('users.id', 'users.name', 'users.job_title', 'users.phone')
             ->with('roles:id,name,default_name')
             ->where(function ($subQuery) use ($center, $request) {
                 $subQuery->whereHas('centers', function ($centerQuery) use ($center) {

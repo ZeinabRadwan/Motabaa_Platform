@@ -985,6 +985,13 @@
   "Select class staff manually": "Select employees manually",
   "Start Date after End Date": "Start Date after End Date",
   "Email/Phone Number": "Email/Phone Number",
+  "auth": {
+    "login": {
+      "identifier_required": "Please enter your email or phone number.",
+      "password_required": "Please enter your password.",
+      "invalid_identifier": "Please enter a valid email or phone number."
+    }
+  },
   "PDF Files": "Reports",
   "Created By": "Created By",
   "questionnaires": {
@@ -1193,7 +1200,8 @@
     "later": "Start meeting later",
     "start_later": "We will have a lecture on {day} {date} at {time}.\nYou can join by clicking the 'Start Online Conversation' button or use the following link:",
     "started_now": "The meeting has started now",
-    "You need to choose another term": "You need to choose another term"
+    "You need to choose another term": "You need to choose another term",
+    "access_denied": "You do not have access to this room"
   },
   "attendances": {
     "attend": "Attend",

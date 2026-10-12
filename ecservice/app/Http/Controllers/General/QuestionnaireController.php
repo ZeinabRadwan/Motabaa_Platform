@@ -22,6 +22,7 @@ use App\Http\Resources\TermResource;
 use App\Models\QuestionnaireTaskStart;
 use App\Models\System\PDF;
 use App\Support\QuestionnaireAnalyticsPdfData;
+use App\Support\QuestionnaireTemplatePdfData;
 use App\Support\QuestionnaireParentTermAccess;
 use App\Support\QuestionnaireSectionStructure;
 use App\Support\QuestionnaireTaskAudienceAccess;
@@ -684,11 +685,53 @@ class QuestionnaireController extends Controller
             );
 
             $fileName = PDF::defaultFileName(($data['title'] ?? 'questionnaire').'-analytics');
-            $token = PDF::savePdf('questionnaires.analytics_report', $data, $fileName);
+            $binary = PDF::renderBinary('questionnaires.analytics_report', $data);
 
-            return success(['url' => exportDownloadUrl($token)]);
+            return PDF::downloadResponse($binary, $fileName);
         } catch (\Throwable $exception) {
             Log::error('Questionnaire analytics PDF export failed', [
+                'task_id' => $task->id,
+                'center_id' => $center,
+                'user_id' => $user->id,
+                'message' => $exception->getMessage(),
+                'exception' => $exception,
+            ]);
+            report($exception);
+
+            return response()->json([
+                'errors' => ['error' => [__('validation.questionnaires.Export failed')]],
+            ], 422);
+        }
+    }
+
+    public function exportQuestionnaireTemplatePdf(Request $request, $task)
+    {
+        $user = auth()->user();
+        $center = Term::resolveCenterId($user, $request->center_id);
+        $task = QuestionnaireTask::with(['questionnaire'])->find($task);
+
+        if (! $task || (int) $task->center_id !== (int) $center) {
+            return response()->json(['errors' => ['error' => [__('validation.Questionnaire does not exist')]]], 422);
+        }
+
+        $denied = Term::abortIfInaccessible($user, $center, $task->term_id);
+        if ($denied) {
+            return $denied;
+        }
+
+        try {
+            $generatedAt = Carbon::now(QuestionnaireTask::AVAILABILITY_TIMEZONE);
+            $data = QuestionnaireTemplatePdfData::build(
+                $task,
+                $generatedAt->format('Y-m-d H:i:s'),
+            );
+
+            $fileName = PDF::defaultFileName(($data['title'] ?? 'questionnaire').'-template');
+            $binary = PDF::renderBinary('questionnaires.blank_template', $data);
+
+            return PDF::downloadResponse($binary, $fileName);
+        } catch (\Throwable $exception) {
+            Log::error('Questionnaire template PDF export failed', [
                 'task_id' => $task->id,
                 'center_id' => $center,
                 'user_id' => $user->id,

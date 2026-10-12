@@ -2,30 +2,35 @@
 
 namespace App\Http\Requests;
 
+use App\Models\MeetingRoom;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class MeetingRoomRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
-        $rules = [
+        return [
             'title' => 'required|string|max:191',
             'type' => 'required|integer',
+            'audience_type' => ['required', Rule::in([MeetingRoom::AUDIENCE_GENERAL, MeetingRoom::AUDIENCE_PARENTS])],
+            'parent_ids' => 'nullable|array',
+            'parent_ids.*' => 'integer|exists:users,id',
         ];
+    }
 
-        return $rules;
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('audience_type') || $this->input('audience_type') === '') {
+            $this->merge(['audience_type' => MeetingRoom::AUDIENCE_GENERAL]);
+        }
     }
 }

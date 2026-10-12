@@ -16,6 +16,7 @@ use App\Models\MediaAttachmentAuditLog;
 use App\Models\System\System;
 use PhpParser\Node\Stmt\TryCatch;
 use App\Models\Log;
+use App\Support\MeetingRoomAccess;
 use Carbon\Carbon;
 
 class MessageController extends Controller
@@ -35,6 +36,16 @@ class MessageController extends Controller
         if($request->case_id != null && $request->case_id != ''){
             $with[] = 'goal:id,title';
         }
+        if ($request->meeting_room_id) {
+            $meetingRoom = MeetingRoom::find($request->meeting_room_id);
+            if (! $meetingRoom || ! MeetingRoomAccess::userCanAccess($user, $meetingRoom)) {
+                return apiPaginateResponse(
+                    new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage),
+                    MessagesResource::collection(collect())
+                );
+            }
+        }
+
         $messages = Message::with($with)
         ->when(
             $request->goal_id,
@@ -74,9 +85,12 @@ class MessageController extends Controller
         $meetingRoom = null;
         $input = $request->validated();
         $input['user_id'] = auth()->user()->id;
-        if($request->meeting_room_id && $request->meeting_room_id > 0) {
+        if ($request->meeting_room_id && $request->meeting_room_id > 0) {
             $meetingRoom = MeetingRoom::find($request->meeting_room_id);
-            if($meetingRoom->type == MeetingRoom::TYPE_GENERAL) {
+            if (! $meetingRoom || ! MeetingRoomAccess::userCanAccess(auth()->user(), $meetingRoom)) {
+                return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Access denied')]]], 403);
+            }
+            if ($meetingRoom->type == MeetingRoom::TYPE_GENERAL) {
                 $input['parents_can_see'] = 1;
             }
         }

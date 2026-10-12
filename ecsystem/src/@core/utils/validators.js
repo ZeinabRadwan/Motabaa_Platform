@@ -20,15 +20,51 @@ export const requiredValidatorIf = (value, noCheck) => {
   return !!String(value).trim().length || i18n.global.t('This field is required')
 }
 
+const emailFormatRegex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+
 // 👉 Email Validator
 export const emailValidator = value => {
   if (isEmpty(value))
     return true
-  const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
   if (Array.isArray(value))
-    return value.every(val => re.test(String(val))) || i18n.global.t('validtion.email')
+    return value.every(val => emailFormatRegex.test(String(val))) || i18n.global.t('validtion.email')
   
-  return re.test(String(value)) || i18n.global.t('validtion.email')
+  return emailFormatRegex.test(String(value)) || i18n.global.t('validtion.email')
+}
+
+/** Login identifier required (email or phone). */
+export const loginIdentifierRequiredValidator = value => {
+  if (isNullOrUndefined(value) || isEmptyArray(value))
+    return i18n.global.t('auth.login.identifier_required')
+
+  return !!String(value).trim().length || i18n.global.t('auth.login.identifier_required')
+}
+
+/** Login password required. */
+export const loginPasswordRequiredValidator = value => {
+  if (isNullOrUndefined(value) || isEmptyArray(value))
+    return i18n.global.t('auth.login.password_required')
+
+  return !!String(value).length || i18n.global.t('auth.login.password_required')
+}
+
+/** Login field: valid email or phone (with optional +, spaces, local or international digits). */
+export const loginEmailOrPhoneValidator = value => {
+  if (isEmpty(value))
+    return true
+
+  const trimmed = String(value).trim()
+  if (emailFormatRegex.test(trimmed))
+    return true
+
+  if (!/^[\d+\s().-]+$/.test(trimmed))
+    return i18n.global.t('auth.login.invalid_identifier')
+
+  const digits = trimmed.replace(/\D/g, '')
+  if (digits.length >= 9 && digits.length <= 15)
+    return true
+
+  return i18n.global.t('auth.login.invalid_identifier')
 }
 
 // 👉 Password Validator

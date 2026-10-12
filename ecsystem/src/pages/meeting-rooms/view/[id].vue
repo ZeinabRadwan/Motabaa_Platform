@@ -8,6 +8,7 @@ import {messagesApi} from "@/plugins/apis/messagesReqest"
 import { useMessageSendHandler } from '@/composables/useMessageSendHandler'
 import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 import { can } from '@layouts/plugins/casl'
+import { canParticipateInMeetingRoomChat } from '@core/utils/meetingRoomAccess'
 import i18n from '@/plugins/i18n/index.js';
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { isUser } from "@core/utils/helper";
@@ -18,6 +19,7 @@ const roomsReqest = roomsApi()
 const route = useRoute()
 const snackbarRef = ref(null);
 const roomData = ref()
+const accessDenied = ref(false)
 const uploadPercentage = ref(0);
 
 const options = ref({
@@ -31,10 +33,21 @@ const errorsMessage = ref({
   image: undefined,
 })
 
-roomsReqest.show(Number(route.params.id)).then(response => {
-  roomData.value = response.data.data
-  fetchMessages()
-})
+const loadRoom = () => {
+  roomsReqest.show(Number(route.params.id)).then(response => {
+    roomData.value = response.data.data
+    fetchMessages()
+  }).catch(error => {
+    if (error.response?.status === 403)
+      accessDenied.value = true
+  })
+}
+
+loadRoom()
+
+const onRoomUpdated = updated => {
+  roomData.value = updated
+}
 
 
 const {
@@ -75,13 +88,27 @@ const deleteMessage = (id, callback) => {
 </script>
 
 <template>
-  <VRow v-if="roomData">
+  <VRow v-if="accessDenied">
+    <VCol cols="12">
+      <VAlert
+        type="error"
+        variant="tonal"
+      >
+        {{ $t('rooms.access_denied') }}
+      </VAlert>
+    </VCol>
+  </VRow>
+  <VRow v-else-if="roomData">
     <VCol
       cols="12"
       md="5"
       lg="4"
     >
-      <RoomBioPanel :room-data="roomData" @fetch-messages="fetchMessages" />
+      <RoomBioPanel
+        :room-data="roomData"
+        @fetch-messages="fetchMessages"
+        @room-updated="onRoomUpdated"
+      />
     </VCol>
 
     <VCol
@@ -89,7 +116,7 @@ const deleteMessage = (id, callback) => {
       md="7"
       lg="8"
     >
-      <MessageSend v-if="can('show_meetings','show_meetings')" :isMeeting="true" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
+      <MessageSend v-if="canParticipateInMeetingRoomChat()" :isMeeting="true" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage" class="mb-4"></MessageSend>
       <div>
         <Message v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_meetings','admin_meetings') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
         <div
@@ -113,4 +140,5 @@ const deleteMessage = (id, callback) => {
   meta:
     action: show_meetings
     subject: show_meetings
+    meetingRoomAccess: true
 </route>

@@ -73,6 +73,7 @@ export const APP_AND_PAGES_TEMPLATE = [
     icon: { icon: 'tabler-door' },
     action: 'access_meetings',
     subject: 'access_meetings',
+    meetingRoomNav: true,
     to: { name: 'meeting-rooms-list' },
   },
   {

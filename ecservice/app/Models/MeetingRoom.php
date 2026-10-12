@@ -11,12 +11,17 @@ class MeetingRoom extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const AUDIENCE_GENERAL = 'general';
+
+    public const AUDIENCE_PARENTS = 'parents';
+
     protected $fillable = [
         'center_id',
         'created_by_id',
         'title',
         'title_local',
         'type',
+        'audience_type',
     ];
 
     protected $appends = ['name'];
@@ -36,6 +41,25 @@ class MeetingRoom extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'created_by_id');
+    }
+
+    public function assignedParents()
+    {
+        return $this->belongsToMany(User::class, 'meeting_room_parents', 'meeting_room_id', 'user_id')
+            ->withTimestamps();
+    }
+
+    public function meetingUrl(): string
+    {
+        return 'https://meet.jit.si/tahiledu.com.'.$this->id.'?lang='.app()->getLocale();
+    }
+
+    public function audienceTypeName(): string
+    {
+        return match ($this->audience_type ?? self::AUDIENCE_GENERAL) {
+            self::AUDIENCE_PARENTS => __('tr.meeting_rooms.audience_parents_label'),
+            default => __('tr.meeting_rooms.audience_general_label'),
+        };
     }
 
     public static function types()

@@ -1007,6 +1007,9 @@ return [
         "pdf_no_questions" => "لا توجد أسئلة في هذا الاستبيان.",
         "pdf_no_question_responses" => "لا توجد إجابات مطابقة لهذا السؤال ضمن عوامل التصفية الحالية.",
         "pdf_answers_truncated" => "تم عرض جزء من الإجابات النصية فقط. عدد الإجابات الإضافية غير المعروضة: :count",
+        "pdf_answer_truncated" => "تم اختصار النص الطويل",
+        "template_export_title" => "استبيان",
+        "template_export_generated_at" => "تاريخ التصدير",
     ],
     "messages" => [
         "log work" => "تسجيل الأفعال",
@@ -1081,6 +1084,20 @@ return [
         "choose_time" => "اختر وقت لبدء الاجتماع",
         "later" => "ابدأ الاجتماع لاحقًا",
         "start_later" => "سوف تكون لدينا محاضرة يوم [day] [date] الساعة [time].\nيمكن الدخول عن طريق الضغط على زرار 'بدء محادثة أونلاين' او استخدم الرابط التالي=>"
+    ],
+    "meeting_rooms" => [
+        "audience_general_label" => "عامة",
+        "audience_parents_label" => "مخصصة",
+        "audience_type" => "نطاق الغرفة",
+        "audience_general" => "غرفة عامة (حسب قواعد الوصول الحالية)",
+        "audience_parents" => "غرفة مخصصة لأولياء أمور محددين",
+        "target_parents" => "أولياء الأمور المستهدفون",
+        "notification_new_title" => "غرفة اجتماع جديدة",
+        "notification_new_body" => "تتوفر لك غرفة اجتماع: :room. يرجى الدخول للمشاركة.",
+        "Access denied" => "لا يمكنك الوصول إلى هذه الغرفة.",
+        "Parents required" => "يجب اختيار ولي أمر واحد على الأقل للغرفة المخصصة.",
+        "Invalid parent selection" => "أحد أولياء الأمور المختارين غير صالح لهذا المركز.",
+        "Room not found" => "لم يتم العثور على الغرفة.",
     ],
     "attendances" => [
         "attend" => "حضر",

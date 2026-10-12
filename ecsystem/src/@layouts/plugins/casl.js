@@ -1,5 +1,6 @@
 import ability from '@/plugins/casl/ability'
 import { canAccessCasesList } from '@core/utils/caseListAccess'
+import { canAccessMeetingRooms } from '@core/utils/meetingRoomAccess'
 import { useSessionStore } from '@/stores/useSessionStore'
 
 /**
@@ -59,6 +60,10 @@ export const canNavigate = to => {
   return to.matched.some(route => {
     if (route.meta.caseListAccess) {
       return canAccessCasesList()
+    }
+
+    if (route.meta.meetingRoomAccess) {
+      return canAccessMeetingRooms()
     }
 
     const action = route.meta.action || ''

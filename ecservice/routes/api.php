@@ -390,6 +390,7 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
         Route::get('/{task}/respondents/search', [App\Http\Controllers\General\QuestionnaireController::class, 'searchQuestionnaireRespondents'])->name('questionnaire.respondents_search');
         Route::get('/{task}/export/responses', [App\Http\Controllers\General\QuestionnaireController::class, 'exportQuestionnaireResponses'])->name('questionnaire.export_responses');
         Route::get('/{task}/export/analytics-pdf', [App\Http\Controllers\General\QuestionnaireController::class, 'exportQuestionnaireAnalyticsPdf'])->name('questionnaire.export_analytics_pdf');
+        Route::get('/{task}/export/template-pdf', [App\Http\Controllers\General\QuestionnaireController::class, 'exportQuestionnaireTemplatePdf'])->name('questionnaire.export_template_pdf');
         Route::post('/{task}/fetch/questions_with_user_answer', [App\Http\Controllers\General\QuestionnaireController::class, 'fetchQuestions'])->name('questionnaire.fetch_questions');
         Route::post('/{task}/add_user_answers', [App\Http\Controllers\General\QuestionnaireController::class, 'addAnswers'])->name('questionnaire.add_answers');
     });

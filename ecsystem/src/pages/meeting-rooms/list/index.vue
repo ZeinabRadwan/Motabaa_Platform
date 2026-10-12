@@ -220,4 +220,5 @@ watchServerTableFetch(fetchAllRooms, {
   meta:
     action: access_meetings
     subject: access_meetings
+    meetingRoomAccess: true
 </route>
