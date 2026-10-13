@@ -13,6 +13,9 @@ class LoginIdentifier
     /** Saudi mobile without leading zero: 5xxxxxxxx (9 digits). */
     private const SAUDI_MOBILE_NATIONAL_PATTERN = '/^(5\d{8})$/';
 
+    /** Saudi mobile with country code: 9665xxxxxxxx (12 digits). */
+    private const SAUDI_INTERNATIONAL_MOBILE_PATTERN = '/^966(5\d{8})$/';
+
     /** Canonical storage for Saudi numbers in this platform (966 + 9 digits). */
     private const SAUDI_CALLING_CODE = '966';
 
@@ -68,6 +71,11 @@ class LoginIdentifier
 
         if (preg_match(self::SAUDI_MOBILE_NATIONAL_PATTERN, $digits)) {
             $candidates[] = self::SAUDI_CALLING_CODE.$digits;
+            $candidates[] = '0'.$digits;
+        }
+
+        if (preg_match(self::SAUDI_INTERNATIONAL_MOBILE_PATTERN, $digits, $matches)) {
+            $candidates[] = '0'.$matches[1];
         }
 
         return array_values(array_unique($candidates));

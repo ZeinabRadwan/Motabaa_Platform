@@ -32,8 +32,8 @@ class MeetingRoomAccess
         }
 
         if (self::isParentSpecificAudience($room)) {
-            if (isParentUser($user)) {
-                return $room->assignedParents()->where('users.id', $user->id)->exists();
+            if (self::assignedParentCanAccess($user, $room)) {
+                return true;
             }
 
             if ($user->can('edit_meetings') && (int) $room->created_by_id === (int) $user->id) {
@@ -48,7 +48,7 @@ class MeetingRoomAccess
             return false;
         }
 
-        if (isParentUser($user)) {
+        if (self::userHasParentRole($user)) {
             return self::parentCanAccessGeneralAudienceRoom($user, $room);
         }
 
@@ -106,5 +106,19 @@ class MeetingRoomAccess
         }
 
         return ['valid' => true, 'response' => null];
+    }
+
+    public static function userHasParentRole(User $user): bool
+    {
+        return isHasRole(System::USER_TYPE_PARENT_ROLE_NAME, $user);
+    }
+
+    public static function assignedParentCanAccess(User $user, MeetingRoom $room): bool
+    {
+        if (! self::userHasParentRole($user)) {
+            return false;
+        }
+
+        return $room->assignedParents()->where('users.id', $user->id)->exists();
     }
 }

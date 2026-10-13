@@ -138,7 +138,5 @@ const deleteMessage = (id, callback) => {
 </template>
 <route lang="yaml">
   meta:
-    action: show_meetings
-    subject: show_meetings
     meetingRoomAccess: true
 </route>

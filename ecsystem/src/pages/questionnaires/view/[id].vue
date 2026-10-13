@@ -7,7 +7,7 @@ import { VDataTable } from 'vuetify/labs/VDataTable'
 import VueApexCharts from 'vue3-apexcharts'
 import { useTheme } from 'vuetify'
 import { getDonutChartConfig } from '@core/libs/apex-chart/apexCharConfig'
-import { downloadExportFile } from '@core/utils/exportDownload'
+import { downloadExportFile, downloadPdfFromAxiosResponse } from '@core/utils/exportDownload'
 import { can } from '@layouts/plugins/casl'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue'
 
@@ -259,18 +259,14 @@ const exportAnalyticsPdf = async () => {
       Number(route.params.id),
       buildExportParams(),
     )
-    const url = response.data?.data?.url
-    if (! url) {
-      snackbarRef.value?.exposevisibleSnackbar(i18n.global.t('questionnaires.export_pdf_failed'), 'error')
-
-      return
-    }
-
-    await downloadExportFile(url)
+    await downloadPdfFromAxiosResponse(response, `questionnaire-${route.params.id}-analytics.pdf`)
     snackbarRef.value?.exposevisibleSnackbar(i18n.global.t('questionnaires.export_pdf_success'), 'success')
   }
-  catch {
-    snackbarRef.value?.exposevisibleSnackbar(i18n.global.t('questionnaires.export_pdf_failed'), 'error')
+  catch (error) {
+    const message = error?.message && !String(error.message).startsWith('%PDF-')
+      ? error.message
+      : i18n.global.t('questionnaires.export_pdf_failed')
+    snackbarRef.value?.exposevisibleSnackbar(message, 'error')
   }
   finally {
     pdfExportLoading.value = false

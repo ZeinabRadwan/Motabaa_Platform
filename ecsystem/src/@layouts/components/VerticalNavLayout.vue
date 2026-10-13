@@ -1,5 +1,5 @@
 <script>
-import { injectionKeyToggleOverlayNav, useLayouts } from '@layouts'
+import { injectionKeyOverlayNavActive, injectionKeyToggleOverlayNav, useLayouts } from '@layouts'
 import { VerticalNav } from '@layouts/components'
 
 export default defineComponent({
@@ -22,6 +22,7 @@ export default defineComponent({
     const toggleIsOverlayNavActive = useToggle(isOverlayNavActive)
 
     provide(injectionKeyToggleOverlayNav, toggleIsOverlayNavActive)
+    provide(injectionKeyOverlayNavActive, isOverlayNavActive)
 
     // ℹ️ This is alternative to below two commented watcher
     // We want to show overlay if overlay nav is visible and want to hide overlay if overlay is hidden and vice versa.
@@ -89,7 +90,10 @@ export default defineComponent({
       // 👉 Overlay
       const layoutOverlay = h('div', {
         class: ['layout-overlay', { visible: isLayoutOverlayVisible.value }],
-        onClick: () => { isLayoutOverlayVisible.value = !isLayoutOverlayVisible.value },
+        onClick: () => {
+          isLayoutOverlayVisible.value = false
+          isOverlayNavActive.value = false
+        },
       })
 
       return h('div', { class: ['layout-wrapper', ...layoutClasses.value(windowWidth.value, windowScrollY.value)] }, [

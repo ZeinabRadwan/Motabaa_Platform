@@ -1,22 +1,24 @@
 import axios from '@axios';
 import { defineStore } from 'pinia';
+import { withResolvedCenterId } from '@core/utils/centerContext';
 
 export const roomsApi = defineStore('rooms', {
   actions: {
 
     fetchAll(params) { 
-      params['center_id'] = Number(localStorage.getItem('center'));
+      params['center_id'] = withResolvedCenterId(params?.center_id);
       return axios.get('/meeting-rooms', { params })
     },
 
     show(id) {
       return new Promise((resolve, reject) => {
-        axios.get(`/meeting-rooms/${id}/show?center_id=`+Number(localStorage.getItem('center'))).then(response => resolve(response)).catch(error => reject(error))
+        const centerId = withResolvedCenterId()
+        axios.get(`/meeting-rooms/${id}/show`, { params: { center_id: centerId } }).then(response => resolve(response)).catch(error => reject(error))
       })
     },
 
     put(data, id) {
-      data['center_id'] = Number(localStorage.getItem('center'));
+      data['center_id'] = withResolvedCenterId(data?.center_id);
       return new Promise((resolve, reject) => {
         axios.put('/meeting-rooms/put/' + id, data)
           .then(response => resolve(response))

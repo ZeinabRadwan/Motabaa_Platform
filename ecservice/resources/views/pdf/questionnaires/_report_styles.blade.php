@@ -1,6 +1,6 @@
 <style>
     body {
-        font-family: xbriyaz, sans-serif;
+        font-family: IBMPlexSansArabic, xbriyaz, sans-serif;
         direction: rtl;
         font-size: 12px;
     }

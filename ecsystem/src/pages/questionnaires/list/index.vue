@@ -8,6 +8,7 @@ import { termsApi } from "@/plugins/apis/termsRequest";
 import { VDataTableServer } from 'vuetify/labs/VDataTable'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { copyQuestionnaireRespondLink } from '@/utils/questionnaireShare'
+import { downloadPdfFromAxiosResponse } from '@core/utils/exportDownload'
 import QuestionnaireCustomSectionsEditor from '@/components/questionnaires/QuestionnaireCustomSectionsEditor.vue'
 import { formatQuestionnaireBoundaryDate } from '@/utils/questionnaireDates'
 import { can } from '@layouts/plugins/casl'
@@ -47,6 +48,7 @@ const newTerm = ref()
 const newFromDate = ref()
 const newToDate = ref()
 const snackbarRef = ref(null);
+const templatePdfExportTaskId = ref(null)
 const editQuestionnaireLoading = ref(false);
 const allowParentEditAfterSubmit = ref(false)
 const targetAudienceType = ref('parent')
@@ -237,6 +239,30 @@ const fetchQuestionnaires = () => {
   }).catch(error => {
     console.error(error)
   })
+}
+
+const exportQuestionnaireTemplate = async item => {
+  const taskId = Number(item?.id ?? item?.raw?.id)
+  if (! taskId || templatePdfExportTaskId.value)
+    return
+
+  templatePdfExportTaskId.value = taskId
+  try {
+    const response = await questionnaireListStore.exportQuestionnaireTemplatePdf(taskId)
+    const title = item?.title ?? item?.raw?.title ?? 'questionnaire'
+    const safeTitle = String(title).replace(/[^\w\u0600-\u06FF\s-]+/g, '').trim() || 'questionnaire'
+    await downloadPdfFromAxiosResponse(response, `${safeTitle}-template.pdf`)
+    snackbarRef.value.exposevisibleSnackbar(i18n.global.t('questionnaires.export_template_success'), 'success')
+  }
+  catch (error) {
+    const message = error?.message && !String(error.message).startsWith('%PDF-')
+      ? error.message
+      : i18n.global.t('questionnaires.export_template_failed')
+    snackbarRef.value.exposevisibleSnackbar(message, 'error')
+  }
+  finally {
+    templatePdfExportTaskId.value = null
+  }
 }
 
 const deleteQuestionnaire = id => {
@@ -674,6 +700,17 @@ watchServerTableFetch(fetchQuestionnaires, {
                         <VIcon icon="tabler-share" />
                       </template>
                       <VListItemTitle>{{ $t('questionnaires.share_questionnaire') }}</VListItemTitle>
+                    </VListItem>
+
+                    <VListItem
+                      v-if="!item.raw.deleted_at && can('show_questionnaires', 'show_questionnaires')"
+                      :disabled="templatePdfExportTaskId === item.raw.id"
+                      @click="exportQuestionnaireTemplate(item.raw)"
+                    >
+                      <template #prepend>
+                        <VIcon icon="tabler-file-type-pdf" />
+                      </template>
+                      <VListItemTitle>{{ $t('questionnaires.export_template') }}</VListItemTitle>
                     </VListItem>
 
                     <VListItem 

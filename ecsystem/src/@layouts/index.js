@@ -49,5 +49,6 @@ export const createLayouts = userConfig => {
 }
 export const injectionKeyIsVerticalNavHovered = Symbol('isVerticalNavHovered')
 export const injectionKeyToggleOverlayNav = Symbol('toggleOverlayNav')
+export const injectionKeyOverlayNavActive = Symbol('overlayNavActive')
 export * from './components'
 export { useLayouts } from './composable/useLayouts'

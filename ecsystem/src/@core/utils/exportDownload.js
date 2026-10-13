@@ -1,5 +1,86 @@
 import axios from '@axios'
 
+function parseFilenameFromContentDisposition(disposition, fallback) {
+  if (! disposition)
+    return fallback
+
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;\n]+)/i)
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim())
+    }
+    catch {
+      // fall through
+    }
+  }
+
+  const match = disposition.match(/filename=\"?([^\";\n]+)\"?/i)
+  if (match?.[1])
+    return decodeURIComponent(match[1].trim())
+
+  return fallback
+}
+
+function ensurePdfExtension(fileName, fallback = 'export.pdf') {
+  const base = (fileName || fallback).trim() || fallback
+
+  return base.toLowerCase().endsWith('.pdf') ? base : `${base.replace(/\.[^.]+$/, '')}.pdf`
+}
+
+/**
+ * Trigger browser download for a Blob (PDF, Excel, etc.).
+ */
+export function downloadBlobFile(blob, fileName) {
+  const blobUrl = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = blobUrl
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(blobUrl)
+}
+
+/**
+ * Validate and download a PDF from an axios response (responseType: blob).
+ */
+export async function downloadPdfFromAxiosResponse(response, fallbackFileName = 'export.pdf') {
+  const blob = response?.data
+  if (!(blob instanceof Blob))
+    throw new Error('Invalid export response')
+
+  const contentType = String(response.headers?.['content-type'] || blob.type || '').toLowerCase()
+
+  if (contentType.includes('json') || contentType.includes('text/html')) {
+    const text = await blob.text()
+    let message = text
+    try {
+      const parsed = JSON.parse(text)
+      message = parsed?.errors?.error?.[0]
+        || parsed?.errors?.parent_ids?.[0]
+        || parsed?.message
+        || text
+    }
+    catch {
+      // keep raw text
+    }
+    throw new Error(message || 'Export failed')
+  }
+
+  const signature = await blob.slice(0, 5).text()
+  if (! signature.startsWith('%PDF-')) {
+    const text = await blob.slice(0, 500).text()
+    throw new Error(text || 'Export did not return a PDF file')
+  }
+
+  const fileName = ensurePdfExtension(
+    parseFilenameFromContentDisposition(response.headers?.['content-disposition'], fallbackFileName),
+    fallbackFileName,
+  )
+
+  downloadBlobFile(blob, fileName)
+}
+
 /**
  * Normalize export download paths from API (legacy absolute URLs or /api/... paths).
  */
@@ -70,20 +151,18 @@ export async function downloadExportFile(urlFromServer) {
     throw new Error(message || 'Export download failed')
   }
 
-  let fileName = 'export.xlsx'
-  const disposition = response.headers['content-disposition']
-  const match = disposition?.match(/filename=\"?([^\";]+)\"?/i)
-  if (match?.[1])
-    fileName = decodeURIComponent(match[1].trim())
+  if (contentType.includes('application/pdf')) {
+    await downloadPdfFromAxiosResponse(response, 'export.pdf')
 
-  const blobUrl = window.URL.createObjectURL(response.data)
-  const link = document.createElement('a')
-  link.href = blobUrl
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  window.URL.revokeObjectURL(blobUrl)
+    return
+  }
+
+  let fileName = 'export.xlsx'
+  fileName = parseFilenameFromContentDisposition(response.headers['content-disposition'], fileName)
+  if (! fileName.toLowerCase().endsWith('.xlsx') && ! fileName.toLowerCase().endsWith('.xls'))
+    fileName = `${fileName.replace(/\.[^.]+$/, '')}.xlsx`
+
+  downloadBlobFile(response.data, fileName)
 }
 
 /**

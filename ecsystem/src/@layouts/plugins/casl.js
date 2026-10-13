@@ -57,13 +57,13 @@ export const canNavigate = to => {
       return true;
     }
   } catch (error) { }
+  if (to.matched.some(route => route.meta.meetingRoomAccess)) {
+    return canAccessMeetingRooms()
+  }
+
   return to.matched.some(route => {
     if (route.meta.caseListAccess) {
       return canAccessCasesList()
-    }
-
-    if (route.meta.meetingRoomAccess) {
-      return canAccessMeetingRooms()
     }
 
     const action = route.meta.action || ''

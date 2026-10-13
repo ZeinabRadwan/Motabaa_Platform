@@ -17,7 +17,7 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
     logo: h('img', { src: resolveSidebarLogoSrc(centerData, userData), style: `line-height:0; color: rgb(var(--v-global-theme-primary)); width: ${centerData ? '80px' : '150px'}` }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,
-    overlayNavFromBreakpoint: breakpointsVuetify.md + 16,
+    overlayNavFromBreakpoint: breakpointsVuetify.lg,
     enableI18n: true,
     theme: 'system',
     isRtl: true,

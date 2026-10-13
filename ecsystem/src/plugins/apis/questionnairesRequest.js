@@ -118,6 +118,18 @@ export const questionnairesApi = defineStore('questionnaires', {
     exportQuestionnaireAnalyticsPdf(taskId, params = {}) {
       return axios.get(`/questionnaires/${taskId}/export/analytics-pdf`, {
         params: this.questionnaireAnalyticsParams(params),
+        responseType: 'blob',
+        headers: { Accept: 'application/pdf' },
+        silentForbidden: true,
+      })
+    },
+
+    exportQuestionnaireTemplatePdf(taskId, params = {}) {
+      return axios.get(`/questionnaires/${taskId}/export/template-pdf`, {
+        params: this.questionnaireAnalyticsParams(params),
+        responseType: 'blob',
+        headers: { Accept: 'application/pdf' },
+        silentForbidden: true,
       })
     },
 

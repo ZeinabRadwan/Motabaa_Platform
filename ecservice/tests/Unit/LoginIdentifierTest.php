@@ -14,13 +14,20 @@ class LoginIdentifierTest extends TestCase
         $this->assertContains('966505226389', $local);
 
         $international = LoginIdentifier::phoneMatchCandidates('966505226389');
-        $this->assertSame(['966505226389'], $international);
+        $this->assertContains('966505226389', $international);
+        $this->assertContains('0505226389', $international);
 
         $plus = LoginIdentifier::phoneMatchCandidates('+966505226389');
-        $this->assertSame(['966505226389'], $plus);
+        $this->assertContains('966505226389', $plus);
+        $this->assertContains('0505226389', $plus);
 
         $spaces = LoginIdentifier::phoneMatchCandidates(' +966 50 522 6389 ');
         $this->assertContains('966505226389', $spaces);
+        $this->assertContains('0505226389', $spaces);
+
+        $nationalNine = LoginIdentifier::phoneMatchCandidates('505226389');
+        $this->assertContains('966505226389', $nationalNine);
+        $this->assertContains('0505226389', $nationalNine);
     }
 
     public function test_email_is_not_treated_as_phone(): void

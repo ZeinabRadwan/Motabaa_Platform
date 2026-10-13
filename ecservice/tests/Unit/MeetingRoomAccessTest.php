@@ -128,4 +128,28 @@ class MeetingRoomAccessTest extends TestCase
 
         $this->assertTrue(MeetingRoomAccess::userCanAccess($user, $room));
     }
+
+    public function test_assigned_parent_with_parent_role_can_access_via_has_role_check(): void
+    {
+        $room = Mockery::mock(MeetingRoom::class)->makePartial();
+        $room->center_id = 1;
+        $room->audience_type = MeetingRoom::AUDIENCE_PARENTS;
+
+        $relation = Mockery::mock();
+        $relation->shouldReceive('where')->with('users.id', 12)->andReturnSelf();
+        $relation->shouldReceive('exists')->andReturn(true);
+        $room->shouldReceive('assignedParents')->andReturn($relation);
+
+        $parentRole = new \Spatie\Permission\Models\Role(['default_name' => 'parent']);
+        $staffRole = new \Spatie\Permission\Models\Role(['default_name' => 'teacher']);
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 12;
+        $user->status = User::STATUS_CAN_LOGIN;
+        $user->shouldReceive('isInCenter')->with(1)->andReturn(true);
+        $user->shouldReceive('can')->andReturn(false);
+        $user->setRelation('roles', collect([$parentRole, $staffRole]));
+
+        $this->assertTrue(MeetingRoomAccess::assignedParentCanAccess($user, $room));
+        $this->assertTrue(MeetingRoomAccess::userCanAccess($user, $room));
+    }
 }

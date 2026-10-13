@@ -84,19 +84,33 @@ class PDF
     private static function mergeMpdfConfig(array $config): array
     {
         $tempDir = self::ensureWritableDirectory(storage_path('app/temp/mpdf'));
+        $published = config('pdf', []);
+
+        $fontDir = $published['custom_font_dir'] ?? base_path('resources/fonts/');
+        if (is_string($fontDir) && $fontDir !== '' && ! is_dir($fontDir)) {
+            $fontDir = base_path('resources/fonts/');
+        }
+
+        $fontData = $published['custom_font_data'] ?? [];
+        $defaultFont = 'IBMPlexSansArabic';
+        if (! is_array($fontData) || ! array_key_exists($defaultFont, $fontData)) {
+            $defaultFont = 'xbriyaz';
+        }
 
         return array_merge([
             'mode' => 'utf-8',
-            'format' => 'A4',
-            'orientation' => 'P',
-            'default_font' => 'xbriyaz',
+            'format' => $published['format'] ?? 'A4',
+            'orientation' => $published['orientation'] ?? 'P',
+            'default_font' => $defaultFont,
             'autoScriptToLang' => true,
             'autoLangToFont' => true,
             'temp_dir' => $tempDir,
-            'margin_left' => 10,
-            'margin_right' => 10,
-            'margin_top' => 12,
-            'margin_bottom' => 12,
+            'margin_left' => (int) ($published['margin_left'] ?? 10),
+            'margin_right' => (int) ($published['margin_right'] ?? 10),
+            'margin_top' => (int) ($published['margin_top'] ?? 12),
+            'margin_bottom' => (int) ($published['margin_bottom'] ?? 12),
+            'custom_font_dir' => $fontDir,
+            'custom_font_data' => is_array($fontData) ? $fontData : [],
         ], $config);
     }
 

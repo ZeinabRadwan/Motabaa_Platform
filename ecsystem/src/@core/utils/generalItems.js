@@ -264,6 +264,17 @@ export const meetingRoomsTypes = () => {
       ]
 }
 
+export const meetingRoomAudienceTypes = () => [
+  {
+    title: i18n.global.t('rooms.audience_general'),
+    value: 'general',
+  },
+  {
+    title: i18n.global.t('rooms.audience_parents'),
+    value: 'parents',
+  },
+]
+
 export const independentAssistanceTypeItems = () => {
     return [
         {

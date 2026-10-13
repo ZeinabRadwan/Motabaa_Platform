@@ -9,6 +9,7 @@ use App\Models\Log;
 use App\Models\MeetingRoom;
 use App\Models\Message;
 use App\Models\User;
+use App\Models\Term;
 use App\Models\System\System;
 use App\Support\MeetingRoomAccess;
 use App\Support\MeetingRoomNotifier;
@@ -26,12 +27,7 @@ class MeetingRoomController extends Controller
         $specialistTeacherIds = [];
         $keyword = mb_ereg_replace(' ', '%', getFTS($request->q));
 
-        $center = null;
-        if ($request->center_id && $user->isInCenter($request->center_id)) {
-            $center = $request->center_id;
-        } elseif ($user->centers) {
-            $center = $user->centers[0]->id;
-        }
+        $center = Term::resolveCenterId($user, $request->center_id);
 
         if ($parent) {
             $user->load(['scaseParent.teacher:id', 'scaseParent.specialists:id']);
@@ -94,15 +90,10 @@ class MeetingRoomController extends Controller
     public function show(Request $request, $room)
     {
         $user = auth()->user();
-        $center = null;
-        if ($request->center_id && $user->isInCenter($request->center_id)) {
-            $center = $request->center_id;
-        } elseif ($user->centers) {
-            $center = $user->centers[0]->id;
-        }
+        $center = Term::resolveCenterId($user, $request->center_id);
 
         $room = MeetingRoom::with(['user', 'assignedParents:id,name,phone'])
-            ->where('center_id', $center)
+            ->when($center, fn ($q) => $q->where('center_id', $center))
             ->withTrashed()
             ->find($room);
 

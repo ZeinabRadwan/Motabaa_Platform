@@ -1,5 +1,6 @@
 import ability from '@/plugins/casl/ability'
 import { isParentUser } from '@core/utils/staffSessionVisibility'
+import { useSessionStore } from '@/stores/useSessionStore'
 
 const MEETING_PERMISSIONS = [
   'access_meetings',
@@ -18,11 +19,36 @@ function moduleCan(action) {
 }
 
 /**
+ * Parent accounts may open meeting routes; per-room access is enforced by the API.
+ */
+export function isParentMeetingParticipant() {
+  if (isParentUser()) {
+    return true
+  }
+
+  if (ability.can('parent', 'parent')) {
+    return true
+  }
+
+  try {
+    const user = useSessionStore().userData
+    if (user?.role === 'parent' || user?.is_parent_user === true) {
+      return true
+    }
+  }
+  catch (e) {
+    // Pinia unavailable outside setup
+  }
+
+  return false
+}
+
+/**
  * Staff need meeting permissions; parents reach meeting routes for assigned/private rooms
  * (backend enforces per-room access).
  */
 export function canAccessMeetingRooms() {
-  if (isParentUser()) {
+  if (isParentMeetingParticipant()) {
     return true
   }
 
@@ -30,7 +56,7 @@ export function canAccessMeetingRooms() {
 }
 
 export function canParticipateInMeetingRoomChat() {
-  if (isParentUser()) {
+  if (isParentMeetingParticipant()) {
     return true
   }
 
