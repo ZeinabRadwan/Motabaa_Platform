@@ -4,8 +4,8 @@ import i18n from '@/plugins/i18n/index.js'
 import axios from '@axios'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue'
 import {
-  emailValidator,
-  requiredValidator,
+  loginEmailOrPhoneValidator,
+  loginIdentifierRequiredValidator,
 } from '@validators'
 import { useI18n } from 'vue-i18n'
 import { VForm } from 'vuetify/components/VForm'
@@ -20,7 +20,15 @@ const refVForm = ref()
 const email = ref('')
 const isSubmitting = ref(false)
 const formErrorSummary = ref('')
+const formSuccessSummary = ref('')
 const snackbarRef = ref(null)
+
+const showResetLinkSent = () => {
+  const message = i18n.global.t('reset_email_sent')
+  formSuccessSummary.value = message
+  formErrorSummary.value = ''
+  snackbarRef.value?.exposevisibleSnackbar(message, 'success', 6000)
+}
 
 const onSubmit = () => {
   refVForm.value?.validate().then(({ valid: isValid }) => {
@@ -29,16 +37,24 @@ const onSubmit = () => {
 
     isSubmitting.value = true
     formErrorSummary.value = ''
+    formSuccessSummary.value = ''
 
     axios.post('/auth/password/reset', {
-      email: email.value,
+      email: email.value.trim(),
     }).then(r => {
-      if (r.data.status === true)
-        snackbarRef.value.exposevisibleSnackbar(i18n.global.t('reset_email_sent'), 'success')
+      if (r.data?.status === true)
+        showResetLinkSent()
     }).catch(e => {
-      if (e.response?.data?.status === false) {
+      const failed = e.response?.data?.status === false
+        || e.response?.status >= 500
+      const validationMsg = e.response?.data?.errors?.email?.[0]
+      if (validationMsg) {
+        formErrorSummary.value = validationMsg
+        snackbarRef.value?.exposevisibleSnackbar(validationMsg, 'error')
+      }
+      else if (failed) {
         formErrorSummary.value = t('Failed to send reset link, Try again later.')
-        snackbarRef.value.exposevisibleSnackbar(i18n.global.t('Failed to send reset link, Try again later.'), 'error')
+        snackbarRef.value?.exposevisibleSnackbar(i18n.global.t('Failed to send reset link, Try again later.'), 'error')
       }
     }).finally(() => {
       isSubmitting.value = false
@@ -68,6 +84,18 @@ const onSubmit = () => {
       @submit.prevent="onSubmit"
     >
       <VAlert
+        v-if="formSuccessSummary"
+        type="success"
+        variant="tonal"
+        density="comfortable"
+        class="mb-3"
+        role="status"
+        prominent
+      >
+        {{ formSuccessSummary }}
+      </VAlert>
+
+      <VAlert
         v-if="formErrorSummary"
         type="error"
         variant="tonal"
@@ -83,12 +111,12 @@ const onSubmit = () => {
         class="auth-field"
         autofocus
         :dir="fieldDir"
-        :label="$t('Email')"
+        :label="$t('Email/Phone Number')"
         name="email"
-        autocomplete="email"
+        autocomplete="username"
         hide-details="auto"
-        :rules="[requiredValidator, emailValidator]"
-        type="email"
+        :rules="[loginIdentifierRequiredValidator, loginEmailOrPhoneValidator]"
+        type="text"
         append-inner-icon="tabler-mail"
       />
 

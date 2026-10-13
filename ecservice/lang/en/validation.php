@@ -205,6 +205,10 @@ return [
         "Evaluation dates must be in order" => "##terms.Evaluation dates must be in order&&",
         "Term not accessible" => "##terms.Term not accessible&&",
     ],
+    'password_reset' => [
+        'no_email_on_account' => 'This account has no email address. Please contact your center administrator.',
+        'mail_failed' => 'We could not send the reset email. Please try again later or contact support.',
+    ],
     'meeting_rooms' => [
         'Access denied' => '##meeting_rooms.Access denied&&',
         'Parents required' => '##meeting_rooms.Parents required&&',

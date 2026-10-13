@@ -199,6 +199,10 @@ return [
         "Evaluation dates must be in order" => "##terms.Evaluation dates must be in order&&",
         "Term not accessible" => "##terms.Term not accessible&&",
     ],
+    'password_reset' => [
+        'no_email_on_account' => 'لا يوجد بريد إلكتروني مسجّل لهذا الحساب. تواصل مع إدارة المركز.',
+        'mail_failed' => 'تعذّر إرسال رسالة إعادة التعيين. حاول لاحقاً أو تواصل مع الدعم.',
+    ],
     'meeting_rooms' => [
         'Access denied' => '##meeting_rooms.Access denied&&',
         'Parents required' => '##meeting_rooms.Parents required&&',
