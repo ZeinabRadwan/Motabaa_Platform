@@ -1,188 +1,286 @@
 @use '@/styles/athar-dashboard-tokens.scss' as athar;
 
-.ea-kpi-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.875rem;
+.hr-dashboard {
+  margin-block-end: 1.5rem;
+}
 
-  @media (min-width: 600px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.hr-dashboard__shell {
+  overflow: hidden;
+  border: 1px solid athar.$athar-border;
+  border-radius: athar.$athar-radius-md;
+  background: athar.$athar-surface;
+  box-shadow: 0 4px 24px rgba(18, 59, 102, 0.06);
+}
+
+.hr-dashboard__loader {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 1rem;
+}
+
+.hr-dashboard__section {
+  padding: 1rem 1.1rem 1.25rem;
+
+  & + & {
+    border-block-start: 1px solid athar.$athar-border;
   }
+}
+
+.hr-dashboard__section-title {
+  margin: 0 0 0.85rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: athar.$athar-navy;
+}
+
+.hr-dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 
   @media (min-width: 960px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
-.ea-kpi-card {
+.hr-dashboard-kpi {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  min-block-size: 8.5rem;
-  padding: 1rem 1rem 0.85rem;
-  border: none;
-  border-radius: athar.$athar-radius-md;
-  background: athar.$athar-surface;
-  box-shadow: 0 1px 3px rgba(11, 45, 77, 0.06);
+  gap: 0.45rem;
+  min-block-size: 7.5rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid athar.$athar-border;
+  border-radius: 12px;
+  background: #fff;
   cursor: pointer;
-  outline: none;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
 
-  &:hover,
-  &:focus-visible {
-    box-shadow: 0 4px 14px rgba(11, 45, 77, 0.08);
+  &:hover {
+    border-color: rgba(8, 126, 217, 0.28);
+    box-shadow: 0 8px 20px rgba(8, 126, 217, 0.08);
     transform: translateY(-1px);
   }
-
-  &:focus-visible {
-    box-shadow: 0 4px 14px rgba(11, 45, 77, 0.08), 0 0 0 3px rgba(athar.$athar-primary, 0.16);
-  }
 }
 
-.ea-kpi-card__head {
+.hr-dashboard-kpi__head {
   display: flex;
-  flex-direction: row;
   align-items: center;
   gap: 0.45rem;
-  min-block-size: 2rem;
 }
 
-.ea-kpi-card__icon {
+.hr-dashboard-kpi__icon {
+  display: inline-flex;
   flex-shrink: 0;
-  display: flex;
   align-items: center;
   justify-content: center;
   inline-size: 2.125rem;
   block-size: 2.125rem;
   border-radius: 8px;
-  color: #087ed9;
-  background: athar.$athar-light-blue;
 }
 
-.ea-kpi-card__label {
+.hr-dashboard-kpi__icon--primary {
+  color: #087ed9;
+  background: #eaf5ff;
+}
+
+.hr-dashboard-kpi__icon--success {
+  color: #16a34a;
+  background: #dcfce7;
+}
+
+.hr-dashboard-kpi__icon--warning {
+  color: #d97706;
+  background: #fef3c7;
+}
+
+.hr-dashboard-kpi__icon--danger {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.hr-dashboard-kpi__icon--violet {
+  color: #7c3aed;
+  background: #ede9fe;
+}
+
+.hr-dashboard-kpi__icon--info {
+  color: #0284c7;
+  background: #e0f2fe;
+}
+
+.hr-dashboard-kpi__label {
   margin: 0;
-  flex: 1;
-  min-inline-size: 0;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.35;
   color: athar.$athar-muted;
 }
 
-.ea-kpi-card__value {
+.hr-dashboard-kpi__value {
   margin: 0;
-  flex: 1;
-  display: flex;
-  align-items: flex-end;
-  font-size: clamp(1.625rem, 2.4vw, 2rem);
+  font-size: 1.625rem;
   font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.03em;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   color: #061f38;
   font-variant-numeric: tabular-nums;
 }
 
-.ea-kpi-card__sparkline {
-  margin-block-start: auto;
-  opacity: 0.92;
-}
+.hr-dashboard-links {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
 
-.ea-attendance-card {
-  padding: 1rem 1.125rem 1.125rem;
-  border: 1px solid athar.$athar-border;
-  border-radius: athar.$athar-radius-md;
-  background: athar.$athar-surface;
-  box-shadow: athar.$athar-shadow-sm;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-
-  &:hover,
-  &:focus-visible {
-    border-color: rgba(athar.$athar-primary, 0.18);
-    box-shadow: 0 6px 18px rgba(11, 45, 77, 0.08);
-    transform: translateY(-1px);
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-.ea-attendance-card__head {
+.hr-dashboard-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-block-end: 1rem;
-  padding-block-end: 0.85rem;
-  border-block-end: 1px solid athar.$athar-border;
+  gap: 0.65rem;
+  inline-size: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid athar.$athar-border;
+  border-radius: 12px;
+  background: #fafcff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    border-color: rgba(8, 126, 217, 0.25);
+    background: #fff;
+  }
 }
 
-.ea-attendance-card__icon {
-  display: flex;
+.hr-dashboard-link__icon {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   inline-size: 2.25rem;
   block-size: 2.25rem;
-  border-radius: athar.$athar-radius-sm;
-  color: #087ed9;
-  background: athar.$athar-light-blue;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #087ed9, #123b66);
+  color: #fff;
 }
 
-.ea-attendance-card__title {
-  margin: 0;
-  font-size: 0.9375rem;
+.hr-dashboard-link__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+
+.hr-dashboard-link__title {
+  font-size: 0.875rem;
   font-weight: 700;
-  line-height: 1.35;
-  color: athar.$athar-navy-dark;
+  color: athar.$athar-navy;
 }
 
-.ea-attendance-card__date {
-  margin: 0.15rem 0 0;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: athar.$athar-muted;
-}
-
-.ea-attendance-card__stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.ea-attendance-stat__label {
-  margin: 0 0 0.25rem;
-  font-size: 0.75rem;
+.hr-dashboard-link__hint {
+  font-size: 0.6875rem;
   font-weight: 600;
   color: athar.$athar-muted;
 }
 
-.ea-attendance-stat__label--present {
-  color: #0f766e;
+.hr-dashboard-attendance {
+  padding: 1rem 1.1rem 1.15rem;
+  border: 1px solid athar.$athar-border;
+  border-radius: 12px;
+  background: #fafcff;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: rgba(8, 126, 217, 0.28);
+    box-shadow: 0 6px 18px rgba(8, 126, 217, 0.08);
+  }
 }
 
-.ea-attendance-stat__label--absent {
-  color: #b42318;
+.hr-dashboard-attendance__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-block-end: 1rem;
 }
 
-.ea-attendance-stat__value {
+.hr-dashboard-attendance__title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: athar.$athar-navy;
+}
+
+.hr-dashboard-attendance__date {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: athar.$athar-muted;
+}
+
+.hr-dashboard-attendance__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.hr-dashboard-attendance__stat {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(18, 59, 102, 0.06);
+  text-align: center;
+}
+
+.hr-dashboard-attendance__stat-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.hr-dashboard-attendance__stat-label--success {
+  color: #16a34a;
+}
+
+.hr-dashboard-attendance__stat-label--error {
+  color: #dc2626;
+}
+
+.hr-dashboard-attendance__stat-label--muted {
+  color: athar.$athar-muted;
+}
+
+.hr-dashboard-attendance__stat-value {
+  margin-block-start: 0.25rem;
+  font-size: 1.375rem;
   font-weight: 800;
-  line-height: 1.1;
   color: #061f38;
   font-variant-numeric: tabular-nums;
 }
 
-.ea-attendance-wrap {
-  margin-block-start: 0.25rem;
-}
-
 .v-theme--dark {
-  .ea-kpi-card,
-  .ea-attendance-card {
+  .hr-dashboard__shell,
+  .hr-dashboard-kpi,
+  .hr-dashboard-attendance__stat,
+  .hr-dashboard-link {
     background: rgb(var(--v-theme-surface));
   }
 
-  .ea-kpi-card__value,
-  .ea-attendance-stat__value,
-  .ea-attendance-card__title {
-    color: rgba(var(--v-theme-on-surface), 0.94);
+  .hr-dashboard-kpi__value,
+  .hr-dashboard-attendance__stat-value,
+  .hr-dashboard-link__title,
+  .hr-dashboard-attendance__title,
+  .hr-dashboard__section-title {
+    color: rgba(var(--v-theme-on-surface), 0.92);
   }
 }
