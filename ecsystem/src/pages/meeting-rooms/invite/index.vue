@@ -1,7 +1,8 @@
 <script setup>
+import { hasPersistedAuthSession } from '@core/utils/authStorage'
+import { buildLoginLocation } from '@core/utils/loginRedirect'
 import { roomsApi } from '@/plugins/apis/roomsReqest'
 import { useSessionStore } from '@/stores/useSessionStore'
-import { buildLoginLocation } from '@core/utils/loginRedirect'
 import i18n from '@/plugins/i18n/index.js'
 
 const route = useRoute()
@@ -14,6 +15,17 @@ const loading = ref(true)
 const errorMessage = ref('')
 const needsLogin = ref(false)
 
+const ensureAuthReady = () => {
+  if (! sessionStore.isLoggedIn && hasPersistedAuthSession())
+    sessionStore.hydrateFromStorage()
+}
+
+const isAuthenticated = () => {
+  ensureAuthReady()
+
+  return sessionStore.isLoggedIn
+}
+
 const goToLogin = () => {
   router.push(buildLoginLocation(route.fullPath))
 }
@@ -25,8 +37,10 @@ const redeem = async () => {
     return
   }
 
+  ensureAuthReady()
+
   try {
-    if (! sessionStore.isLoggedIn) {
+    if (! isAuthenticated()) {
       const statusRes = await roomsReqest.invitationStatus(token.value)
       if (! statusRes.data?.data?.valid) {
         errorMessage.value = i18n.global.t('rooms.invitation_invalid')
@@ -51,8 +65,15 @@ const redeem = async () => {
   catch (e) {
     const status = e.response?.status
     if (status === 401) {
-      needsLogin.value = true
-      loading.value = false
+      ensureAuthReady()
+      if (! sessionStore.isLoggedIn) {
+        needsLogin.value = true
+        loading.value = false
+      }
+      else {
+        errorMessage.value = i18n.global.t('rooms.invitation_invalid')
+      }
+
       return
     }
 
@@ -63,6 +84,17 @@ const redeem = async () => {
     loading.value = false
   }
 }
+
+watch(
+  () => sessionStore.isLoggedIn,
+  loggedIn => {
+    if (loggedIn && needsLogin.value && token.value) {
+      needsLogin.value = false
+      loading.value = true
+      redeem()
+    }
+  },
+)
 
 onMounted(() => {
   redeem()

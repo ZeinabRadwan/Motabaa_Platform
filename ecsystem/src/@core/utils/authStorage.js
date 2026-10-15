@@ -41,6 +41,21 @@ export function clearAuthSessionStorage() {
   sessionStorage.removeItem(SESSION_ALIVE_KEY)
 }
 
+/** True when localStorage still holds a usable API session (same tab or new tab). */
+export function hasPersistedAuthSession() {
+  if (typeof window === 'undefined')
+    return false
+
+  const token = localStorage.getItem('accessToken')
+  const userRaw = localStorage.getItem('userData')
+
+  return !!(token && userRaw && userRaw !== '' && userRaw !== 'undefined')
+}
+
+function isMeetingRoomInvitePath(pathname) {
+  return pathname === '/meeting-rooms/invite' || pathname.startsWith('/meeting-rooms/invite/')
+}
+
 export function purgeExpiredSession() {
   if (typeof window === 'undefined')
     return
@@ -48,8 +63,17 @@ export function purgeExpiredSession() {
   // New tabs do not inherit sessionStorage. A still-valid local session
   // (especially admin impersonating a parent) must not look like a closed browser.
   const hasToken = !!localStorage.getItem('accessToken')
+  const hasUser = !!localStorage.getItem('userData')
   const impersonating = !!localStorage.getItem('impersonatorSession')
   if (hasToken && (impersonating || window.opener)) {
+    sessionStorage.setItem(SESSION_ALIVE_KEY, '1')
+
+    return
+  }
+
+  // Invitation links opened in a new tab (email, WhatsApp, etc.) must keep an
+  // existing session-only login so the user is not forced to sign in again.
+  if (hasToken && hasUser && isMeetingRoomInvitePath(window.location.pathname)) {
     sessionStorage.setItem(SESSION_ALIVE_KEY, '1')
 
     return
