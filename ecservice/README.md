@@ -1,66 +1,82 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Motabaah — API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel 10 REST API for the Motabaah platform. The admin frontend lives in [`../ecsystem/`](../ecsystem/) in the same monorepo.
 
-## About Laravel
+- Production API: https://api.motabaah.com
+- Admin app: https://platform.motabaah.com
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- Laravel 10, PHP 8.1+
+- MySQL
+- Laravel Sanctum (API tokens)
+- Permissions via roles / `PermissionCatalog`
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Local setup
 
-## Learning Laravel
+```sh
+cd ecservice
+cp .env.example .env
+composer install
+php artisan key:generate
+```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Configure database and mail settings in `.env`, then:
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```sh
+php artisan migrate
+php artisan serve
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Default base URL: `http://127.0.0.1:8000`. Routes used by the admin app are under the `/api` prefix (see `routes/api.php`).
 
-## Laravel Sponsors
+Do not commit `.env` or production secrets.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+## Tests
 
-### Premium Partners
+```sh
+php artisan test
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+Filter examples:
 
-## Contributing
+```sh
+php artisan test --filter=Login
+php artisan test --filter=MeetingRoom
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Auth and login messages
 
-## Code of Conduct
+Admin login: `POST /api/auth/login` with `email` (email or phone identifier) and `password`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+- Phone identifiers accept Saudi mobile formats (`05…`, `9665…`, `+9665…`); matching logic is in `App\Support\LoginIdentifier`.
+- User-facing strings come from `lang/ar/auth.php` and `lang/en/auth.php` (`auth.login.*`), selected by the request `Accept-Language` header.
 
-## Security Vulnerabilities
+Password reset and related flows reuse the same identifier rules where applicable.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Deploy
 
-## License
+Upload changed PHP, config, lang, and migration files to the API host. After pulling or uploading:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```sh
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+```
+
+Adjust commands to your hosting workflow. Never overwrite production `.env` from the repo.
+
+## Layout (high level)
+
+```
+app/Http/Controllers/   API controllers
+app/Services/           domain services (auth, meeting rooms, …)
+app/Models/             Eloquent models
+routes/api.php          authenticated and public API routes
+lang/                   Arabic and English strings
+database/migrations/    schema changes
+tests/                  PHPUnit unit and feature tests
+```
+
+Public web root for Apache/nginx is `public/`.

@@ -2,7 +2,7 @@
 
 Vue 3 application for Motabaah, a special-education / rehabilitation / therapy center platform.
 
-The API lives in a separate repository: [ecservice](https://bitbucket.org/fekracomputers/ecservice).
+The API lives in the same monorepo: [`../ecservice/`](../ecservice/).
 
 - Production: https://platform.motabaah.com
 - API: https://api.motabaah.com/api
@@ -92,4 +92,8 @@ Template leftovers under `src/pages/apps`, `forms`, `charts`, `wizard-examples`,
 npm run build
 ```
 
-Publish the `dist/` folder to the frontend host. Point `VITE_APP_API_URL` at the live API **before** building.
+Publish the `dist/` folder to the frontend host (`index.html` plus all of `assets/`). Point `VITE_APP_API_URL` at the live API **before** building. The repo root [README](../README.md) describes the full deploy flow; do not use a local `deploy/` copy for uploads.
+
+### Login UI
+
+`src/pages/login.vue` posts to `/auth/login`. Client validation for email or Saudi mobile is in `src/@core/utils/validators.js`. API error text is shown in Arabic or English via `src/plugins/i18n/locales/` and the axios `Accept-Language` header.
