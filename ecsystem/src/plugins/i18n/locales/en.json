@@ -871,6 +871,15 @@
   "Qualifying classes": "Qualifying classes",
   "Qualifying class": "Qualifying class",
   "Scales": "Scales",
+  "scales": {
+    "list_subtitle": "Browse and manage assessment scales for your center.",
+    "all_scales": "All scales",
+    "breadcrumb": "Scale navigation",
+    "empty": "No scales match your filters",
+    "open_scale": "Open",
+    "inactive_badge": "Inactive",
+    "center_scale": "Center"
+  },
   "Operational plan": "Operational plan",
   "Activities": "Activities",
   "Logs": "Logs",

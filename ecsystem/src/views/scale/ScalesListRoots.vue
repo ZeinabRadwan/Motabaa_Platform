@@ -13,6 +13,8 @@ import {
 import { useRoute, useRouter } from 'vue-router';
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import PreviewList from '@/views/preview/List.vue';
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
+import ScalesListBreadcrumb from '@/views/scale/ScalesListBreadcrumb.vue'
 
 const rules = [fileList => !fileList || !fileList.length || fileList[0].size < (100 * 1024 * 1024) || 'validtion.less_than_100MB']
 
@@ -236,204 +238,323 @@ const restoreItem = () => {
     emit('modify-root', restoreDialogData.value, 'restore')
     isRestoreDialogVisible.value = false;
 }
+
+const filteredRootsList = computed(() => Object.values(filter() || {}))
+
+const categoryTitle = category => {
+  const match = items().find(item => item.value === category)
+
+  return match?.title ?? category ?? ''
+}
+
+const evaluationMethodTitle = root => {
+  const id = Number(root?.evaluation_method_id)
+  if (! id)
+    return ''
+
+  const item = evaluationMethodItems.value.find(
+    m => Number(m.value ?? m.id) === id,
+  )
+
+  return item?.title ?? item?.name ?? ''
+}
+
+const showListShell = computed(() => ! preview.value && ! isModifyRoot.value)
 </script>
 
 <template>
     <div>
-        <VRow v-if="!preview">
-            <VCol cols="12">
-                <VCard v-if="!isModifyRoot">   
-                    <template v-slot:title>
-                    <VRow>
-                        <span class="v-col v-col-6 d-flex gap-4"> {{ $t('Scales') }}</span>
-                    </VRow>
+        <PageHeaderActions v-if="showListShell && can('edit_scales', 'edit_scales')">
+          <VBtn
+            class="general-page-header__btn-primary"
+            prepend-icon="tabler-plus"
+            @click="isModifyRoot = true"
+          >
+            {{ $t('Add Scale') }}
+          </VBtn>
+        </PageHeaderActions>
+
+        <section
+          v-if="showListShell"
+          class="scales-list-shell"
+        >
+          <div class="scales-list-toolbar">
+            <div class="scales-list-toolbar__filters">
+              <AppTextField
+                v-model="search"
+                class="scales-list-toolbar__search"
+                :placeholder="$t('Search')"
+                density="comfortable"
+                prepend-inner-icon="tabler-search"
+                hide-details
+              />
+              <AppSelect
+                v-model="selectedStatus"
+                class="scales-list-toolbar__status"
+                :items="statusItems()"
+                density="comfortable"
+                hide-details
+              />
+            </div>
+            <div
+              v-if="can('edit_scales','edit_scales')"
+              class="scales-list-toolbar__actions"
+            >
+              <VMenu>
+                <template #activator="{ props: menuProps }">
+                  <VBtn
+                    variant="tonal"
+                    color="primary"
+                    v-bind="menuProps"
+                    :loading="previewLoading"
+                    prepend-icon="tabler-database"
+                  >
+                    {{ $t('data') }}
+                  </VBtn>
+                </template>
+                <VList>
+                  <VListItem @click="exportAssessments()">
+                    <template #prepend>
+                      <VIcon icon="tabler-cloud-download" />
                     </template>
-
-                    <VCardText>
-                        <div class="pb-9">
-                            <VRow>
-                                <VCol cols="12" sm="3">
-                                    <!-- 👉 Search  -->
-                                    <AppTextField
-                                        v-model="search"
-                                        :placeholder="$t('Search')"
-                                        density="compact"
-                                    />
-                                </VCol>
-                                
-                                <VCol cols="12" sm="3">
-                                    <AppSelect
-                                        v-model="selectedStatus"
-                                        :items="statusItems()"
-                                        class="pa-1"
-                                    >
-                                    </AppSelect>
-                                </VCol>
-                                    
-                                <VCol cols="12" sm="6" class="d-flex align-left justify-end">
-                                    <div class="d-flex gap-4">
-                                        <VMenu v-if="can('edit_scales','edit_scales')">
-                                            <template #activator="{ props }">
-                                            <VBtn color="success" v-bind="props" :loading="previewLoading">
-                                                {{ $t('data') }}
-                                            </VBtn>
-                                            </template>
-                                            <VList>
-                                            <VListItem @click="exportAssessments()"><VIcon icon="tabler-cloud-download" /> {{ $t('export_data') }}</VListItem>
-                                            <VListItem @click="fileUploadfun()"><VIcon icon="tabler-cloud-upload" /> {{ $t('import_data') }}</VListItem>
-                                            </VList>
-                                        </VMenu>
-                                        <VBtn v-if="can('edit_scales', 'edit_scales')" @click="isModifyRoot = true" >
-                                            {{ $t('Add Scale') }}
-                                        </VBtn>
-                                    </div>
-                                </VCol>
-                            </VRow>
-                        </div>
-                        <div class="mb-2 pointer-cursor">
-                            <VIcon style="color: rgb(var(--v-theme-primary)) !important;" size="17" icon="tabler-home"/>
-                        </div>
-
-                        <VRow  v-if="!loaded">
-                            <VCol cols="12" class="d-flex justify-center">
-                                <VProgressCircular
-                                :size="50"
-                                color="primary"
-                                indeterminate
-                                />
-                            </VCol>
-                        </VRow>
-                        <div v-if="loaded">
-                            <VAlert
-                                v-for="(root, key) in filter()" 
-                                :key="key"
-                                color="primary"
-                                class="mb-2"
-                                height="100"
-                                rounded="0"
-                            >
-                                <template v-slot:text>
-                                    <div @click="clickedRoot(root)"  class="d-flex align-center pointer-cursor">
-                                        <span class="pr-16"></span>
-                                        <span class="ma-auto d-flex font-weight-black text-h4" style="color: white;">
-                                            <span>{{ $t(root.title) }} </span>
-                                        </span>
-                                    </div>
-                                </template>
-                                <template v-slot:append>
-                                    <div class="mt-7 d-flex gap-2">
-                                        <span v-if="(root.center_id>0 && can('edit_scales', 'edit_scales')) || (!root.center_id && can('admin', 'admin'))" :title="$t('Edit')" class="pointer-cursor" @click="edit(root)">
-                                            <VIcon size="20" icon="tabler-edit"/>
-                                        </span>
-                                        <span v-if="!root.deleted_at && ((root.center_id>0 && can('admin_scales', 'admin_scales')) || (!root.center_id && can('admin', 'admin')))" :title="$t('delete')" class="pointer-cursor" @click="deleteDialog(root)">
-                                            <VIcon size="20" icon="tabler-trash"/>
-                                        </span>
-                                        <span v-else-if="root.deleted_at && ((root.center_id>0 && can('admin_scales', 'admin_scales')) || (!root.center_id && can('admin', 'admin')))" :title="$t('restore')" class="pointer-cursor" @click="restoreDialog(root)">
-                                            <VIcon size="20" icon="tabler-refresh"/>
-                                        </span>
-                                    </div>
-                                </template>
-                            </VAlert>
-                        </div>
-                        <!-- Button -->
-
-                    </VCardText>
-
-                </VCard>
-                <VCard v-if="isModifyRoot">   
-                    <template v-slot:title>
-                    <VRow>
-                        <h3 class="v-col v-col-6 d-flex gap-4"> {{ $t('Add Scale') }}</h3>
-
-                        <VCol
-                        cols="6"
-                        class="d-flex gap-4 justify-end"
-                        >
-                        <VBtn @click="isModifyRoot = false" color="secondary">
-                            {{ $t('Cancel') }}
-                        </VBtn>
-                        <VBtn @click="save" :disabled="title =='' || selected == '' || selectedEvaluationMethod == ''">
-                            {{ $t('Save') }}
-                        </VBtn>
-
-                        </VCol>
-                    </VRow>
+                    {{ $t('export_data') }}
+                  </VListItem>
+                  <VListItem @click="fileUploadfun()">
+                    <template #prepend>
+                      <VIcon icon="tabler-cloud-upload" />
                     </template>
-                    <VCardText>
-                    
-                        <div class="justify-start d-flex align-center flex-wrap gap-4 pb-9">
-                            <VRow>
-                                <VCol
-                                    md="4"
-                                    sm="12"
-                                >
-                                <AppTextField
-                                    v-model="title"
-                                    :label="$t('name')"
-                                    :placeholder="$t('name')"
-                                    density="compact"
-                                />
-                                </VCol>
-                                
-                                <VCol
-                                    md="4"
-                                    sm="12"
-                                >
-                                    <AppSelect
-                                        :items="items()"
-                                        v-model="selected"
-                                        :label="$t('Scale Type')"
-                                    />
-                                </VCol>
-                                <VCol
-                                    md="4"
-                                    sm="12"
-                                >
-                                    <AppSelect
-                                        :items="evaluationMethodItems"
-                                        v-model="selectedEvaluationMethod"
-                                        :label="$t('evaluation_method')"
-                                    />
-                                </VCol>
-                            </VRow>
-                        </div>
-                    </VCardText>
-                </VCard>
-            </VCol>
-        </VRow>
-        <VRow v-else>
-            <VCol cols="12">
-                <VCard class="padding-30p">
-                    <template v-slot:title>
-                        <VRow>
-                            <span v-if="previewData && previewData.sheets_count==1" class="v-col v-col-6 d-flex gap-4 text-h4">{{ $t('assessment_data') }}</span>
-                            <span v-else class="v-col v-col-6 d-flex gap-4 text-h4">{{ $t('assessments_data') }}</span>
-                            <VCol
-                                cols="6"
-                                class="d-flex gap-4 justify-end"
-                            >
-                                <VBtn
-                                    v-if="can('edit_scales','edit_scales') && previewData && previewData.sheets_count>0 && previewData.n_errors==0" 
-                                    @click="importAssessments()"
-                                    color="primary"
-                                    :loading="importLoading"
-                                >
-                                {{ $t('Save') }}
-                                </VBtn>
-                                <VBtn
-                                color="secondary"
-                                @click="cancelImport()"
-                                >
-                                {{ $t('Cancel') }}
-                                </VBtn>
-                            </VCol>
-                        </VRow>
-                    </template>
-                    <VDivider/>
-                    <PreviewList :data="previewData"/>
-                </VCard>
-            </VCol>
-        </VRow>
+                    {{ $t('import_data') }}
+                  </VListItem>
+                </VList>
+              </VMenu>
+            </div>
+          </div>
+
+          <ScalesListBreadcrumb :steps="[]" />
+
+          <div class="scales-list-body">
+            <div
+              v-if="!loaded"
+              class="scales-list-loader"
+            >
+              <VProgressCircular
+                :size="48"
+                color="primary"
+                indeterminate
+              />
+            </div>
+            <div
+              v-else-if="!filteredRootsList.length"
+              class="scales-list-empty"
+            >
+              <span class="scales-list-empty__icon">
+                <VIcon
+                  icon="tabler-scale-off"
+                  size="28"
+                />
+              </span>
+              <p class="scales-list-empty__title">
+                {{ $t('scales.empty') }}
+              </p>
+            </div>
+            <div
+              v-else
+              class="scales-list-grid"
+            >
+              <article
+                v-for="root in filteredRootsList"
+                :key="root.id"
+                class="scales-list-card"
+                :class="{ 'is-inactive': root.deleted_at }"
+              >
+                <button
+                  type="button"
+                  class="scales-list-card__main"
+                  @click="clickedRoot(root)"
+                >
+                  <span class="scales-list-card__icon">
+                    <VIcon
+                      icon="tabler-chart-bar"
+                      size="22"
+                    />
+                  </span>
+                  <h3 class="scales-list-card__title">
+                    {{ $t(root.title) }}
+                  </h3>
+                  <div class="scales-list-card__meta">
+                    <span
+                      v-if="categoryTitle(root.category)"
+                      class="scales-list-card__badge"
+                    >
+                      {{ categoryTitle(root.category) }}
+                    </span>
+                    <span
+                      v-if="evaluationMethodTitle(root)"
+                      class="scales-list-card__badge is-muted"
+                    >
+                      {{ evaluationMethodTitle(root) }}
+                    </span>
+                    <span
+                      v-if="root.deleted_at"
+                      class="scales-list-card__badge is-muted"
+                    >
+                      {{ $t('scales.inactive_badge') }}
+                    </span>
+                    <span
+                      v-if="root.center_id > 0"
+                      class="scales-list-card__badge is-muted"
+                    >
+                      {{ $t('scales.center_scale') }}
+                    </span>
+                  </div>
+                </button>
+                <div class="scales-list-card__footer">
+                  <VBtn
+                    v-if="(root.center_id>0 && can('edit_scales', 'edit_scales')) || (!root.center_id && can('admin', 'admin'))"
+                    icon
+                    variant="text"
+                    size="small"
+                    :title="$t('Edit')"
+                    @click.stop="edit(root)"
+                  >
+                    <VIcon
+                      icon="tabler-edit"
+                      size="20"
+                    />
+                  </VBtn>
+                  <VBtn
+                    v-if="!root.deleted_at && ((root.center_id>0 && can('admin_scales', 'admin_scales')) || (!root.center_id && can('admin', 'admin')))"
+                    icon
+                    variant="text"
+                    size="small"
+                    color="error"
+                    :title="$t('delete')"
+                    @click.stop="deleteDialog(root)"
+                  >
+                    <VIcon
+                      icon="tabler-trash"
+                      size="20"
+                    />
+                  </VBtn>
+                  <VBtn
+                    v-else-if="root.deleted_at && ((root.center_id>0 && can('admin_scales', 'admin_scales')) || (!root.center_id && can('admin', 'admin')))"
+                    icon
+                    variant="text"
+                    size="small"
+                    :title="$t('restore')"
+                    @click.stop="restoreDialog(root)"
+                  >
+                    <VIcon
+                      icon="tabler-refresh"
+                      size="20"
+                    />
+                  </VBtn>
+                  <VBtn
+                    variant="tonal"
+                    color="primary"
+                    size="small"
+                    @click="clickedRoot(root)"
+                  >
+                    {{ $t('scales.open_scale') }}
+                  </VBtn>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section
+          v-else-if="isModifyRoot"
+          class="scales-list-shell"
+        >
+          <header class="scales-list-form__head">
+            <h2 class="scales-list-form__title">
+              {{ $t('Add Scale') }}
+            </h2>
+            <div class="scales-list-form__actions">
+              <VBtn
+                color="secondary"
+                variant="tonal"
+                @click="isModifyRoot = false"
+              >
+                {{ $t('Cancel') }}
+              </VBtn>
+              <VBtn
+                class="general-page-header__btn-primary"
+                :disabled="title =='' || selected == '' || selectedEvaluationMethod == ''"
+                @click="save"
+              >
+                {{ $t('Save') }}
+              </VBtn>
+            </div>
+          </header>
+          <div class="scales-list-form">
+            <VRow>
+              <VCol
+                cols="12"
+                md="4"
+              >
+                <AppTextField
+                  v-model="title"
+                  :label="$t('name')"
+                  :placeholder="$t('name')"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="4"
+              >
+                <AppSelect
+                  v-model="selected"
+                  :items="items()"
+                  :label="$t('Scale Type')"
+                />
+              </VCol>
+              <VCol
+                cols="12"
+                md="4"
+              >
+                <AppSelect
+                  v-model="selectedEvaluationMethod"
+                  :items="evaluationMethodItems"
+                  :label="$t('evaluation_method')"
+                />
+              </VCol>
+            </VRow>
+          </div>
+        </section>
+
+        <section
+          v-else
+          class="scales-list-shell"
+        >
+          <header class="scales-list-form__head">
+            <h2 class="scales-list-form__title">
+              <span v-if="previewData && previewData.sheets_count==1">{{ $t('assessment_data') }}</span>
+              <span v-else>{{ $t('assessments_data') }}</span>
+            </h2>
+            <div class="scales-list-form__actions">
+              <VBtn
+                v-if="can('edit_scales','edit_scales') && previewData && previewData.sheets_count>0 && previewData.n_errors==0"
+                class="general-page-header__btn-primary"
+                :loading="importLoading"
+                @click="importAssessments()"
+              >
+                {{ $t('Save') }}
+              </VBtn>
+              <VBtn
+                color="secondary"
+                variant="tonal"
+                @click="cancelImport()"
+              >
+                {{ $t('Cancel') }}
+              </VBtn>
+            </div>
+          </header>
+          <div class="scales-list-form">
+            <PreviewList :data="previewData" />
+          </div>
+        </section>
 
         <VFileInput v-show="false" v-model="file" ref="fileUpload" @change="onFileSelected" />
     

@@ -143,22 +143,39 @@ const addToParentById =  (data, action = null) => {
 </script>
 
 <template>
-  <div>
-    <VRow>
-      <VCol cols="12">
-        <VForm 
-          ref="refVForm"
-        >
-          <ScalesListRoots v-if="rootId == null" :loaded="loaded" @modify-root="modifyRoot" @move-step="moveToStep" @selected-root="selectedRoot" :roots="scales"></ScalesListRoots> 
-          <ScalesListField v-if="rootId != null" :loaded="loaded" @modify-field="addToParentById" :root="scales[rootId]" @move-step="moveToStep" @selected-field="selectedField" :steps="selectedScales" :fields="scales"></ScalesListField> 
-        </VForm>
-      </VCol>
-    </VRow>
+  <div class="scales-list-page">
+    <VForm ref="refVForm">
+      <ScalesListRoots
+        v-if="rootId == null"
+        :loaded="loaded"
+        :roots="scales"
+        @modify-root="modifyRoot"
+        @move-step="moveToStep"
+        @selected-root="selectedRoot"
+      />
+      <ScalesListField
+        v-if="rootId != null"
+        :loaded="loaded"
+        :root="scales[rootId]"
+        :steps="selectedScales"
+        :fields="scales"
+        @modify-field="addToParentById"
+        @move-step="moveToStep"
+        @selected-field="selectedField"
+      />
+    </VForm>
     <SnackbarComponent ref="snackbarRef" />
   </div>
 </template>
+
 <route lang="yaml">
-  meta:
-    action: access_scales
-    subject: access_scales
+meta:
+  action: access_scales
+  subject: access_scales
+  pageTitleKey: Scales
+  pageSubtitleKey: scales.list_subtitle
 </route>
+
+<style lang="scss">
+@import '@/styles/scales-list-page.scss';
+</style>

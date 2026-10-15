@@ -4,6 +4,7 @@ import {assessmentsApi} from "@/plugins/apis/assessmentReqest"
 const props = defineProps(['fields', 'steps', 'root', 'loaded']);
 const { fields, steps, root, loaded } = toRefs(props);
 import { can } from '@layouts/plugins/casl'
+import ScalesListBreadcrumb from '@/views/scale/ScalesListBreadcrumb.vue'
 
 
 const emit = defineEmits();
@@ -175,212 +176,322 @@ const restoreItem = () => {
     }
     isRestoreDialogVisible.value = false;
 }
+
+const filteredFieldsList = computed(() => Object.values(filter() || {}))
+
+const isGoalLevel = computed(() => {
+  const keys = Object.keys(fields.value || {})
+
+  return keys.length > 0 && fields.value[keys[0]]?.type === 'goal'
+})
+
+const onBreadcrumbHome = () => emit('move-step', 'null')
+
+const onBreadcrumbStep = step => emit('move-step', step)
 </script>
 
 <template>
   <div>
+    <section
+      v-if="!isModifyField && !isModifyGoal"
+      class="scales-list-shell"
+    >
+      <div class="scales-list-toolbar">
+        <div class="scales-list-toolbar__filters">
+          <AppTextField
+            v-model="search"
+            class="scales-list-toolbar__search"
+            :placeholder="$t('Search')"
+            density="comfortable"
+            prepend-inner-icon="tabler-search"
+            hide-details
+          />
+          <AppSelect
+            v-model="selectedStatus"
+            class="scales-list-toolbar__status"
+            :items="statusItems()"
+            density="comfortable"
+            hide-details
+          />
+        </div>
+        <div
+          v-if="can('edit_scales', 'edit_scales')"
+          class="scales-list-toolbar__actions"
+        >
+          <VBtn
+            v-if="showAddGoal()"
+            color="success"
+            variant="tonal"
+            prepend-icon="tabler-target"
+            @click="isModifyGoal = true"
+          >
+            {{ $t('Add Goal') }}
+          </VBtn>
+          <VBtn
+            v-if="showAddField"
+            class="general-page-header__btn-primary"
+            prepend-icon="tabler-plus"
+            @click="isModifyField = true"
+          >
+            {{ $t('Add Field') }}
+          </VBtn>
+        </div>
+      </div>
 
-    <VCard v-if="!isModifyField && !isModifyGoal">   
-        <template v-slot:title>
-        <VRow>
-            <span class="v-col v-col-6 d-flex gap-4"> {{ $t('Scales') }}</span>
-        </VRow>
-        </template>
-        <VCardText>
-            
-            <div class="pb-9">
-                <VRow>
-                    <VCol cols="12" sm="3">
-                        <!-- 👉 Search  -->
-                        <AppTextField
-                            v-model="search"
-                            :placeholder="$t('Search')"
-                            density="compact"
-                        />
-                    </VCol>
-                    
-                    <VCol cols="12" sm="3">
-                        <AppSelect
-                            v-model="selectedStatus"
-                            :items="statusItems()"
-                            class="pa-1"
-                        >
-                        </AppSelect>
-                    </VCol>
-                        
-                    <VCol cols="12" sm="6" class="d-flex align-left justify-end">
-                        <div class="d-flex gap-4">
-                            <VBtn @click="isModifyGoal = true" v-if="showAddGoal() && can('edit_scales', 'edit_scales')" color="success">
-                                {{ $t('Add Goal') }}
-                            </VBtn>
-                            <VBtn @click="isModifyField = true" v-if="showAddField && can('edit_scales', 'edit_scales')"  >
-                                {{ $t('Add Field') }}
-                            </VBtn>
-                        </div>
-                    </VCol>
-                </VRow>
-            </div>
-            <div class="">
-                <span class="pointer-cursor" @click="() => emit('move-step', 'null')">
-                    <VIcon style="color: rgb(var(--v-theme-primary)) !important;" size="17" icon="tabler-home"/>
-                </span>
-                <span  v-for="step in steps" :key="step.id" class="pointer-cursor ml-1 mr-1" @click="() => emit('move-step', step)">
-                    <span class="d-inline-block"> <VIcon class="mt-1" size="16" icon="tabler-math-lower"/>  {{ step.title }}</span>
-                </span>
-            </div>
-        </VCardText>
-            <VCardText v-if="!loaded">
-                <VRow>
-                    <VCol cols="12" class="d-flex justify-center">
-                        <VProgressCircular
-                        :size="50"
-                        color="primary"
-                        indeterminate
-                        />
-                    </VCol>
-                </VRow>
-            </VCardText>
-            <div v-if="loaded && fields && fields[Object.keys(fields)[0]]?.type == 'goal'" >
-                <VDivider />
-                <div v-for="(field, key) in filter()" :key="key">
-                    <VCardText >
-                        <VRow>
-                            <VCol cols="12" lg="11" md="11" sm="12">
-                                <p class="font-weight-medium text-subtitle-2">
-                                    {{ field.title }}
-                                </p>
-                            </VCol>
-                            <VCol cols="12" lg="1" md="1" sm="12">
-                                <div class="mb-3 d-flex gap-2">
-                                    <span v-if="(field.center_id>0 && can('edit_scales', 'edit_scales')) || (!field.center_id && can('admin', 'admin'))" :title="$t('Edit')" style="color: rgb(var(--v-theme-primary)) !important;" class="pointer-cursor" @click="editGoal(field)">
-                                        <VIcon size="20" icon="tabler-edit"/>
-                                    </span>
-                                    <span v-if="!field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))" :title="$t('delete')" style="color: rgb(var(--v-theme-primary)) !important;" class="pointer-cursor" @click="deleteDialog(field)">
-                                        <VIcon size="20" icon="tabler-trash"/>
-                                    </span>
-                                    <span v-else-if="field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))" :title="$t('restore')" style="color: rgb(var(--v-theme-primary)) !important;" class="pointer-cursor" @click="restoreDialog(field)">
-                                        <VIcon size="20" icon="tabler-refresh"/>
-                                    </span>
-                                </div>
-                            </VCol>
-                        </VRow>
-                    </VCardText>
-                    <VDivider />
-                </div>
-            </div>
-            <VCardText v-else-if="loaded">
-                <div v-for="(field, key) in filter()" :key="key">
-                    <VAlert
-                        :key="key"
-                        color="primary"
-                        class="mb-2"
-                        height="100"
-                        rounded="0"
-                    >
-                        <template v-slot:text>
-                            <div @click="clickedField(field)"  class="d-flex align-center pointer-cursor">
-                                <span class="pr-16"></span>
-                                <div class="ma-auto d-flex font-weight-black text-h4" style="color: white;">
-                                    <span>{{ $t(field.title) }} </span>
-                                </div>
-                            </div>
-                        </template>
-                        <template v-slot:append>
-                            <div class="mt-7 d-flex gap-2">
-                                <span v-if="(field.center_id>0 && can('edit_scales', 'edit_scales')) || (!field.center_id && can('admin', 'admin'))" :title="$t('Edit')" class="pointer-cursor" @click="editField(field)">
-                                    <VIcon size="20" icon="tabler-edit"/>
-                                </span>
-                                <span v-if="!field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))" :title="$t('delete')" class="pointer-cursor" @click="deleteDialog(field)">
-                                    <VIcon size="20" icon="tabler-trash"/>
-                                </span>
-                                <span v-else-if="field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))" :title="$t('restore')" class="pointer-cursor" @click="restoreDialog(field)">
-                                    <VIcon size="20" icon="tabler-refresh"/>
-                                </span>
-                            </div>
-                        </template>
-                    </VAlert>
-                </div>
-            </VCardText>
+      <ScalesListBreadcrumb
+        :steps="steps"
+        @home="onBreadcrumbHome"
+        @step="onBreadcrumbStep"
+      />
 
-    </VCard>
-    <VCard v-if="isModifyField">   
-        <template v-slot:title>
-        <VRow>
-            <h3 class="v-col v-col-6 d-flex gap-4"> {{ $t('Add Field') }}</h3>
-
-            <VCol
-              cols="6"
-              class="d-flex gap-4 justify-end"
+      <div class="scales-list-body">
+        <div
+          v-if="!loaded"
+          class="scales-list-loader"
+        >
+          <VProgressCircular
+            :size="48"
+            color="primary"
+            indeterminate
+          />
+        </div>
+        <div
+          v-else-if="!filteredFieldsList.length"
+          class="scales-list-empty"
+        >
+          <span class="scales-list-empty__icon">
+            <VIcon
+              icon="tabler-folder-open"
+              size="28"
+            />
+          </span>
+          <p class="scales-list-empty__title">
+            {{ $t('scales.empty') }}
+          </p>
+        </div>
+        <div
+          v-else-if="isGoalLevel"
+          class="scales-list-goals"
+        >
+          <article
+            v-for="field in filteredFieldsList"
+            :key="field.id"
+            class="scales-list-goal"
+            :class="{ 'is-inactive': field.deleted_at }"
+          >
+            <p class="scales-list-goal__text">
+              {{ field.title }}
+            </p>
+            <div class="scales-list-goal__actions">
+              <VBtn
+                v-if="(field.center_id>0 && can('edit_scales', 'edit_scales')) || (!field.center_id && can('admin', 'admin'))"
+                icon
+                variant="text"
+                size="small"
+                :title="$t('Edit')"
+                @click="editGoal(field)"
+              >
+                <VIcon
+                  icon="tabler-edit"
+                  size="20"
+                />
+              </VBtn>
+              <VBtn
+                v-if="!field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))"
+                icon
+                variant="text"
+                size="small"
+                color="error"
+                :title="$t('delete')"
+                @click="deleteDialog(field)"
+              >
+                <VIcon
+                  icon="tabler-trash"
+                  size="20"
+                />
+              </VBtn>
+              <VBtn
+                v-else-if="field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))"
+                icon
+                variant="text"
+                size="small"
+                :title="$t('restore')"
+                @click="restoreDialog(field)"
+              >
+                <VIcon
+                  icon="tabler-refresh"
+                  size="20"
+                />
+              </VBtn>
+            </div>
+          </article>
+        </div>
+        <div
+          v-else
+          class="scales-list-grid"
+        >
+          <article
+            v-for="field in filteredFieldsList"
+            :key="field.id"
+            class="scales-list-card"
+            :class="{ 'is-inactive': field.deleted_at }"
+          >
+            <button
+              type="button"
+              class="scales-list-card__main"
+              @click="clickedField(field)"
             >
-              <VBtn @click="isModifyField = false" color="secondary">
-                {{ $t('Cancel') }}
+              <span class="scales-list-card__icon">
+                <VIcon
+                  icon="tabler-list-details"
+                  size="22"
+                />
+              </span>
+              <h3 class="scales-list-card__title">
+                {{ $t(field.title) }}
+              </h3>
+              <div
+                v-if="field.deleted_at"
+                class="scales-list-card__meta"
+              >
+                <span class="scales-list-card__badge is-muted">
+                  {{ $t('scales.inactive_badge') }}
+                </span>
+              </div>
+            </button>
+            <div class="scales-list-card__footer">
+              <VBtn
+                v-if="(field.center_id>0 && can('edit_scales', 'edit_scales')) || (!field.center_id && can('admin', 'admin'))"
+                icon
+                variant="text"
+                size="small"
+                :title="$t('Edit')"
+                @click.stop="editField(field)"
+              >
+                <VIcon
+                  icon="tabler-edit"
+                  size="20"
+                />
               </VBtn>
-              <VBtn @click="save" :disabled="title ==''">
-                {{ $t('Save') }}
+              <VBtn
+                v-if="!field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))"
+                icon
+                variant="text"
+                size="small"
+                color="error"
+                :title="$t('delete')"
+                @click.stop="deleteDialog(field)"
+              >
+                <VIcon
+                  icon="tabler-trash"
+                  size="20"
+                />
               </VBtn>
-            </VCol>
-        </VRow>
-        </template>
-        <VCardText>
-        
-            <div class="justify-start d-flex align-center flex-wrap gap-4 pb-9">
-                <VRow>
-                    <VCol
-                        md="4"
-                        sm="12"
-                    >
-                    <AppTextField
-                        v-model="title"
-                        :label="$t('name')"
-                        :placeholder="$t('name')"
-                        density="compact"
-                    />
-                    </VCol>
-                </VRow>
+              <VBtn
+                v-else-if="field.deleted_at && ((field.center_id>0 && can('admin_scales', 'admin_scales')) || (!field.center_id && can('admin', 'admin')))"
+                icon
+                variant="text"
+                size="small"
+                :title="$t('restore')"
+                @click.stop="restoreDialog(field)"
+              >
+                <VIcon
+                  icon="tabler-refresh"
+                  size="20"
+                />
+              </VBtn>
+              <VBtn
+                variant="tonal"
+                color="primary"
+                size="small"
+                @click="clickedField(field)"
+              >
+                {{ $t('scales.open_scale') }}
+              </VBtn>
             </div>
-        </VCardText>
-    </VCard>
+          </article>
+        </div>
+      </div>
+    </section>
 
-    <VCard v-if="isModifyGoal">   
-        <template v-slot:title>
+    <section
+      v-if="isModifyField"
+      class="scales-list-shell"
+    >
+      <header class="scales-list-form__head">
+        <h2 class="scales-list-form__title">
+          {{ $t('Add Field') }}
+        </h2>
+        <div class="scales-list-form__actions">
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="isModifyField = false"
+          >
+            {{ $t('Cancel') }}
+          </VBtn>
+          <VBtn
+            class="general-page-header__btn-primary"
+            :disabled="title ==''"
+            @click="save"
+          >
+            {{ $t('Save') }}
+          </VBtn>
+        </div>
+      </header>
+      <div class="scales-list-form">
         <VRow>
-            <h3 class="v-col v-col-6 d-flex gap-4"> {{ $t('Add Goal') }}</h3>
-
-            <VCol
-              cols="6"
-              class="d-flex gap-4 justify-end"
-            >
-              <VBtn @click="isModifyGoal = false" color="secondary">
-                {{ $t('Cancel') }}
-              </VBtn>
-              <VBtn @click="saveGoal" :disabled="title ==''">
-                {{ $t('Save') }}
-              </VBtn>
-
-              
-              
-            </VCol>
+          <VCol
+            cols="12"
+            md="6"
+          >
+            <AppTextField
+              v-model="title"
+              :label="$t('name')"
+              :placeholder="$t('name')"
+            />
+          </VCol>
         </VRow>
-        </template>
-        <VCardText>
-        
-            <div class="justify-start d-flex align-center flex-wrap gap-4 pb-9">
-                <VRow>
-                    <VCol
-                        md="8"
-                        sm="12"
-                    >
-                    <AppTextarea
-                        v-model="title"
-                        :label="$t('Goal')"
-                        :placeholder="$t('Goal')"
-                        density="compact"
-                    />
-                    </VCol>
-                </VRow>
-            </div>
-        </VCardText>
-    </VCard>
+      </div>
+    </section>
+
+    <section
+      v-if="isModifyGoal"
+      class="scales-list-shell"
+    >
+      <header class="scales-list-form__head">
+        <h2 class="scales-list-form__title">
+          {{ $t('Add Goal') }}
+        </h2>
+        <div class="scales-list-form__actions">
+          <VBtn
+            color="secondary"
+            variant="tonal"
+            @click="isModifyGoal = false"
+          >
+            {{ $t('Cancel') }}
+          </VBtn>
+          <VBtn
+            class="general-page-header__btn-primary"
+            :disabled="title ==''"
+            @click="saveGoal"
+          >
+            {{ $t('Save') }}
+          </VBtn>
+        </div>
+      </header>
+      <div class="scales-list-form">
+        <VRow>
+          <VCol cols="12">
+            <AppTextarea
+              v-model="title"
+              :label="$t('Goal')"
+              :placeholder="$t('Goal')"
+            />
+          </VCol>
+        </VRow>
+      </div>
+    </section>
     
     <VDialog
         v-model="isDeleteDialogVisible"
