@@ -25,6 +25,9 @@ ecservice/storage/framework/views/*
 # Frontend build
 ecsystem/dist/
 ecsystem/dist-ssr/
+
+# Local cPanel upload copies (use ecservice/ + ecsystem/dist/ instead)
+deploy/
 *.local
 
 # Logs and OS
