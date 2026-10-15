@@ -64,7 +64,10 @@ const onSubmit = () => {
 </script>
 
 <template>
-  <AuthPageShell :dir="fieldDir">
+  <AuthPageShell
+    :dir="fieldDir"
+    lock-desktop-viewport
+  >
     <header class="auth-page__intro">
       <h1 class="auth-page__title">
         {{ $t('Forgot Password?') }}

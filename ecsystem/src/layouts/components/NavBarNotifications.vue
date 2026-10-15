@@ -1,5 +1,6 @@
 <script setup>
 import { fetchUserNotifications, markUserNotificationRead } from '@/plugins/apis/notificationsRequest'
+import { useI18n } from 'vue-i18n'
 
 const props = defineProps({
   /** VMenu location (e.g. sidebar footer uses `top start`). */
@@ -14,13 +15,16 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const { locale } = useI18n({ useScope: 'global' })
 const notifications = ref([])
+
+const intlLocale = computed(() => (locale.value === 'ar' ? 'ar' : 'en'))
 
 const formatNotificationTime = iso => {
   if (! iso)
     return ''
   try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(iso))
+    return new Intl.DateTimeFormat(intlLocale.value, { dateStyle: 'medium' }).format(new Date(iso))
   }
   catch {
     return ''
@@ -31,9 +35,17 @@ const mapApiNotification = row => ({
   id: row.id,
   title: row.title,
   subtitle: row.message,
+  createdAt: row.created_at,
   time: formatNotificationTime(row.created_at),
   isSeen: Boolean(row.read_at),
   url: row.url,
+})
+
+watch(locale, () => {
+  notifications.value = notifications.value.map(item => ({
+    ...item,
+    time: formatNotificationTime(item.createdAt),
+  }))
 })
 
 const loadNotifications = () => {

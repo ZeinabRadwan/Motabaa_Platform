@@ -370,7 +370,8 @@ watchServerTableFetch(fetchAllRooms, {
     <VDialog
       v-model="roomDialog"
       persistent
-      max-width="580"
+      max-width="640"
+      scrollable
     >
       <VCard>
         <VCardItem>
@@ -384,7 +385,7 @@ watchServerTableFetch(fetchAllRooms, {
           </VCardTitle>
         </VCardItem>
         <VDivider />
-        <VCardText>
+        <VCardText class="meeting-rooms-dialog__body">
           <VRow>
             <VCol cols="12">
               <AppTextField

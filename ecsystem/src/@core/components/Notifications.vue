@@ -120,7 +120,7 @@ const hasUnread = computed(() => props.notifications.some(n => !n.isSeen))
       <!-- 👉 Header -->
       <VCardItem class="notification-section">
         <VCardTitle class="text-lg">
-          Notifications
+          {{ notificationTooltip }}
         </VCardTitle>
 
         <template #append>
@@ -134,7 +134,7 @@ const hasUnread = computed(() => props.notifications.some(n => !n.isSeen))
               activator="parent"
               location="start"
             >
-              {{ !isAllMarkRead ? 'Mark all as unread' : 'Mark all as read' }}
+              {{ !isAllMarkRead ? t('navbar.notifications_mark_all_unread') : t('navbar.notifications_mark_all_read') }}
             </VTooltip>
           </IconBtn>
         </template>
@@ -209,7 +209,7 @@ const hasUnread = computed(() => props.notifications.some(n => !n.isSeen))
             class="text-center text-medium-emphasis"
             style="block-size: 56px;"
           >
-            <VListItemTitle>No Notification Found!</VListItemTitle>
+            <VListItemTitle>{{ t('navbar.notifications_empty') }}</VListItemTitle>
           </VListItem>
         </VList>
       </PerfectScrollbar>
@@ -221,7 +221,7 @@ const hasUnread = computed(() => props.notifications.some(n => !n.isSeen))
         class="notification-footer"
       >
         <VBtn block>
-          View All Notifications
+          {{ t('navbar.notifications_view_all') }}
         </VBtn>
       </VCardActions>
     </VCard>

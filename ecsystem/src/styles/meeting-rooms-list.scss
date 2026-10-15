@@ -263,6 +263,12 @@
   background: athar.$athar-light-blue;
 }
 
+.meeting-rooms-dialog__body {
+  max-block-size: min(72dvh, 36rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .meeting-access-fields {
   display: flex;
   flex-direction: column;
