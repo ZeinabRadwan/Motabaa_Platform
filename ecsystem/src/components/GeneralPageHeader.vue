@@ -9,22 +9,16 @@ const { visible, pageTitle, pageSubtitle } = useGeneralPageHeader()
     v-if="visible"
     class="general-page-header"
   >
-    <div class="general-page-header__row">
-      <div class="general-page-header__text">
-        <h1 class="general-page-header__title">
-          {{ pageTitle }}
-        </h1>
-        <p
-          v-if="pageSubtitle"
-          class="general-page-header__subtitle"
-        >
-          {{ pageSubtitle }}
-        </p>
-      </div>
-      <div
-        id="general-page-header-actions"
-        class="general-page-header__actions"
-      />
+    <div class="general-page-header__text">
+      <h1 class="general-page-header__title">
+        {{ pageTitle }}
+      </h1>
+      <p
+        v-if="pageSubtitle"
+        class="general-page-header__subtitle"
+      >
+        {{ pageSubtitle }}
+      </p>
     </div>
   </header>
 </template>

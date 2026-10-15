@@ -1,6 +1,7 @@
 <script setup>
+import { computed, ref, watch } from 'vue'
 import { roomsApi } from '@/plugins/apis/roomsReqest'
-import { can } from '@layouts/plugins/casl'
+import ability from '@/plugins/casl/ability'
 
 const props = defineProps({
   roomId: { type: Number, required: true },
@@ -10,7 +11,10 @@ const roomsReqest = roomsApi()
 const loading = ref(false)
 const report = ref(null)
 
-const canView = computed(() => can('edit_meetings', 'edit_meetings') || can('admin_meetings', 'admin_meetings'))
+const canView = computed(() => (
+  ability.can('edit_meetings', 'edit_meetings')
+  || ability.can('admin_meetings', 'admin_meetings')
+))
 
 const loadReport = () => {
   if (! canView.value)

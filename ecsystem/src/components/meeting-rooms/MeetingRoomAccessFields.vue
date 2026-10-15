@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { meetingAudienceLabel, MEETING_AUDIENCE_OPTIONS } from '@/utils/meetingRoomAudienceUi'
 
 const props = defineProps({
@@ -14,7 +15,6 @@ const emit = defineEmits([
   'update:audienceType',
   'update:selectedParentIds',
   'copyInvitationLink',
-  'regenerateInvitationLink',
 ])
 
 const isParentSpecific = computed(() => props.audienceType === 'parents')
@@ -85,15 +85,6 @@ const onParentIdsUpdate = value => {
         @click="emit('copyInvitationLink')"
       >
         {{ $t('rooms.copy_invitation_link') }}
-      </VBtn>
-      <VBtn
-        size="small"
-        variant="outlined"
-        prepend-icon="tabler-refresh"
-        :loading="invitationLinkLoading"
-        @click="emit('regenerateInvitationLink')"
-      >
-        {{ $t('rooms.regenerate_invitation_link') }}
       </VBtn>
     </div>
 

@@ -11,7 +11,13 @@ import SidebarMobileToggle from '@/layouts/components/SidebarMobileToggle.vue'
       <AppBreadcrumb />
       <VSpacer />
     </div>
-    <GeneralPageHeader />
+    <div class="app-page-header-region">
+      <GeneralPageHeader />
+      <div
+        id="general-page-header-actions"
+        class="general-page-header__actions"
+      />
+    </div>
     <slot />
   </div>
 </template>

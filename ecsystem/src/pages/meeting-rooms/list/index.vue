@@ -1,11 +1,14 @@
 <script setup>
-import { watchServerTableFetch } from '@core/utils/tableFetch'
+import { paginationMeta } from '@/@fake-db/utils'
+import { safeItemsPerPage, watchServerTableFetch } from '@core/utils/tableFetch'
 import { useRouter } from 'vue-router';
 import {roomsApi} from "@/plugins/apis/roomsReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import i18n from '@/plugins/i18n/index.js';
 import { avatarText } from '@core/utils/formatters'
 import { can } from '@layouts/plugins/casl'
+import ability from '@/plugins/casl/ability'
+import { isParentMeetingParticipant } from '@core/utils/meetingRoomAccess'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import MeetingRoomAccessFields from '@/components/meeting-rooms/MeetingRoomAccessFields.vue'
 import {
@@ -21,11 +24,14 @@ const router = useRouter()
 const refVForm = ref()
 const snackbarRef = ref(null);
 const options = ref({
-  page: -1,
-  itemsPerPage: 10,
+  page: 1,
+  itemsPerPage: 12,
   sortBy: [],
   groupBy: [],
 })
+
+const totalRooms = ref(0)
+const lastPage = ref(1)
 
 const searchQuery = ref('')
 const newRoom = ref('')
@@ -41,9 +47,20 @@ const saveLoading = ref(false)
 const selectedStatus = ref('all')
 const selectedAudienceFilter = ref('all')
 
-const canManageRooms = computed(() => can('edit_meetings', 'edit_meetings') || can('admin_meetings', 'admin_meetings'))
+const canManageRooms = computed(() => (
+  ability.can('edit_meetings', 'edit_meetings')
+  || ability.can('admin_meetings', 'admin_meetings')
+))
+const isParentListView = computed(() => (
+  isParentMeetingParticipant()
+  && ! canManageRooms.value
+  && ! ability.can('admin_meetings', 'admin_meetings')
+))
 const isParentSpecific = computed(() => audienceType.value === 'parents')
 const isLinkInvite = computed(() => audienceType.value === 'link_invite')
+const listPerPage = computed(() => safeItemsPerPage(options.value.itemsPerPage, 12))
+const paginationLength = computed(() => Math.max(1, Math.ceil(totalRooms.value / listPerPage.value)))
+const showPagination = computed(() => totalRooms.value > listPerPage.value)
 
 const normalizeAudienceType = value => {
   if (value === 'parents' || value === 'link_invite')
@@ -76,15 +93,32 @@ const resetRoomForm = () => {
 
 const fetchAllRooms = () => {
     roomsLoading.value = true
-    roomsReqest.fetchAll({
+    const page = Number(options.value.page) > 0 ? Number(options.value.page) : 1
+    const tableOptions = {
+      ...options.value,
+      page,
+      itemsPerPage: listPerPage.value,
+    }
+    const params = {
       q: searchQuery.value,
-      status: selectedStatus.value,
-      audience_type: selectedAudienceFilter.value,
-      options: options.value,
-      page: options.value.page,
-
-    }).then(response => {
-        rooms.value = response.data.data
+      options: tableOptions,
+      page,
+    }
+    if (! isParentListView.value) {
+      params.status = selectedStatus.value
+      params.audience_type = selectedAudienceFilter.value
+    }
+    roomsReqest.fetchAll(params).then(response => {
+        rooms.value = response.data.data ?? []
+        totalRooms.value = Number(response.data.total) || 0
+        lastPage.value = Number(response.data.lastPage) || 1
+        const currentPage = Number(response.data.currentPage) || page
+        if (rooms.value.length === 0 && currentPage > 1 && totalRooms.value > 0) {
+          options.value.page = lastPage.value
+        }
+        else if (options.value.page !== currentPage) {
+          options.value.page = currentPage
+        }
     }).finally(() => {
       roomsLoading.value = false
     })
@@ -198,7 +232,11 @@ const copyInvitationLink = async (rotate = false) => {
 
 watchServerTableFetch(fetchAllRooms, {
   search: searchQuery,
-  filters: () => [selectedStatus.value, selectedAudienceFilter.value],
+  filters: () => (
+    isParentListView.value
+      ? []
+      : [selectedStatus.value, selectedAudienceFilter.value]
+  ),
   options,
 })
 
@@ -232,6 +270,7 @@ watchServerTableFetch(fetchAllRooms, {
         />
         <div class="athar-page-toolbar__actions meeting-rooms-toolbar__filters">
           <AppSelect
+            v-if="!isParentListView"
             v-model="selectedAudienceFilter"
             class="meeting-rooms-toolbar__select"
             :items="meetingAudienceFilterItems()"
@@ -239,7 +278,7 @@ watchServerTableFetch(fetchAllRooms, {
             hide-details
           />
           <AppSelect
-            v-if="can('admin_meetings','admin_meetings')"
+            v-if="!isParentListView && can('admin_meetings','admin_meetings')"
             v-model="selectedStatus"
             class="meeting-rooms-toolbar__select"
             :items="meetingRoomStatusFilterItems()"
@@ -312,7 +351,10 @@ watchServerTableFetch(fetchAllRooms, {
               <h3 class="meeting-room-card__title">
                 {{ room.title }}
               </h3>
-              <div class="meeting-room-card__badges">
+              <div
+                v-if="!isParentListView"
+                class="meeting-room-card__badges"
+              >
                 <span
                   class="meeting-room-card__badge"
                   :class="room.deleted_at ? 'meeting-room-card__badge--inactive' : 'meeting-room-card__badge--active'"
@@ -385,6 +427,20 @@ watchServerTableFetch(fetchAllRooms, {
           </div>
         </article>
       </div>
+
+      <div
+        v-if="showPagination && !roomsLoading"
+        class="meeting-rooms-pagination"
+      >
+        <p class="meeting-rooms-pagination__meta text-sm text-disabled mb-0">
+          {{ paginationMeta(options, totalRooms) }}
+        </p>
+        <VPagination
+          v-model="options.page"
+          :length="paginationLength"
+          :total-visible="$vuetify.display.xs ? 1 : 5"
+        />
+      </div>
     </VForm>
 
     <VDialog
@@ -393,7 +449,7 @@ watchServerTableFetch(fetchAllRooms, {
       max-width="640"
       scrollable
     >
-      <VCard>
+      <VCard v-if="roomDialog">
         <VCardItem>
           <template #prepend>
             <span class="meeting-rooms-dialog__title-icon">
@@ -423,7 +479,6 @@ watchServerTableFetch(fetchAllRooms, {
                 :show-invitation-actions="isLinkInvite && (lastInvitationUrl || editingRoomId > 0)"
                 :invitation-link-loading="invitationLinkLoading"
                 @copy-invitation-link="copyInvitationLink(false)"
-                @regenerate-invitation-link="copyInvitationLink(true)"
               />
             </VCol>
           </VRow>

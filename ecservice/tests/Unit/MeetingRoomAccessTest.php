@@ -164,6 +164,69 @@ class MeetingRoomAccessTest extends TestCase
         $this->assertFalse(MeetingRoomAccess::parentCanListRoom($user, $room));
     }
 
+    public function test_parent_cannot_list_soft_deleted_room(): void
+    {
+        $room = Mockery::mock(MeetingRoom::class)->makePartial();
+        $room->center_id = 1;
+        $room->audience_type = MeetingRoom::AUDIENCE_GENERAL;
+        $room->type = MeetingRoom::TYPE_GENERAL;
+        $room->created_by_id = 99;
+        $room->shouldReceive('trashed')->andReturn(true);
+
+        $parentRole = new \Spatie\Permission\Models\Role(['default_name' => 'parent']);
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->status = User::STATUS_CAN_LOGIN;
+        $user->shouldReceive('isInCenter')->with(1)->andReturn(true);
+        $user->shouldReceive('can')->andReturn(false);
+        $user->setRelation('roles', collect([$parentRole]));
+
+        $this->assertFalse(MeetingRoomAccess::parentCanListRoom($user, $room));
+        $this->assertFalse(MeetingRoomAccess::userCanAccess($user, $room));
+    }
+
+    public function test_parent_list_user_detection(): void
+    {
+        $parentRole = new \Spatie\Permission\Models\Role(['default_name' => 'parent']);
+        $parentOnly = Mockery::mock(User::class)->makePartial();
+        $parentOnly->shouldReceive('can')->andReturn(false);
+        $parentOnly->setRelation('roles', collect([$parentRole]));
+        $this->assertTrue(MeetingRoomAccess::isParentListUser($parentOnly));
+
+        $parentManager = Mockery::mock(User::class)->makePartial();
+        $parentManager->shouldReceive('can')->with('admin_meetings')->andReturn(false);
+        $parentManager->shouldReceive('can')->with('edit_meetings')->andReturn(true);
+        $parentManager->setRelation('roles', collect([$parentRole]));
+        $this->assertFalse(MeetingRoomAccess::isParentListUser($parentManager));
+    }
+
+    public function test_parent_can_list_public_and_assigned_rooms(): void
+    {
+        $publicRoom = new MeetingRoom([
+            'center_id' => 1,
+            'audience_type' => MeetingRoom::AUDIENCE_GENERAL,
+        ]);
+
+        $assignedRoom = Mockery::mock(MeetingRoom::class)->makePartial();
+        $assignedRoom->center_id = 1;
+        $assignedRoom->audience_type = MeetingRoom::AUDIENCE_PARENTS;
+        $assignedRoom->deleted_at = null;
+        $relation = Mockery::mock();
+        $relation->shouldReceive('where')->with('users.id', 5)->andReturnSelf();
+        $relation->shouldReceive('exists')->andReturn(true);
+        $assignedRoom->shouldReceive('assignedParents')->andReturn($relation);
+
+        $parentRole = new \Spatie\Permission\Models\Role(['default_name' => 'parent']);
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 5;
+        $user->status = User::STATUS_CAN_LOGIN;
+        $user->shouldReceive('isInCenter')->with(1)->andReturn(true);
+        $user->shouldReceive('can')->andReturn(false);
+        $user->setRelation('roles', collect([$parentRole]));
+
+        $this->assertTrue(MeetingRoomAccess::parentCanListRoom($user, $publicRoom));
+        $this->assertTrue(MeetingRoomAccess::parentCanListRoom($user, $assignedRoom));
+    }
+
     public function test_assigned_parent_with_parent_role_can_access_via_has_role_check(): void
     {
         $room = Mockery::mock(MeetingRoom::class)->makePartial();

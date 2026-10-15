@@ -17,14 +17,18 @@ class MeetingRoomsResource extends JsonResource
         $user = $request->user();
         $canAccess = $user && MeetingRoomAccess::userCanAccess($user, $this->resource);
         $canManage = $user && ($user->can('edit_meetings') || $user->can('admin_meetings'));
+        $showAdminFields = $canManage;
 
         return [
             'id' => $this->id,
             'title' => $this->name,
-            'type' => $this->when($canManage, $this->type),
-            'type_name' => $this->when($canManage, fn () => $this->typeName()),
-            'audience_type' => $this->audience_type ?? \App\Models\MeetingRoom::AUDIENCE_GENERAL,
-            'audience_type_name' => $this->audienceTypeName(),
+            'type' => $this->when($showAdminFields, $this->type),
+            'type_name' => $this->when($showAdminFields, fn () => $this->typeName()),
+            'audience_type' => $this->when(
+                $showAdminFields,
+                $this->audience_type ?? MeetingRoom::AUDIENCE_GENERAL
+            ),
+            'audience_type_name' => $this->when($showAdminFields, fn () => $this->audienceTypeName()),
             'meeting_url' => $canAccess && MeetingRoomAccess::userCanViewMeetingUrl($user, $this->resource)
                 ? $this->meetingUrl()
                 : null,
@@ -53,7 +57,7 @@ class MeetingRoomsResource extends JsonResource
                 }
             ),
             'user' => new \App\Http\Resources\Admin\User\UserGeneralResource($this->user),
-            'deleted_at' => $this->deleted_at,
+            'deleted_at' => $this->when($showAdminFields, $this->deleted_at),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

@@ -153,6 +153,30 @@ class MeetingRoomInvitationService
     }
 
     /**
+     * Center staff who manage meeting rooms may open a valid invitation URL without a parent link grant.
+     */
+    public static function staffCanBypassInvitationRedeem(User $user, MeetingRoom $room): bool
+    {
+        if (! MeetingRoomAccess::isLinkInviteAudience($room)) {
+            return false;
+        }
+
+        if (! $user->isInCenter((int) $room->center_id)) {
+            return false;
+        }
+
+        if ($user->can('admin_meetings')) {
+            return MeetingRoomAccess::userCanAccess($user, $room);
+        }
+
+        if ($user->can('edit_meetings')) {
+            return MeetingRoomAccess::userCanAccess($user, $room);
+        }
+
+        return false;
+    }
+
+    /**
      * @return array{ok: bool, room: ?MeetingRoom, error: ?string}
      */
     public static function redeemForUser(string $plainToken, User $user): array
@@ -168,6 +192,10 @@ class MeetingRoomInvitationService
 
         if (! $user->isInCenter((int) $room->center_id)) {
             return ['ok' => false, 'room' => null, 'error' => 'center'];
+        }
+
+        if (self::staffCanBypassInvitationRedeem($user, $room)) {
+            return ['ok' => true, 'room' => $room, 'error' => null];
         }
 
         if (! MeetingRoomAccess::userHasParentRole($user)) {

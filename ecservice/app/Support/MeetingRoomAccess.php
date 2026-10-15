@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\MeetingRoom;
 use App\Models\System\System;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class MeetingRoomAccess
@@ -37,6 +38,10 @@ class MeetingRoomAccess
         }
 
         if (! $user->isInCenter((int) $room->center_id)) {
+            return false;
+        }
+
+        if ($room->trashed() && ! $user->can('admin_meetings') && ! $user->can('edit_meetings')) {
             return false;
         }
 
@@ -102,8 +107,51 @@ class MeetingRoomAccess
     /**
      * Whether the room may appear in a parent's meeting-room list (sidebar / index).
      */
+    /**
+     * Parent accounts using the simplified list (no staff meeting-management permissions).
+     */
+    public static function isParentListUser(User $user): bool
+    {
+        if (! self::userHasParentRole($user)) {
+            return false;
+        }
+
+        if ($user->can('admin_meetings') || $user->can('edit_meetings')) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Restrict meeting-room index queries for parent list users (active, authorized rooms only).
+     *
+     * @param  Builder<MeetingRoom>  $query
+     */
+    public static function applyParentListConstraints(Builder $query, User $user): void
+    {
+        $query->where(function ($outer) use ($user) {
+            $outer->where(function ($publicAudience) {
+                $publicAudience->whereNull('audience_type')
+                    ->orWhere('audience_type', MeetingRoom::AUDIENCE_GENERAL);
+            })
+                ->orWhere(function ($parentSpecific) use ($user) {
+                    $parentSpecific->where('audience_type', MeetingRoom::AUDIENCE_PARENTS)
+                        ->whereHas('assignedParents', fn ($p) => $p->where('users.id', $user->id));
+                });
+        })
+            ->where(function ($excludeLink) {
+                $excludeLink->whereNull('audience_type')
+                    ->orWhere('audience_type', '!=', MeetingRoom::AUDIENCE_LINK_INVITE);
+            });
+    }
+
     public static function parentCanListRoom(User $user, MeetingRoom $room): bool
     {
+        if ($room->trashed()) {
+            return false;
+        }
+
         if (! self::userHasParentRole($user) || ! $user->isInCenter((int) $room->center_id)) {
             return false;
         }

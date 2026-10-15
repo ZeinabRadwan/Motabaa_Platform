@@ -385,15 +385,6 @@ if (props.roomData.user && !props.roomData.user.picture) {
           >
             {{ $t('rooms.copy_invitation_link') }}
           </VBtn>
-          <VBtn
-            size="small"
-            variant="outlined"
-            prepend-icon="tabler-refresh"
-            :loading="invitationLinkLoading"
-            @click="copyInvitationLink(true)"
-          >
-            {{ $t('rooms.regenerate_invitation_link') }}
-          </VBtn>
         </div>
 
         <div class="meeting-room-detail__actions">
@@ -516,7 +507,10 @@ if (props.roomData.user && !props.roomData.user.picture) {
       persistent
       max-width="560"
     >
-      <VCard :title="$t('rooms.edit_meeting_room')">
+      <VCard
+        v-if="editDialog"
+        :title="$t('rooms.edit_meeting_room')"
+      >
         <VCardText>
           <VRow>
             <VCol cols="12">
@@ -534,7 +528,6 @@ if (props.roomData.user && !props.roomData.user.picture) {
                 :show-invitation-actions="isLinkInvite && canManageRooms"
                 :invitation-link-loading="invitationLinkLoading"
                 @copy-invitation-link="copyInvitationLink(false)"
-                @regenerate-invitation-link="copyInvitationLink(true)"
               />
             </VCol>
           </VRow>

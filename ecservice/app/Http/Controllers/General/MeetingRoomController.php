@@ -19,6 +19,7 @@ use App\Support\MeetingRoomNotifier;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class MeetingRoomController extends Controller
 {
@@ -33,26 +34,26 @@ class MeetingRoomController extends Controller
 
         $perPage = resolvePerPage($request);
 
+        $parentListUser = MeetingRoomAccess::isParentListUser($user);
+
         $rooms = MeetingRoom::with(['user', 'assignedParents:id,name,phone'])
             ->where('meeting_rooms.center_id', $center)
             ->when(
-                ! $isAdminMeetings && ! $parent,
+                $parentListUser,
+                fn ($q) => MeetingRoomAccess::applyParentListConstraints($q, $user)
+            )
+            ->when(
+                ! $isAdminMeetings && ! $parentListUser && ! $parent,
                 fn ($q) => $q->where(function ($query) use ($user) {
                     $query->where('created_by_id', $user->id);
                     $query->orWhere('type', MeetingRoom::TYPE_ADMINISTRATIVE);
                 })
             )
             ->when(
-                ! $isAdminMeetings && $parent,
+                ! $isAdminMeetings && $parent && ! $parentListUser,
                 fn ($q) => $q->where(function ($query) use ($user) {
-                    $query->where(function ($publicAudience) {
-                        $publicAudience->whereNull('audience_type')
-                            ->orWhere('audience_type', MeetingRoom::AUDIENCE_GENERAL);
-                    })
-                        ->orWhere(function ($parentSpecific) use ($user) {
-                            $parentSpecific->where('audience_type', MeetingRoom::AUDIENCE_PARENTS)
-                                ->whereHas('assignedParents', fn ($p) => $p->where('users.id', $user->id));
-                        });
+                    $query->where('created_by_id', $user->id);
+                    $query->orWhere('type', MeetingRoom::TYPE_ADMINISTRATIVE);
                 })
             )
             ->when(
@@ -63,15 +64,16 @@ class MeetingRoomController extends Controller
                 })
             )
             ->when(
-                $request->status && $request->status == 'all',
+                ! $parentListUser && $request->status && $request->status == 'all',
                 fn ($q) => $q->withTrashed()
             )
             ->when(
-                $request->status && $request->status == 'inactive',
+                ! $parentListUser && $request->status && $request->status == 'inactive',
                 fn ($q) => $q->onlyTrashed()
             )
             ->when(
-                $request->filled('audience_type')
+                ! $parentListUser
+                    && $request->filled('audience_type')
                     && $request->audience_type !== 'all'
                     && in_array($request->audience_type, [
                         MeetingRoom::AUDIENCE_GENERAL,
@@ -100,9 +102,11 @@ class MeetingRoomController extends Controller
         $user = auth()->user();
         $center = Term::resolveCenterId($user, $request->center_id);
 
+        $canViewTrashed = $user->can('admin_meetings') || $user->can('edit_meetings');
+
         $room = MeetingRoom::with(['user', 'assignedParents:id,name,phone'])
             ->when($center, fn ($q) => $q->where('center_id', $center))
-            ->withTrashed()
+            ->when($canViewTrashed, fn ($q) => $q->withTrashed())
             ->find($room);
 
         if (! $room || ! MeetingRoomAccess::userCanAccess($user, $room)) {
@@ -120,11 +124,6 @@ class MeetingRoomController extends Controller
         }
 
         $input = $request->validated();
-        if (! $request->has('type')) {
-            unset($input['type']);
-        } elseif (! isset($input['type'])) {
-            $input['type'] = MeetingRoom::TYPE_GENERAL;
-        }
         $input['center_id'] = null;
         if ($request->center_id && $user->isInCenter($request->center_id)) {
             $input['center_id'] = $request->center_id;
@@ -134,10 +133,33 @@ class MeetingRoomController extends Controller
             return response()->json(['errors' => ['error' => [__("validation.You don't belong to any center")]]], 422);
         }
 
+        $roomId = (int) $room;
+        $isCreate = $roomId <= 0;
+        $existing = ! $isCreate
+            ? MeetingRoom::where('center_id', $input['center_id'])->find($roomId)
+            : null;
+        if (! $isCreate && ! $existing) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Room not found')]]], 422);
+        }
+
+        if ($request->has('type')) {
+            $input['type'] = (int) $request->input('type');
+        } elseif ($isCreate || ! $existing) {
+            $input['type'] = MeetingRoom::TYPE_GENERAL;
+        } else {
+            unset($input['type']);
+        }
+
+        $audienceColumnReady = Schema::hasColumn('meeting_rooms', 'audience_type');
+        if (! $audienceColumnReady) {
+            unset($input['audience_type']);
+        }
+
         $parentIds = array_values(array_map('intval', $input['parent_ids'] ?? []));
         unset($input['parent_ids']);
 
-        if ($input['audience_type'] === MeetingRoom::AUDIENCE_PARENTS) {
+        $audienceType = $input['audience_type'] ?? MeetingRoom::AUDIENCE_GENERAL;
+        if ($audienceColumnReady && $audienceType === MeetingRoom::AUDIENCE_PARENTS) {
             $validation = MeetingRoomAccess::validateParentAssignments((int) $input['center_id'], $parentIds);
             if (! $validation['valid']) {
                 return $validation['response'];
@@ -146,50 +168,57 @@ class MeetingRoomController extends Controller
             $parentIds = [];
         }
 
-        $roomId = (int) $room;
-        $existing = $roomId > 0 ? MeetingRoom::where('center_id', $input['center_id'])->find($roomId) : null;
-        if ($roomId > 0 && ! $existing) {
-            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Room not found')]]], 422);
-        }
-
-        if (! $existing) {
+        if ($isCreate || ! $existing) {
             $input['created_by_id'] = $user->id;
         }
 
-        $meeting = DB::transaction(function () use ($input, $roomId, $parentIds) {
-            $meeting = MeetingRoom::updateOrCreate(['id' => $roomId > 0 ? $roomId : null], $input);
-            $meeting->assignedParents()->sync($parentIds);
+        $parentsPivotReady = Schema::hasTable('meeting_room_parents');
 
-            if (\Illuminate\Support\Facades\Schema::hasTable('meeting_room_notified_users')) {
-                if ($input['audience_type'] === MeetingRoom::AUDIENCE_PARENTS) {
+        $meeting = DB::transaction(function () use ($input, $existing, $parentIds, $audienceType, $audienceColumnReady, $parentsPivotReady) {
+            if ($existing) {
+                $existing->fill($input)->save();
+                $meeting = $existing;
+            } else {
+                $meeting = MeetingRoom::create($input);
+            }
+
+            if ($parentsPivotReady) {
+                $meeting->assignedParents()->sync($parentIds);
+            }
+
+            if (Schema::hasTable('meeting_room_notified_users') && $audienceColumnReady) {
+                if ($audienceType === MeetingRoom::AUDIENCE_PARENTS) {
                     DB::table('meeting_room_notified_users')
                         ->where('meeting_room_id', $meeting->id)
                         ->whereNotIn('user_id', $parentIds ?: [0])
                         ->delete();
-                } elseif ($input['audience_type'] === MeetingRoom::AUDIENCE_LINK_INVITE) {
+                } elseif ($audienceType === MeetingRoom::AUDIENCE_LINK_INVITE) {
                     DB::table('meeting_room_notified_users')
                         ->where('meeting_room_id', $meeting->id)
                         ->delete();
                 }
             }
 
-            if ($input['audience_type'] !== MeetingRoom::AUDIENCE_LINK_INVITE) {
+            if ($audienceColumnReady && $audienceType !== MeetingRoom::AUDIENCE_LINK_INVITE) {
                 MeetingRoomInvitationService::revokeTokensForRoom($meeting);
                 MeetingRoomInvitationService::clearGrantsForRoom($meeting);
             }
 
-            return $meeting->fresh(['assignedParents']);
+            return $parentsPivotReady
+                ? $meeting->fresh(['assignedParents'])
+                : $meeting->fresh();
         });
 
-        $type = $roomId > 0 ? 'edit_meeting' : 'add_meeting';
-        Log::add($type, $meeting, $meeting->id, '');
+        $logType = $existing ? 'edit_meeting' : 'add_meeting';
+        Log::add($logType, $meeting, $meeting->id, '');
 
-        if ($meeting->audience_type !== MeetingRoom::AUDIENCE_LINK_INVITE) {
+        $savedAudience = $meeting->audience_type ?? MeetingRoom::AUDIENCE_GENERAL;
+        if ($audienceColumnReady && $savedAudience !== MeetingRoom::AUDIENCE_LINK_INVITE) {
             MeetingRoomNotifier::syncForRoom($meeting);
         }
 
         $responseData = ['room_id' => $meeting->id];
-        if ($meeting->audience_type === MeetingRoom::AUDIENCE_LINK_INVITE) {
+        if ($audienceColumnReady && $savedAudience === MeetingRoom::AUDIENCE_LINK_INVITE) {
             $plain = MeetingRoomInvitationService::ensureActivePlainToken($meeting);
             if ($plain) {
                 $responseData['invitation_url'] = MeetingRoomInvitationService::buildInvitationUrl($plain);
