@@ -1784,6 +1784,7 @@
     "physical therapy": "Physical Therapy",
     "pronouncement": "Pronouncement",
     "psychiatric treatment": "Psychiatric Treatment",
+    "independent": "Independent Skills",
     "power": "Power",
     "weak": "Weak",
     "not_assessed": "Not Assessed",
@@ -1795,6 +1796,14 @@
     "messages": "Messages"
   },
   "cases": {
+    "add_page_subtitle": "Complete each section to register a new beneficiary. Required fields are on General Info.",
+    "back_to_list": "Back to cases",
+    "form_sections_nav": "Case registration sections",
+    "form_step_n": "Step {n}",
+    "form_step_progress": "Step {current} of {total}",
+    "form_footer_hint": "You can move between sections anytime. Save when you are ready.",
+    "form_previous": "Previous",
+    "form_next": "Next",
     "plan_type": "Plan Type",
     "educational": "Educational",
     "physical therapy": "Physical Therapy",

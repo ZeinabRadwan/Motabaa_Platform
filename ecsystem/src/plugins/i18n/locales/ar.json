@@ -1835,6 +1835,7 @@
     "physical therapy": "العلاج الطبيعي",
     "pronouncement": "النطق والتخاطب",
     "psychiatric treatment": "العلاج النفسي",
+    "independent": "المهارات الاستقلالية",
     "power": "أتقنها",
     "weak": "لم يتقنها",
     "not_assessed": "لم يتم تقييمها",
@@ -1846,6 +1847,14 @@
     "messages": "الرسائل"
   },
   "cases": {
+    "add_page_subtitle": "أكملي كل قسم لتسجيل مستفيد جديد. الحقول الإلزامية في «المعلومات العامة».",
+    "back_to_list": "العودة إلى الحالات",
+    "form_sections_nav": "أقسام تسجيل الحالة",
+    "form_step_n": "الخطوة {n}",
+    "form_step_progress": "الخطوة {current} من {total}",
+    "form_footer_hint": "يمكنك التنقل بين الأقسام في أي وقت. احفظي عند الانتهاء.",
+    "form_previous": "السابق",
+    "form_next": "التالي",
     "plan_type": "نوع الخطة",
     "educational": "الخطة الفردية",
     "physical therapy": "خطة العلاج الطبيعي",

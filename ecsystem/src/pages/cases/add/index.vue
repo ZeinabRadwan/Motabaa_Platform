@@ -1,12 +1,12 @@
 <script setup>
 import { casesApi } from "@/plugins/apis/casesReqest";
 import i18n from '@/plugins/i18n/index.js';
+import CaseFormPageShell from '@/views/case/CaseFormPageShell.vue';
 import CaseGeneralInfo from '@/views/case/CaseGeneralInfo.vue';
 import CaseGeneralQuestions from '@/views/case/CaseGeneralQuestions.vue';
 import CasePsychologicalStudy from '@/views/case/CasePsychologicalStudy.vue';
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 
-// import CaseCaseStudy from '@/views/case/CaseCaseStudy.vue';
 import {
   academicSkills,
   adaptiveBehaviorSkills,
@@ -38,7 +38,20 @@ const CaseGeneralInfoRef = ref(null)
 const CaseGeneralQuestionsRef = ref(null)
 const CasePsychologicalStudyRef = ref(null)
 const loaded = ref(false)
+const saving = ref(false)
 
+const formTabs = [
+  { id: 'general', icon: 'tabler-user-circle', labelKey: 'General Info' },
+  { id: 'questions', icon: 'tabler-help-circle', labelKey: 'General Questions' },
+  { id: 'study', icon: 'tabler-clipboard-list', labelKey: 'Case Study' },
+  { id: 'psychological', icon: 'tabler-brain', labelKey: 'Psychological study' },
+]
+
+const listPath = computed(() => route.query.to ? String(route.query.to) : '/cases/list')
+
+const goBack = () => {
+  router.push(listPath.value)
+}
 
 const childMounted = () => {
   loaded.value = true
@@ -47,12 +60,12 @@ const childMounted = () => {
 const save = async () => {
   const valid = await CaseGeneralInfoRef.value.refVForm?.validate()
   if(valid.valid == false){
-    // const imageValid = await CaseGeneralInfoRef.value.refVForm.items[10].validate();
-    // CaseGeneralInfoRef.value.imageValidMessage = imageValid[0]
     currentTab.value = 0;
     snackbarRef.value.exposevisibleSnackbar(i18n.global.t('validtion.missing_field'), 'error');
     return;
   }
+
+  saving.value = true
 
   const data ={
     center_id: Number(localStorage.getItem('center')),
@@ -61,7 +74,6 @@ const save = async () => {
     services_provided: CaseGeneralInfoRef.value.serviceVal,
     beneficiary_number: CaseGeneralInfoRef.value.insuranceNumber == null ? '' : CaseGeneralInfoRef.value.insuranceNumber,
     name: CaseGeneralInfoRef.value.caseName,
-    // image: CaseGeneralInfoRef.value.file[0],
     teacher_id: CaseGeneralInfoRef.value.teacher,
     physiotherapist_id: CaseGeneralInfoRef.value.physiotherapist == null ? '' : CaseGeneralInfoRef.value.physiotherapist,
     occupational_therapy_id: CaseGeneralInfoRef.value.occupational == null ? '' : CaseGeneralInfoRef.value.occupational,
@@ -117,93 +129,82 @@ const save = async () => {
   casesReqest.add(formData).then(response => {
     if(response.data.success == true){
       snackbarRef.value.exposevisibleSnackbar(i18n.global.t('case_created'), 'success');
-      setTimeout(() => {router.push(route.query.to ? String(route.query.to) : '/cases/list')}, 2000);
+      setTimeout(() => {router.push(listPath.value)}, 2000);
     }
-
-
   }).catch((e=>{
     const { errors: formErrors } = e.response.data
     if(formErrors.image){
       CaseGeneralInfoRef.value.imageValidMessage = formErrors.image[0]
     }
-  }))
+  })).finally(() => {
+    saving.value = false
+  })
 }
 
 
 </script>
 
 <template>
-  <div>
-    <VRow>
-      <VCol cols="12">
-        <VForm 
-              ref="refVForm"
-            >
-        <VCard class="padding-30p">    
-          <template #title>
-            <VRow>
-              <VCol
-                cols="12"
-                class="d-flex gap-4 justify-end"
-              >
-                <VBtn @click="save">
-                  {{ $t('Save') }}
-                </VBtn>
-              </VCol>
-            </VRow>
-          </template>
-        <VCard class="border-1p">
-          <v-card-text>
-            <VTabs
-              v-model="currentTab"
-              class="v-tabs-pill"
-            >
-              <VTab>{{ $t('General Info') }}</VTab>
-              <VTab>{{ $t('General Questions') }}</VTab>
-              <VTab>{{ $t('Case Study') }}</VTab>
-              <VTab>{{ $t('Psychological study') }}</VTab>
-            </VTabs>
-            </v-card-text>
-            <VDivider />
+  <VForm ref="refVForm">
+    <CaseFormPageShell
+      v-model:current-tab="currentTab"
+      :tabs="formTabs"
+      :saving="saving"
+      @save="save"
+      @cancel="goBack"
+    >
+      <VWindow
+        v-model="currentTab"
+        class="case-form-page__panels"
+      >
+        <VWindowItem :value="0">
+          <CaseGeneralInfo ref="CaseGeneralInfoRef" />
+        </VWindowItem>
 
+        <VWindowItem :value="1">
+          <CaseGeneralQuestions ref="CaseGeneralQuestionsRef" />
+        </VWindowItem>
 
-            <VWindow class=""  v-model="currentTab">
+        <VWindowItem :value="2">
+          <div
+            v-if="!loaded"
+            class="case-form-page__loader"
+          >
+            <VProgressCircular
+              :size="44"
+              color="primary"
+              indeterminate
+            />
+          </div>
+          <CaseCaseStudy
+            v-show="loaded"
+            ref="CaseCaseStudyRef"
+            @child-mounted="childMounted"
+          />
+        </VWindowItem>
 
-              <VWindowItem>
-                <CaseGeneralInfo ref="CaseGeneralInfoRef">
-                </CaseGeneralInfo>
-              </VWindowItem>
-              
-              <VWindowItem>
-                <CaseGeneralQuestions ref="CaseGeneralQuestionsRef"></CaseGeneralQuestions>
-              </VWindowItem>
+        <VWindowItem :value="3">
+          <CasePsychologicalStudy ref="CasePsychologicalStudyRef" />
+        </VWindowItem>
+      </VWindow>
+    </CaseFormPageShell>
 
-              <VWindowItem>
-                <VCardText class="d-flex" v-if="!loaded">
-                  <VProgressCircular
-                    class="ma-auto"
-                    :size="40"
-                    color="primary"
-                    indeterminate
-                  />
-                </VCardText>
-                <CaseCaseStudy v-show="loaded" ref="CaseCaseStudyRef"  @child-mounted="childMounted"></CaseCaseStudy>
-              </VWindowItem>
-
-              <VWindowItem>
-                <CasePsychologicalStudy ref="CasePsychologicalStudyRef"></CasePsychologicalStudy>
-              </VWindowItem>
-            </VWindow>
-        </VCard>
-        </VCard>
-      </VForm>
-      </VCol>
-    </VRow>
     <SnackbarComponent ref="snackbarRef" />
-  </div>
+  </VForm>
 </template>
+
 <route lang="yaml">
-  meta:
-    action: edit_cases
-    subject: edit_cases
+meta:
+  action: edit_cases
+  subject: edit_cases
+  pageTitleKey: Register Case
+  pageSubtitleKey: cases.add_page_subtitle
 </route>
+
+<style lang="scss">
+.case-form-page__panels {
+  .v-window-item {
+    padding: 0.25rem 0;
+  }
+}
+</style>

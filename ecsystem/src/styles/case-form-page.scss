@@ -1,0 +1,197 @@
+@use '@/styles/athar-dashboard-tokens.scss' as athar;
+
+.case-form-page {
+  --case-form-radius: 14px;
+  --case-form-border: rgba(18, 59, 102, 0.08);
+  --case-form-surface: #fff;
+  --case-form-nav-bg: #f4f9ff;
+
+  margin-block-end: 1.5rem;
+}
+
+.case-form-page__shell {
+  overflow: hidden;
+  border: 1px solid var(--case-form-border);
+  border-radius: var(--case-form-radius);
+  background: var(--case-form-surface);
+  box-shadow: 0 4px 24px rgba(18, 59, 102, 0.06);
+}
+
+.case-form-page__progress {
+  padding: 0.85rem 1rem 0;
+}
+
+.case-form-page__progress-track {
+  block-size: 4px;
+  border-radius: 999px;
+  background: rgba(8, 126, 217, 0.12);
+  overflow: hidden;
+}
+
+.case-form-page__progress-fill {
+  block-size: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #087ed9, #123b66);
+  transition: inline-size 0.25s ease;
+}
+
+.case-form-page__progress-label {
+  display: block;
+  margin-block-start: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: athar.$athar-muted;
+}
+
+.case-form-page__nav {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+
+  @media (min-width: 960px) {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow: visible;
+  }
+}
+
+.case-form-page__nav-item {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.55rem;
+  min-inline-size: 10.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--case-form-nav-bg);
+  color: #123b66;
+  cursor: pointer;
+  font: inherit;
+  text-align: start;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  @media (min-width: 960px) {
+    flex-direction: column;
+    align-items: flex-start;
+    min-inline-size: 0;
+    padding: 0.85rem 0.75rem;
+  }
+
+  &:hover {
+    border-color: rgba(8, 126, 217, 0.25);
+  }
+
+  &.is-active {
+    border-color: rgba(8, 126, 217, 0.35);
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(8, 126, 217, 0.12);
+  }
+}
+
+.case-form-page__nav-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.125rem;
+  block-size: 2.125rem;
+  border-radius: 10px;
+  background: rgba(8, 126, 217, 0.1);
+  color: #087ed9;
+
+  .is-active & {
+    background: #087ed9;
+    color: #fff;
+  }
+}
+
+.case-form-page__nav-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-inline-size: 0;
+}
+
+.case-form-page__nav-step {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: athar.$athar-muted;
+}
+
+.case-form-page__nav-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #123b66;
+}
+
+.case-form-page__body {
+  border-block-start: 1px solid var(--case-form-border);
+}
+
+.case-form-page__window {
+  min-block-size: 12rem;
+}
+
+.case-form-page__loader {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+
+.case-form-page__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 1rem;
+  border-block-start: 1px solid var(--case-form-border);
+  background: #fafcff;
+}
+
+.case-form-page__footer-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: athar.$athar-muted;
+}
+
+.case-form-page__footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+.v-theme--dark {
+  .case-form-page {
+    --case-form-surface: rgb(var(--v-theme-surface));
+    --case-form-nav-bg: rgba(var(--v-theme-primary), 0.08);
+    --case-form-border: rgba(var(--v-border-color), var(--v-border-opacity));
+  }
+
+  .case-form-page__nav-item {
+    color: rgba(var(--v-theme-on-surface), 0.92);
+
+    &.is-active {
+      background: rgb(var(--v-theme-surface));
+    }
+  }
+
+  .case-form-page__nav-title {
+    color: rgba(var(--v-theme-on-surface), 0.92);
+  }
+
+  .case-form-page__footer {
+    background: rgba(var(--v-theme-surface), 0.6);
+  }
+}
