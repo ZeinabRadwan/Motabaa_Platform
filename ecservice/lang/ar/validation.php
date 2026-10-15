@@ -213,6 +213,7 @@ return [
         'Invitation invalid' => '##meeting_rooms.Invitation invalid&&',
         'Invitation not authorized' => '##meeting_rooms.Invitation not authorized&&',
         'Login required' => '##meeting_rooms.Login required&&',
+        'Attendance unavailable' => '##meeting_rooms.Attendance unavailable&&',
     ],
     'questionnaires' => [
         "Questionnaire already exists" => "##questionnaires.Questionnaire already exists&&",

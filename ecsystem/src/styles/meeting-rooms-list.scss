@@ -25,6 +25,89 @@
   inline-size: min(100%, 15rem);
 }
 
+.meeting-rooms-page .meeting-rooms-toolbar {
+  align-items: center;
+  gap: 0.65rem 0.75rem;
+}
+
+.meeting-rooms-page .meeting-rooms-toolbar__search {
+  flex: 0 1 auto;
+  inline-size: min(100%, 11.5rem);
+  min-inline-size: 8.5rem;
+
+  .v-field {
+    border-radius: athar.$athar-radius-md;
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  .v-field__input {
+    min-block-size: 2.25rem;
+    padding-block: 0.35rem;
+    font-size: 0.8125rem;
+  }
+}
+
+.meeting-rooms-page .meeting-rooms-toolbar__filters {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-inline-size: 0;
+}
+
+.meeting-rooms-page .meeting-rooms-toolbar__select {
+  flex: 1 1 auto;
+  min-inline-size: 10.75rem;
+  max-inline-size: 15rem;
+
+  .v-field {
+    border-radius: athar.$athar-radius-md;
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  .v-field__input {
+    min-block-size: 2.25rem;
+    padding-block: 0.35rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  .v-select__selection-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 768px) {
+  .meeting-rooms-page .meeting-rooms-toolbar {
+    flex-wrap: nowrap;
+  }
+
+  .meeting-rooms-page .meeting-rooms-toolbar__filters {
+    flex: 0 1 auto;
+  }
+
+  .meeting-rooms-page .meeting-rooms-toolbar__select {
+    flex: 0 0 auto;
+    inline-size: 13.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .meeting-rooms-page .meeting-rooms-toolbar__search {
+    inline-size: 100%;
+  }
+
+  .meeting-rooms-page .meeting-rooms-toolbar__filters {
+    inline-size: 100%;
+    margin-inline-start: 0;
+  }
+
+  .meeting-rooms-page .meeting-rooms-toolbar__select {
+    max-inline-size: none;
+  }
+}
+
 .meeting-rooms-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -146,6 +229,26 @@
 .meeting-room-card__meta {
   padding-block-start: 0.15rem;
   border-block-start: 1px solid rgba(18, 59, 102, 0.06);
+}
+
+.meeting-room-card__meta--assigned-count {
+  padding-block: 0.35rem 0.15rem;
+}
+
+.meeting-room-card__assigned-count {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #123b66;
+}
+
+.meeting-room-card__assigned-count-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .meeting-room-card__meta-label {

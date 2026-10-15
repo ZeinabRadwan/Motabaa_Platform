@@ -1107,6 +1107,7 @@ return [
         "Invitation invalid" => "This invitation link is invalid or has expired.",
         "Invitation not authorized" => "You are not authorized to use this invitation.",
         "Login required" => "Please sign in to accept this invitation.",
+        "Attendance unavailable" => "Attendance tracking is not available on this server.",
     ],
     "attendances" => [
         "attend" => "Attend",

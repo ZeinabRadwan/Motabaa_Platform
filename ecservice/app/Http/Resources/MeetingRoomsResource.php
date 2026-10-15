@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\MeetingRoom;
 use App\Support\MeetingRoomAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -40,6 +41,16 @@ class MeetingRoomsResource extends JsonResource
                     'id' => (int) $p->id,
                     'name' => $p->name,
                 ])->values()->all()
+            ),
+            'assigned_parents_count' => $this->when(
+                $canManage && ($this->audience_type ?? MeetingRoom::AUDIENCE_GENERAL) === MeetingRoom::AUDIENCE_PARENTS,
+                function () {
+                    if ($this->relationLoaded('assignedParents')) {
+                        return $this->assignedParents->count();
+                    }
+
+                    return (int) $this->assignedParents()->count();
+                }
             ),
             'user' => new \App\Http\Resources\Admin\User\UserGeneralResource($this->user),
             'deleted_at' => $this->deleted_at,

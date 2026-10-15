@@ -8,6 +8,7 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import i18n from '@/plugins/i18n/index.js';
 import MeetingRoomAccessFields from '@/components/meeting-rooms/MeetingRoomAccessFields.vue'
+import MeetingRoomAttendancePanel from '@/components/meeting-rooms/MeetingRoomAttendancePanel.vue'
 import {
   meetingAudienceBadgeClass,
   meetingAudienceBadgeLabel,
@@ -85,6 +86,8 @@ const formattedYesterday= yesterday.toLocaleDateString('en-CA', {
 });
 
 const deletedRoom = ref(props.roomData.deleted_at != null && props.roomData.deleted_at != '');
+const joinedMeetingSession = ref(false)
+const attendancePanelRef = ref(null)
 
 
 const resolveUserStatusVariant = stat => {
@@ -110,11 +113,34 @@ const restoreRoom = () => {
     deletedRoom.value = false
   })
 }
-const openUrl = () => {
+const recordMeetingJoin = async () => {
+  try {
+    await roomsReqest.attendanceJoin(Number(props.roomData.id))
+    joinedMeetingSession.value = true
+    attendancePanelRef.value?.refresh?.()
+  }
+  catch {
+    // Jitsi can still open if attendance API is unavailable
+  }
+}
+
+const recordMeetingLeave = () => {
+  if (! joinedMeetingSession.value)
+    return
+  joinedMeetingSession.value = false
+  roomsReqest.attendanceLeave(Number(props.roomData.id)).catch(() => {})
+}
+
+const openUrl = async () => {
   if (!hasMeetingUrl.value)
     return
-  window.open(props.roomData.meeting_url, '_blank').focus();
+  await recordMeetingJoin()
+  window.open(props.roomData.meeting_url, '_blank').focus()
 }
+
+onBeforeUnmount(() => {
+  recordMeetingLeave()
+})
 
 const startNow = () => {
   if (!hasMeetingUrl.value)
@@ -433,6 +459,10 @@ if (props.roomData.user && !props.roomData.user.picture) {
           >{{ meetingUrlBase }}</span>
         </div>
       </VCard>
+      <MeetingRoomAttendancePanel
+        ref="attendancePanelRef"
+        :room-id="Number(props.roomData.id)"
+      />
     </VCol>
     <!-- !SECTION -->
 

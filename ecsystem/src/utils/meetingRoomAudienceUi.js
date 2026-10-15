@@ -50,3 +50,33 @@ export function meetingAudienceBadgeClass(value) {
 export function meetingAudienceOption(value) {
   return MEETING_AUDIENCE_OPTIONS.find(o => o.value === value) || MEETING_AUDIENCE_OPTIONS[0]
 }
+
+export function meetingAudienceFilterItems() {
+  return [
+    {
+      title: i18n.global.t('rooms.filter_all_access_types'),
+      value: 'all',
+    },
+    ...MEETING_AUDIENCE_OPTIONS.map(opt => ({
+      title: meetingAudienceLabel(opt.value),
+      value: opt.value,
+    })),
+  ]
+}
+
+export function meetingRoomStatusFilterItems() {
+  return [
+    {
+      title: i18n.global.t('rooms.filter_all_statuses'),
+      value: 'all',
+    },
+    {
+      title: i18n.global.t('active_status'),
+      value: 'active',
+    },
+    {
+      title: i18n.global.t('Inactive'),
+      value: 'inactive',
+    },
+  ]
+}

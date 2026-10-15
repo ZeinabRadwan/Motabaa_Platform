@@ -319,6 +319,9 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
         Route::get('/', [App\Http\Controllers\General\MeetingRoomController::class, 'index']);
         Route::post('/invitations/redeem', [App\Http\Controllers\General\MeetingRoomController::class, 'redeemInvitation']);
         Route::get('/{room}/invitation-link', [App\Http\Controllers\General\MeetingRoomController::class, 'invitationLink']);
+        Route::post('/{room}/attendance/join', [App\Http\Controllers\General\MeetingRoomController::class, 'attendanceJoin']);
+        Route::post('/{room}/attendance/leave', [App\Http\Controllers\General\MeetingRoomController::class, 'attendanceLeave']);
+        Route::get('/{room}/attendance', [App\Http\Controllers\General\MeetingRoomController::class, 'attendance']);
         Route::get('/{room}/show', [App\Http\Controllers\General\MeetingRoomController::class, 'show']);
         Route::put('/put/{room}', [App\Http\Controllers\General\MeetingRoomController::class, 'put']);
         Route::delete('/{id}', [App\Http\Controllers\General\MeetingRoomController::class, 'delete']);

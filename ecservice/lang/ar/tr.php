@@ -1105,6 +1105,7 @@ return [
         "Invitation invalid" => "رابط الدعوة غير صالح أو منتهي.",
         "Invitation not authorized" => "لا يمكنك استخدام هذه الدعوة.",
         "Login required" => "يرجى تسجيل الدخول لقبول الدعوة.",
+        "Attendance unavailable" => "متابعة الحضور غير متاحة على هذا الخادم.",
     ],
     "attendances" => [
         "attend" => "حضر",

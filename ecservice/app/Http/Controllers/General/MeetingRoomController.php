@@ -7,11 +7,13 @@ use App\Http\Requests\MeetingRoomRequest;
 use App\Http\Resources\MeetingRoomsResource;
 use App\Models\Log;
 use App\Models\MeetingRoom;
+use App\Models\MeetingRoomAttendance;
 use App\Models\Message;
 use App\Models\User;
 use App\Models\Term;
 use App\Models\System\System;
 use App\Support\MeetingRoomAccess;
+use App\Support\MeetingRoomAttendanceReport;
 use App\Support\MeetingRoomInvitationService;
 use App\Support\MeetingRoomNotifier;
 use Carbon\Carbon;
@@ -67,6 +69,25 @@ class MeetingRoomController extends Controller
             ->when(
                 $request->status && $request->status == 'inactive',
                 fn ($q) => $q->onlyTrashed()
+            )
+            ->when(
+                $request->filled('audience_type')
+                    && $request->audience_type !== 'all'
+                    && in_array($request->audience_type, [
+                        MeetingRoom::AUDIENCE_GENERAL,
+                        MeetingRoom::AUDIENCE_PARENTS,
+                        MeetingRoom::AUDIENCE_LINK_INVITE,
+                    ], true),
+                function ($q) use ($request) {
+                    if ($request->audience_type === MeetingRoom::AUDIENCE_GENERAL) {
+                        $q->where(function ($query) {
+                            $query->whereNull('audience_type')
+                                ->orWhere('audience_type', MeetingRoom::AUDIENCE_GENERAL);
+                        });
+                    } else {
+                        $q->where('audience_type', $request->audience_type);
+                    }
+                }
             );
 
         $rooms = $rooms->paginate($perPage);
@@ -340,6 +361,93 @@ class MeetingRoomController extends Controller
         Log::add('start_meeting_message', $message, $message->id, json_encode($logData));
 
         return success();
+    }
+
+    public function attendanceJoin(Request $request, $room)
+    {
+        $roomModel = $this->findAccessibleMeetingRoom((int) $room);
+        if (! $roomModel) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Access denied')]]], 403);
+        }
+
+        if (! MeetingRoomAttendanceReport::tablesReady()) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Attendance unavailable')]]], 503);
+        }
+
+        $user = auth()->user();
+        $now = Carbon::now();
+
+        MeetingRoomAttendance::query()
+            ->where('meeting_room_id', $roomModel->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->update(['left_at' => $now]);
+
+        $row = MeetingRoomAttendance::query()->create([
+            'meeting_room_id' => $roomModel->id,
+            'user_id' => $user->id,
+            'center_id' => (int) $roomModel->center_id,
+            'joined_at' => $now,
+        ]);
+
+        return apiResponse([
+            'attendance_id' => $row->id,
+            'joined_at' => $row->joined_at?->toIso8601String(),
+        ]);
+    }
+
+    public function attendanceLeave(Request $request, $room)
+    {
+        $roomModel = $this->findAccessibleMeetingRoom((int) $room);
+        if (! $roomModel) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Access denied')]]], 403);
+        }
+
+        if (! MeetingRoomAttendanceReport::tablesReady()) {
+            return success();
+        }
+
+        $user = auth()->user();
+        $now = Carbon::now();
+
+        MeetingRoomAttendance::query()
+            ->where('meeting_room_id', $roomModel->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->update(['left_at' => $now]);
+
+        return success();
+    }
+
+    public function attendance(Request $request, $room)
+    {
+        $user = auth()->user();
+        if (! $user->can('edit_meetings') && ! $user->can('admin_meetings')) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Access denied')]]], 403);
+        }
+
+        $roomModel = $this->findManageableMeetingRoom((int) $room);
+        if (! $roomModel) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Room not found')]]], 422);
+        }
+
+        return apiResponse(MeetingRoomAttendanceReport::build($roomModel));
+    }
+
+    private function findAccessibleMeetingRoom(int $id): ?MeetingRoom
+    {
+        $user = auth()->user();
+        $center = Term::resolveCenterId($user, request()->center_id);
+
+        $room = MeetingRoom::query()
+            ->when($center, fn ($q) => $q->where('center_id', $center))
+            ->find($id);
+
+        if (! $room || ! MeetingRoomAccess::userCanAccess($user, $room)) {
+            return null;
+        }
+
+        return $room;
     }
 
     private function findManageableMeetingRoom(int $id, bool $withTrashed = false): ?MeetingRoom

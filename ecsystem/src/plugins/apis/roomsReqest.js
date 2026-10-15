@@ -56,5 +56,26 @@ export const roomsApi = defineStore('rooms', {
       })
     },
 
+    attendanceJoin(roomId) {
+      const centerId = withResolvedCenterId()
+      return axios.post(`/meeting-rooms/${roomId}/attendance/join`, {}, {
+        params: { center_id: centerId },
+      })
+    },
+
+    attendanceLeave(roomId) {
+      const centerId = withResolvedCenterId()
+      return axios.post(`/meeting-rooms/${roomId}/attendance/leave`, {}, {
+        params: { center_id: centerId },
+      })
+    },
+
+    fetchAttendance(roomId) {
+      const centerId = withResolvedCenterId()
+      return axios.get(`/meeting-rooms/${roomId}/attendance`, {
+        params: { center_id: centerId },
+      })
+    },
+
   },
 })

@@ -1,20 +1,34 @@
 <script setup>
 import { meetingAudienceLabel, MEETING_AUDIENCE_OPTIONS } from '@/utils/meetingRoomAudienceUi'
 
-const audienceType = defineModel('audienceType', { type: String, default: 'general' })
-const selectedParentIds = defineModel('selectedParentIds', { type: Array, default: () => [] })
-
-defineProps({
+const props = defineProps({
+  audienceType: { type: String, default: 'general' },
+  selectedParentIds: { type: Array, default: () => [] },
   searchParents: { type: Function, required: true },
   parentOptionTitle: { type: Function, required: true },
   showInvitationActions: { type: Boolean, default: false },
   invitationLinkLoading: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['copyInvitationLink', 'regenerateInvitationLink'])
+const emit = defineEmits([
+  'update:audienceType',
+  'update:selectedParentIds',
+  'copyInvitationLink',
+  'regenerateInvitationLink',
+])
 
-const isParentSpecific = computed(() => audienceType.value === 'parents')
-const activeOption = computed(() => MEETING_AUDIENCE_OPTIONS.find(o => o.value === audienceType.value) || MEETING_AUDIENCE_OPTIONS[0])
+const isParentSpecific = computed(() => props.audienceType === 'parents')
+const activeOption = computed(
+  () => MEETING_AUDIENCE_OPTIONS.find(o => o.value === props.audienceType) || MEETING_AUDIENCE_OPTIONS[0],
+)
+
+const setAudienceType = value => {
+  emit('update:audienceType', value)
+}
+
+const onParentIdsUpdate = value => {
+  emit('update:selectedParentIds', value)
+}
 </script>
 
 <template>
@@ -35,7 +49,7 @@ const activeOption = computed(() => MEETING_AUDIENCE_OPTIONS.find(o => o.value =
         :class="{ 'meeting-access-fields__option--active': audienceType === opt.value }"
         role="radio"
         :aria-checked="audienceType === opt.value"
-        @click="audienceType = opt.value"
+        @click="setAudienceType(opt.value)"
       >
         <span class="meeting-access-fields__option-icon">
           <VIcon
@@ -85,7 +99,7 @@ const activeOption = computed(() => MEETING_AUDIENCE_OPTIONS.find(o => o.value =
 
     <AppAutocomplete
       v-if="isParentSpecific"
-      v-model="selectedParentIds"
+      :model-value="selectedParentIds"
       :server-search="searchParents"
       :item-title="parentOptionTitle"
       item-value="id"
@@ -97,6 +111,7 @@ const activeOption = computed(() => MEETING_AUDIENCE_OPTIONS.find(o => o.value =
       clearable
       :preload-limit="50"
       class="meeting-access-fields__parents"
+      @update:model-value="onParentIdsUpdate"
     />
   </div>
 </template>

@@ -7,13 +7,12 @@ import i18n from '@/plugins/i18n/index.js';
 import { avatarText } from '@core/utils/formatters'
 import { can } from '@layouts/plugins/casl'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
-import {
-    statusItems,
-} from '@core/utils/generalItems';
 import MeetingRoomAccessFields from '@/components/meeting-rooms/MeetingRoomAccessFields.vue'
 import {
   meetingAudienceBadgeClass,
   meetingAudienceBadgeLabel,
+  meetingAudienceFilterItems,
+  meetingRoomStatusFilterItems,
 } from '@/utils/meetingRoomAudienceUi'
 
 const roomsReqest = roomsApi()
@@ -39,7 +38,8 @@ const roomsLoading = ref(false)
 const roomDialog = ref(false);
 const editingRoomId = ref(-1)
 const saveLoading = ref(false)
-const selectedStatus = ref('active')
+const selectedStatus = ref('all')
+const selectedAudienceFilter = ref('all')
 
 const canManageRooms = computed(() => can('edit_meetings', 'edit_meetings') || can('admin_meetings', 'admin_meetings'))
 const isParentSpecific = computed(() => audienceType.value === 'parents')
@@ -79,6 +79,7 @@ const fetchAllRooms = () => {
     roomsReqest.fetchAll({
       q: searchQuery.value,
       status: selectedStatus.value,
+      audience_type: selectedAudienceFilter.value,
       options: options.value,
       page: options.value.page,
 
@@ -197,7 +198,7 @@ const copyInvitationLink = async (rotate = false) => {
 
 watchServerTableFetch(fetchAllRooms, {
   search: searchQuery,
-  filters: () => [selectedStatus.value],
+  filters: () => [selectedStatus.value, selectedAudienceFilter.value],
   options,
 })
 
@@ -220,25 +221,30 @@ watchServerTableFetch(fetchAllRooms, {
     </Teleport>
 
     <VForm ref="refVForm">
-      <div class="athar-page-toolbar">
+      <div class="athar-page-toolbar meeting-rooms-toolbar">
         <AppTextField
           v-model="searchQuery"
-          class="athar-page-toolbar__field"
+          class="athar-page-toolbar__field meeting-rooms-toolbar__search"
           :placeholder="$t('Search')"
           density="compact"
           prepend-inner-icon="tabler-search"
           hide-details
         />
-        <div class="athar-page-toolbar__actions">
+        <div class="athar-page-toolbar__actions meeting-rooms-toolbar__filters">
+          <AppSelect
+            v-model="selectedAudienceFilter"
+            class="meeting-rooms-toolbar__select"
+            :items="meetingAudienceFilterItems()"
+            density="compact"
+            hide-details
+          />
           <AppSelect
             v-if="can('admin_meetings','admin_meetings')"
             v-model="selectedStatus"
-            :items="statusItems()"
+            class="meeting-rooms-toolbar__select"
+            :items="meetingRoomStatusFilterItems()"
             density="compact"
             hide-details
-            clearable
-            clear-icon="tabler-x"
-            style="inline-size: 10rem;"
           />
         </div>
       </div>
@@ -321,6 +327,20 @@ watchServerTableFetch(fetchAllRooms, {
                 </span>
               </div>
             </div>
+          </div>
+
+          <div
+            v-if="room.audience_type === 'parents' && canManageRooms && room.assigned_parents_count != null"
+            class="meeting-room-card__meta meeting-room-card__meta--assigned-count"
+          >
+            <p class="meeting-room-card__assigned-count">
+              <VIcon
+                icon="tabler-user-check"
+                size="16"
+                class="meeting-room-card__assigned-count-icon"
+              />
+              {{ $t('rooms.assigned_parents_count', { count: room.assigned_parents_count }) }}
+            </p>
           </div>
 
           <div class="meeting-room-card__meta">
