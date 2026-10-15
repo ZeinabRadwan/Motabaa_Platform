@@ -19,13 +19,13 @@ class AdminLoginService
 
         if ($login === '') {
             throw ValidationException::withMessages([
-                'email' => [LoginMessages::IDENTIFIER_REQUIRED],
+                'email' => [LoginMessages::identifierRequired()],
             ]);
         }
 
         if ($password === '') {
             throw ValidationException::withMessages([
-                'password' => [LoginMessages::PASSWORD_REQUIRED],
+                'password' => [LoginMessages::passwordRequired()],
             ]);
         }
 
@@ -33,14 +33,22 @@ class AdminLoginService
             return $this->loginWithEmail($email, $password);
         }
 
-        if (LoginIdentifier::isPlausiblePhoneInput($login)) {
+        if (LoginIdentifier::isValidSaudiMobileInput($login)) {
             return $this->loginWithPhone($login, $password);
+        }
+
+        if (LoginIdentifier::isPlausiblePhoneInput($login)) {
+            Log::info('admin login failed: invalid saudi mobile format');
+
+            throw ValidationException::withMessages([
+                'email' => [LoginMessages::invalidIdentifier()],
+            ]);
         }
 
         Log::info('admin login failed: invalid identifier format');
 
         throw ValidationException::withMessages([
-            'email' => [LoginMessages::INVALID_IDENTIFIER],
+            'email' => [LoginMessages::invalidIdentifier()],
         ]);
     }
 
@@ -52,7 +60,7 @@ class AdminLoginService
             Log::info('admin login failed: email not registered', ['email' => $email]);
 
             throw ValidationException::withMessages([
-                'email' => [LoginMessages::EMAIL_NOT_REGISTERED],
+                'email' => [LoginMessages::identifierNotRegistered()],
             ]);
         }
 
@@ -69,7 +77,7 @@ class AdminLoginService
             ]);
 
             throw ValidationException::withMessages([
-                'email' => [LoginMessages::PHONE_NOT_REGISTERED],
+                'email' => [LoginMessages::identifierNotRegistered()],
             ]);
         }
 
@@ -79,7 +87,7 @@ class AdminLoginService
             Log::warning('admin login: resolved phone missing user row', ['phone' => $storedPhone]);
 
             throw ValidationException::withMessages([
-                'email' => [LoginMessages::PHONE_NOT_REGISTERED],
+                'email' => [LoginMessages::identifierNotRegistered()],
             ]);
         }
 
@@ -99,7 +107,7 @@ class AdminLoginService
             Log::info('admin login failed: incorrect password', ['user_id' => $user->id]);
 
             throw ValidationException::withMessages([
-                'password' => [LoginMessages::WRONG_PASSWORD],
+                'password' => [LoginMessages::wrongPassword()],
             ]);
         }
 
@@ -114,7 +122,7 @@ class AdminLoginService
             ]);
 
             throw ValidationException::withMessages([
-                'email' => [LoginMessages::ACCOUNT_CANNOT_LOGIN],
+                'email' => [LoginMessages::accountCannotLogin()],
             ]);
         }
 

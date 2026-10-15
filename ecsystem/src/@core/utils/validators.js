@@ -61,7 +61,11 @@ export const loginEmailOrPhoneValidator = value => {
     return i18n.global.t('auth.login.invalid_identifier')
 
   const digits = trimmed.replace(/\D/g, '')
-  if (digits.length >= 9 && digits.length <= 15)
+  const saudiLocal = /^0(5\d{8})$/
+  const saudiNational = /^(5\d{8})$/
+  const saudiInternational = /^966(5\d{8})$/
+
+  if (saudiLocal.test(digits) || saudiNational.test(digits) || saudiInternational.test(digits))
     return true
 
   return i18n.global.t('auth.login.invalid_identifier')

@@ -3,22 +3,42 @@
 namespace App\Support;
 
 /**
- * Arabic login validation messages (admin / ecsystem).
+ * Localized login messages (see lang/{locale}/auth.php → login).
  */
 final class LoginMessages
 {
-    public const IDENTIFIER_REQUIRED = 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف.';
+    public static function identifierRequired(): string
+    {
+        return __('auth.login.identifier_required');
+    }
 
-    public const PASSWORD_REQUIRED = 'يرجى إدخال كلمة المرور.';
+    public static function passwordRequired(): string
+    {
+        return __('auth.login.password_required');
+    }
 
-    public const INVALID_IDENTIFIER = 'يرجى إدخال بريد إلكتروني أو رقم هاتف صحيح.';
+    public static function invalidIdentifier(): string
+    {
+        return __('auth.login.invalid_identifier');
+    }
 
-    public const EMAIL_NOT_REGISTERED = 'البريد الإلكتروني غير مسجل لدينا.';
+    public static function identifierNotRegistered(): string
+    {
+        return __('auth.login.identifier_not_registered');
+    }
 
-    public const PHONE_NOT_REGISTERED = 'رقم الهاتف غير مسجل لدينا.';
+    public static function wrongPassword(): string
+    {
+        return __('auth.login.wrong_password');
+    }
 
-    public const WRONG_PASSWORD = 'كلمة المرور غير صحيحة.';
+    public static function accountCannotLogin(): string
+    {
+        return __('auth.login.account_cannot_login');
+    }
 
-    /** Matches ecsystem ar.json for validation.This user cannot log in. */
-    public const ACCOUNT_CANNOT_LOGIN = 'لا يمكن لهذا المستخدم تسجيل الدخول.';
+    public static function genericError(): string
+    {
+        return __('auth.login.generic_error');
+    }
 }

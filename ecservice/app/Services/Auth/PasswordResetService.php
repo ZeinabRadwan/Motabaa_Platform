@@ -19,14 +19,14 @@ class PasswordResetService
         $identifier = LoginIdentifier::trimInput($identifier);
         if ($identifier === '') {
             throw ValidationException::withMessages([
-                'email' => [LoginMessages::IDENTIFIER_REQUIRED],
+                'email' => [LoginMessages::identifierRequired()],
             ]);
         }
 
         if (LoginIdentifier::normalizedEmailOrNull($identifier) === null
-            && ! LoginIdentifier::isPlausiblePhoneInput($identifier)) {
+            && ! LoginIdentifier::isValidSaudiMobileInput($identifier)) {
             throw ValidationException::withMessages([
-                'email' => [LoginMessages::INVALID_IDENTIFIER],
+                'email' => [LoginMessages::invalidIdentifier()],
             ]);
         }
 

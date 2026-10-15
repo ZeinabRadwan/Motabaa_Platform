@@ -17,10 +17,9 @@ import {
 import { useI18n } from 'vue-i18n'
 import { VForm } from 'vuetify/components/VForm'
 
-const NETWORK_ERROR_MESSAGE = 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى.'
 const brandPrimary = '#075db8'
 
-const { locale } = useI18n()
+const { t, te, locale } = useI18n()
 const isRtl = computed(() => locale.value === 'ar')
 const fieldDir = computed(() => (isRtl.value ? 'rtl' : 'ltr'))
 
@@ -51,23 +50,32 @@ watch(password, () => {
   errors.value.password = undefined
 })
 
+const looksLikeTranslationKey = value => /^[\w.-]+$/.test(value) && value.includes('.')
+
+const sanitizeLoginMessage = raw => {
+  if (raw === undefined || raw === null || raw === '')
+    return undefined
+
+  const message = Array.isArray(raw) ? raw[0] : String(raw)
+  if (! message)
+    return undefined
+
+  if (looksLikeTranslationKey(message) && te(message))
+    return t(message)
+
+  if (message.startsWith('##') || message.startsWith('validation.'))
+    return t('auth.login.generic_error')
+
+  return message
+}
+
 const normalizeFieldErrors = formErrors => {
   if (!formErrors || typeof formErrors !== 'object')
     return { email: undefined, password: undefined }
 
-  const pick = key => {
-    const value = formErrors[key]
-    if (value === undefined || value === null)
-      return undefined
-    if (Array.isArray(value))
-      return value[0]
-
-    return String(value)
-  }
-
   return {
-    email: pick('email'),
-    password: pick('password'),
+    email: sanitizeLoginMessage(formErrors.email),
+    password: sanitizeLoginMessage(formErrors.password),
   }
 }
 
@@ -109,12 +117,16 @@ const login = () => {
     }
   }).catch(e => {
     if (!e.response?.data) {
-      errors.value = { email: NETWORK_ERROR_MESSAGE, password: undefined }
+      errors.value = { email: t('auth.login.network_error'), password: undefined }
 
       return
     }
 
-    errors.value = normalizeFieldErrors(e.response.data.errors)
+    const fieldErrors = normalizeFieldErrors(e.response.data.errors)
+    if (! fieldErrors.email && ! fieldErrors.password && e.response.data.message) {
+      fieldErrors.email = sanitizeLoginMessage(e.response.data.message) || t('auth.login.generic_error')
+    }
+    errors.value = fieldErrors
   }).finally(() => {
     isSubmitting.value = false
   })

@@ -20,6 +20,7 @@ class LoginIdentifierTest extends TestCase
         $plus = LoginIdentifier::phoneMatchCandidates('+966505226389');
         $this->assertContains('966505226389', $plus);
         $this->assertContains('0505226389', $plus);
+        $this->assertContains('+966505226389', $plus);
 
         $spaces = LoginIdentifier::phoneMatchCandidates(' +966 50 522 6389 ');
         $this->assertContains('966505226389', $spaces);
@@ -40,5 +41,15 @@ class LoginIdentifierTest extends TestCase
     {
         $this->assertFalse(LoginIdentifier::isPlausiblePhoneInput('not-a-login'));
         $this->assertFalse(LoginIdentifier::isPlausiblePhoneInput('12345'));
+    }
+
+    public function test_valid_saudi_mobile_formats(): void
+    {
+        $this->assertTrue(LoginIdentifier::isValidSaudiMobileInput('0505226389'));
+        $this->assertTrue(LoginIdentifier::isValidSaudiMobileInput('966505226389'));
+        $this->assertTrue(LoginIdentifier::isValidSaudiMobileInput('+966 50 522 6389'));
+        $this->assertTrue(LoginIdentifier::isValidSaudiMobileInput('505226389'));
+        $this->assertFalse(LoginIdentifier::isValidSaudiMobileInput('0412345678'));
+        $this->assertFalse(LoginIdentifier::isValidSaudiMobileInput('12345678901'));
     }
 }

@@ -10,10 +10,10 @@ use Tests\TestCase;
 /**
  * Manual scenarios (require local DB + POST /api/auth/login):
  * - Valid email + correct password → 200 with token
- * - Valid email, unknown address → errors.email = EMAIL_NOT_REGISTERED
- * - Valid email, wrong password → errors.password = WRONG_PASSWORD
- * - Saudi phone (05xxxxxxxx / +966…) registered → 200
- * - Plausible phone not in DB → errors.email = PHONE_NOT_REGISTERED
+ * - Valid email, unknown address → errors.email = identifier not registered (AR/EN via Accept-Language)
+ * - Valid email, wrong password → errors.password = wrong password
+ * - Saudi phone (05xxxxxxxx / 9665… / +9665…) registered → 200
+ * - Valid Saudi mobile not in DB → errors.email = identifier not registered
  * - User with status=0 → errors.email = ACCOUNT_CANNOT_LOGIN
  */
 class AdminLoginServiceValidationTest extends TestCase
@@ -33,7 +33,7 @@ class AdminLoginServiceValidationTest extends TestCase
             $this->fail('Expected ValidationException');
         } catch (ValidationException $e) {
             $this->assertSame(
-                [LoginMessages::IDENTIFIER_REQUIRED],
+                [LoginMessages::identifierRequired()],
                 $e->errors()['email']
             );
         }
@@ -46,7 +46,7 @@ class AdminLoginServiceValidationTest extends TestCase
             $this->fail('Expected ValidationException');
         } catch (ValidationException $e) {
             $this->assertSame(
-                [LoginMessages::PASSWORD_REQUIRED],
+                [LoginMessages::passwordRequired()],
                 $e->errors()['password']
             );
         }
@@ -59,7 +59,7 @@ class AdminLoginServiceValidationTest extends TestCase
             $this->fail('Expected ValidationException');
         } catch (ValidationException $e) {
             $this->assertSame(
-                [LoginMessages::INVALID_IDENTIFIER],
+                [LoginMessages::invalidIdentifier()],
                 $e->errors()['email']
             );
         }

@@ -1002,7 +1002,12 @@
     "login": {
       "identifier_required": "Please enter your email or phone number.",
       "password_required": "Please enter your password.",
-      "invalid_identifier": "Please enter a valid email or phone number."
+      "invalid_identifier": "Please enter a valid email or Saudi mobile number.",
+      "identifier_not_registered": "This email or mobile number is not registered.",
+      "wrong_password": "Incorrect password.",
+      "account_cannot_login": "This account cannot sign in.",
+      "network_error": "Unable to reach the server. Please try again.",
+      "generic_error": "Unable to sign in. Please try again."
     }
   },
   "PDF Files": "Reports",

@@ -51,6 +51,25 @@ class LoginIdentifier
         return $length >= 9 && $length <= 15;
     }
 
+    /** Saudi mobile: 05xxxxxxxx, 5xxxxxxxx, 9665xxxxxxxx, +9665xxxxxxxx (spaces allowed). */
+    public static function isValidSaudiMobileInput(string $input): bool
+    {
+        if (self::normalizedEmailOrNull($input) !== null) {
+            return false;
+        }
+
+        $trimmed = self::trimInput($input);
+        if ($trimmed === '' || ! preg_match('/^[\d+\s().-]+$/', $trimmed)) {
+            return false;
+        }
+
+        $digits = self::digitsOnly($trimmed);
+
+        return preg_match(self::SAUDI_LOCAL_MOBILE_PATTERN, $digits) === 1
+            || preg_match(self::SAUDI_MOBILE_NATIONAL_PATTERN, $digits) === 1
+            || preg_match(self::SAUDI_INTERNATIONAL_MOBILE_PATTERN, $digits) === 1;
+    }
+
     /**
      * Digit-only representation of a phone login value (optional leading + stripped).
      *
@@ -78,7 +97,14 @@ class LoginIdentifier
             $candidates[] = '0'.$matches[1];
         }
 
-        return array_values(array_unique($candidates));
+        $withPlus = [];
+        foreach ($candidates as $candidate) {
+            if (str_starts_with($candidate, self::SAUDI_CALLING_CODE)) {
+                $withPlus[] = '+'.$candidate;
+            }
+        }
+
+        return array_values(array_unique(array_merge($candidates, $withPlus)));
     }
 
     /**
