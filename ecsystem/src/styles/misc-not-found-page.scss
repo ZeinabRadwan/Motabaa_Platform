@@ -1,0 +1,112 @@
+@use '@/styles/athar-dashboard-tokens.scss' as athar;
+
+.misc-not-found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 100dvh;
+  padding: 1.5rem 1rem;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(8, 126, 217, 0.12), transparent 55%),
+    linear-gradient(180deg, #f4f9ff 0%, athar.$athar-bg 45%, #eef4fb 100%);
+}
+
+.misc-not-found__card {
+  inline-size: 100%;
+  max-inline-size: 28rem;
+  padding: 2rem 1.75rem 1.75rem;
+  border: 1px solid athar.$athar-border;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 40px rgba(18, 59, 102, 0.1);
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
+.misc-not-found__logo {
+  display: block;
+  inline-size: auto;
+  max-block-size: 3rem;
+  max-inline-size: 10rem;
+  margin: 0 auto 1.25rem;
+  object-fit: contain;
+}
+
+.misc-not-found__code {
+  margin: 0;
+  font-size: clamp(3.5rem, 12vw, 4.5rem);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #087ed9 0%, athar.$athar-navy 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.misc-not-found__icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3.25rem;
+  block-size: 3.25rem;
+  margin: 0.75rem auto 1rem;
+  border-radius: 14px;
+  background: #eaf5ff;
+  color: #087ed9;
+}
+
+.misc-not-found__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: athar.$athar-navy;
+}
+
+.misc-not-found__description {
+  margin: 0 0 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.6;
+  color: athar.$athar-muted;
+}
+
+.misc-not-found__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.misc-not-found__path {
+  margin: 1rem 0 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: #f1f5f9;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  word-break: break-all;
+  direction: ltr;
+}
+
+.v-theme--dark {
+  .misc-not-found {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(8, 126, 217, 0.15), transparent 55%),
+      linear-gradient(180deg, rgb(var(--v-theme-background)) 0%, rgb(var(--v-theme-surface)) 100%);
+  }
+
+  .misc-not-found__card {
+    background: rgba(var(--v-theme-surface), 0.95);
+  }
+
+  .misc-not-found__title {
+    color: rgba(var(--v-theme-on-surface), 0.92);
+  }
+
+  .misc-not-found__path {
+    background: rgba(var(--v-theme-on-surface), 0.06);
+  }
+}

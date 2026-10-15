@@ -723,6 +723,12 @@
   "Page Not Found - 404": "Page Not Found - 404",
   "Not Authorized - 401": "Not Authorized - 401",
   "Server Error - 500": "Server Error - 500",
+  "misc_errors": {
+    "not_found_title": "This page doesn't exist",
+    "not_found_description": "The link may be wrong, or the page was moved or removed. Check the address or return to the home page.",
+    "back_home": "Back to home",
+    "go_back": "Go back"
+  },
   "Save": "Save",
   "Update": "Update",
   "Welcome": "Welcome",
