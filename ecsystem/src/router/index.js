@@ -3,7 +3,7 @@ import { setupLayouts } from 'virtual:generated-layouts'
 import { createRouter, createWebHistory } from 'vue-router'
 import routes from '~pages'
 import { purgeExpiredSession } from '@core/utils/authStorage'
-import { buildLoginLocation, normalizeRedirectTarget } from '@core/utils/loginRedirect'
+import { buildLoginLocation, resolvePostLoginRedirect, routeIsMeetingRoomInvite } from '@core/utils/loginRedirect'
 import { useSessionStore } from '@/stores/useSessionStore'
 
 purgeExpiredSession()
@@ -85,7 +85,8 @@ router.beforeEach(to => {
     */
   if (canNavigate(to)) {
     if(isLoggedIn) {
-      if (!isUserInActiveCenter && !isUserAdmin && to.name != 'dashboards-centers' && to.name != 'centers-payments-put-center-package') {
+      const skipCenterGate = routeIsMeetingRoomInvite(to)
+      if (! skipCenterGate && !isUserInActiveCenter && !isUserAdmin && to.name != 'dashboards-centers' && to.name != 'centers-payments-put-center-package') {
         return { name: 'dashboards-centers' }
       }
       else if(center && Number(center.package_id) == 2 && !isUserAdmin) {
@@ -96,7 +97,7 @@ router.beforeEach(to => {
           return { name: 'not-authorized' }
         }
         else if (to.meta.redirectIfLoggedIn) {
-          return normalizeRedirectTarget(to.query.to) || '/'
+          return resolvePostLoginRedirect(to)
         }
       }
       else if(center && Number(center.package_id) == 3 && !isUserAdmin) {
@@ -107,11 +108,11 @@ router.beforeEach(to => {
           return { name: 'not-authorized' }
         }
         else if (to.meta.redirectIfLoggedIn) {
-          return normalizeRedirectTarget(to.query.to) || '/'
+          return resolvePostLoginRedirect(to)
         }
       }
       else if (to.meta.redirectIfLoggedIn) {
-        return normalizeRedirectTarget(to.query.to) || '/'
+        return resolvePostLoginRedirect(to)
       }
     }
   }

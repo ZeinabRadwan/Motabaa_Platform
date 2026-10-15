@@ -49,10 +49,10 @@ export const roomsApi = defineStore('rooms', {
       return axios.post('/meeting-rooms/invitations/redeem', { token })
     },
 
-    fetchInvitationLink(roomId, rotate = false) {
+    fetchInvitationLink(roomId) {
       const centerId = withResolvedCenterId()
       return axios.get(`/meeting-rooms/${roomId}/invitation-link`, {
-        params: { center_id: centerId, rotate: rotate ? 1 : 0 },
+        params: { center_id: centerId },
       })
     },
 

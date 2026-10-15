@@ -38,16 +38,14 @@ const lastInvitationUrl = ref('')
 const {
   invitationLinkLoading,
   copyInvitationLink,
-  regenerateInvitationLink,
 } = useMeetingRoomInvitationLink({
-  fetchInvitationLink: (roomId, rotate) => roomsReqest.fetchInvitationLink(roomId, rotate),
+  fetchInvitationLink: roomId => roomsReqest.fetchInvitationLink(roomId),
   snackbarRef,
   getRoomId: () => props.roomData?.id ?? 0,
   getCachedUrl: () => lastInvitationUrl.value,
   setCachedUrl: url => { lastInvitationUrl.value = url },
 })
 const editParentIds = ref([])
-const regenerateConfirmOpen = ref(false)
 const date = ref(null)
 const time = ref(null)
 
@@ -371,15 +369,6 @@ if (props.roomData.user && !props.roomData.user.picture) {
           >
             {{ $t('rooms.copy_invitation_link') }}
           </VBtn>
-          <VBtn
-            size="small"
-            variant="outlined"
-            prepend-icon="tabler-refresh"
-            :loading="invitationLinkLoading"
-            @click="regenerateConfirmOpen = true"
-          >
-            {{ $t('rooms.regenerate_invitation_link') }}
-          </VBtn>
         </div>
 
         <div class="meeting-room-detail__actions">
@@ -523,7 +512,6 @@ if (props.roomData.user && !props.roomData.user.picture) {
                 :show-invitation-actions="isLinkInvite && canManageRooms"
                 :invitation-link-loading="invitationLinkLoading"
                 @copy-invitation-link="copyInvitationLink"
-                @regenerate-invitation-link="regenerateInvitationLink"
               />
             </VCol>
           </VRow>
@@ -545,32 +533,6 @@ if (props.roomData.user && !props.roomData.user.picture) {
             {{ $t('Save') }}
           </VBtn>
         </VCardText>
-      </VCard>
-    </VDialog>
-
-    <VDialog
-      v-model="regenerateConfirmOpen"
-      max-width="480"
-    >
-      <VCard :title="$t('rooms.regenerate_invitation_link')">
-        <VCardText>
-          {{ $t('rooms.regenerate_invitation_confirm') }}
-        </VCardText>
-        <VCardActions class="justify-end gap-2 pa-4 pt-0">
-          <VBtn
-            variant="tonal"
-            color="secondary"
-            @click="regenerateConfirmOpen = false"
-          >
-            {{ $t('Close') }}
-          </VBtn>
-          <VBtn
-            color="warning"
-            @click="regenerateConfirmOpen = false; regenerateInvitationLink()"
-          >
-            {{ $t('rooms.regenerate_invitation_link') }}
-          </VBtn>
-        </VCardActions>
       </VCard>
     </VDialog>
 

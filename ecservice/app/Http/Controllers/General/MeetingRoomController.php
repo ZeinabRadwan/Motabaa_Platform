@@ -244,22 +244,8 @@ class MeetingRoomController extends Controller
             return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Room not found')]]], 422);
         }
 
-        $rotate = filter_var($request->query('rotate', false), FILTER_VALIDATE_BOOLEAN);
-        if ($rotate) {
-            $plain = MeetingRoomInvitationService::rotatePlainToken($roomModel);
-            $url = $plain ? MeetingRoomInvitationService::buildInvitationUrl($plain) : null;
-        } else {
-            $plain = MeetingRoomInvitationService::resolveActivePlainToken($roomModel, true);
-            if ($plain) {
-                $url = MeetingRoomInvitationService::buildInvitationUrl($plain);
-            } elseif (MeetingRoomInvitationService::activeInvitationTokenIsLegacy($roomModel)) {
-                return response()->json([
-                    'errors' => ['error' => [__('validation.meeting_rooms.Invitation link not retrievable')]],
-                ], 422);
-            } else {
-                $url = null;
-            }
-        }
+        $plain = MeetingRoomInvitationService::resolveActivePlainToken($roomModel, true);
+        $url = $plain ? MeetingRoomInvitationService::buildInvitationUrl($plain) : null;
 
         if (! $url) {
             return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Invitation unavailable')]]], 422);

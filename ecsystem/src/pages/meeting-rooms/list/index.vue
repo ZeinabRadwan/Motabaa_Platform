@@ -42,9 +42,8 @@ const lastInvitationUrl = ref('')
 const {
   invitationLinkLoading,
   copyInvitationLink,
-  regenerateInvitationLink,
 } = useMeetingRoomInvitationLink({
-  fetchInvitationLink: (roomId, rotate) => roomsReqest.fetchInvitationLink(roomId, rotate),
+  fetchInvitationLink: roomId => roomsReqest.fetchInvitationLink(roomId),
   snackbarRef,
   getRoomId: () => editingRoomId.value,
   getCachedUrl: () => lastInvitationUrl.value,
@@ -456,7 +455,6 @@ watchServerTableFetch(fetchAllRooms, {
                 :show-invitation-actions="isLinkInvite && (lastInvitationUrl || editingRoomId > 0)"
                 :invitation-link-loading="invitationLinkLoading"
                 @copy-invitation-link="copyInvitationLink"
-                @regenerate-invitation-link="regenerateInvitationLink"
               />
             </VCol>
           </VRow>

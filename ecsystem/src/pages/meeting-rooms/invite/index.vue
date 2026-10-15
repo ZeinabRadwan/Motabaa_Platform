@@ -12,6 +12,11 @@ const roomsReqest = roomsApi()
 const token = computed(() => String(route.query.token || ''))
 const loading = ref(true)
 const errorMessage = ref('')
+const needsLogin = ref(false)
+
+const goToLogin = () => {
+  router.push(buildLoginLocation(route.fullPath))
+}
 
 const redeem = async () => {
   if (! token.value) {
@@ -29,7 +34,8 @@ const redeem = async () => {
         return
       }
 
-      await router.replace(buildLoginLocation(route.fullPath))
+      needsLogin.value = true
+      loading.value = false
       return
     }
 
@@ -43,6 +49,13 @@ const redeem = async () => {
     errorMessage.value = i18n.global.t('rooms.invitation_invalid')
   }
   catch (e) {
+    const status = e.response?.status
+    if (status === 401) {
+      needsLogin.value = true
+      loading.value = false
+      return
+    }
+
     const msg = e.response?.data?.errors?.error?.[0]
     errorMessage.value = msg || i18n.global.t('rooms.invitation_invalid')
   }
@@ -89,6 +102,20 @@ onMounted(() => {
         >
           {{ errorMessage }}
         </VAlert>
+        <div
+          v-else-if="needsLogin"
+          class="text-center"
+        >
+          <p class="text-body-1 mb-4">
+            {{ $t('rooms.invite_sign_in_prompt') }}
+          </p>
+          <VBtn
+            color="primary"
+            @click="goToLogin"
+          >
+            {{ $t('Login') }}
+          </VBtn>
+        </div>
         <p
           v-else
           class="text-body-1 mb-0"

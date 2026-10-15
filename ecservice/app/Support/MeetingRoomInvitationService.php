@@ -5,10 +5,10 @@ namespace App\Support;
 use App\Models\MeetingRoom;
 use App\Models\MeetingRoomInvitationToken;
 use App\Models\MeetingRoomLinkGrant;
-use App\Models\System\System;
 use App\Models\User;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -55,7 +55,16 @@ class MeetingRoomInvitationService
 
         $existing = self::findActiveTokenForRoom($room);
         if ($existing) {
-            return self::plainFromTokenRow($existing);
+            $plain = self::plainFromTokenRow($existing);
+            if ($plain !== null) {
+                return $plain;
+            }
+
+            Log::info('meeting room invitation: re-issuing token for copy (legacy hash-only row)', [
+                'meeting_room_id' => $room->id,
+            ]);
+
+            return self::rotatePlainToken($room);
         }
 
         if ($createIfMissing) {
@@ -248,18 +257,6 @@ class MeetingRoomInvitationService
 
         if (self::staffCanBypassInvitationRedeem($user, $room)) {
             return ['ok' => true, 'room' => $room, 'error' => null];
-        }
-
-        if (! MeetingRoomAccess::userHasParentRole($user)) {
-            return ['ok' => false, 'room' => null, 'error' => 'role'];
-        }
-
-        if (! User::query()
-            ->where('id', $user->id)
-            ->whereHas('centers', fn ($q) => $q->where('centers.id', $room->center_id))
-            ->whereHas('roles', fn ($q) => $q->where('roles.default_name', System::USER_TYPE_PARENT_ROLE_NAME))
-            ->exists()) {
-            return ['ok' => false, 'room' => null, 'error' => 'center'];
         }
 
         self::grantParentAccess($user, $room);

@@ -63,7 +63,7 @@ class MeetingRoomAccess
                 }
             }
 
-            if (self::userHasParentRole($user) && MeetingRoomInvitationService::parentHasLinkGrant($user, $room)) {
+            if (MeetingRoomInvitationService::parentHasLinkGrant($user, $room)) {
                 return true;
             }
 
