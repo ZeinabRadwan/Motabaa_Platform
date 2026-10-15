@@ -3,6 +3,7 @@ import { setupLayouts } from 'virtual:generated-layouts'
 import { createRouter, createWebHistory } from 'vue-router'
 import routes from '~pages'
 import { purgeExpiredSession } from '@core/utils/authStorage'
+import { buildLoginLocation, normalizeRedirectTarget } from '@core/utils/loginRedirect'
 import { useSessionStore } from '@/stores/useSessionStore'
 
 purgeExpiredSession()
@@ -95,7 +96,7 @@ router.beforeEach(to => {
           return { name: 'not-authorized' }
         }
         else if (to.meta.redirectIfLoggedIn) {
-          return '/'
+          return normalizeRedirectTarget(to.query.to) || '/'
         }
       }
       else if(center && Number(center.package_id) == 3 && !isUserAdmin) {
@@ -106,19 +107,19 @@ router.beforeEach(to => {
           return { name: 'not-authorized' }
         }
         else if (to.meta.redirectIfLoggedIn) {
-          return '/'
+          return normalizeRedirectTarget(to.query.to) || '/'
         }
       }
       else if (to.meta.redirectIfLoggedIn) {
-        return '/'
+        return normalizeRedirectTarget(to.query.to) || '/'
       }
     }
   }
   else {
     if (isLoggedIn)
       return { name: 'not-authorized' }
-    else
-      return { name: 'login', query: { to: to.name !== 'index' ? to.fullPath : undefined } }
+    else if (to.name !== 'login')
+      return buildLoginLocation(to.name !== 'index' ? to.fullPath : undefined)
   }
 })
 export default router

@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { meetingAudienceLabel, MEETING_AUDIENCE_OPTIONS } from '@/utils/meetingRoomAudienceUi'
 
 const props = defineProps({
@@ -15,7 +15,10 @@ const emit = defineEmits([
   'update:audienceType',
   'update:selectedParentIds',
   'copyInvitationLink',
+  'regenerateInvitationLink',
 ])
+
+const regenerateConfirmOpen = ref(false)
 
 const isParentSpecific = computed(() => props.audienceType === 'parents')
 const activeOption = computed(
@@ -75,7 +78,7 @@ const onParentIdsUpdate = value => {
 
     <div
       v-if="showInvitationActions && audienceType === 'link_invite'"
-      class="meeting-access-fields__invite-actions"
+      class="meeting-access-fields__invite-actions d-flex flex-wrap gap-2"
     >
       <VBtn
         size="small"
@@ -86,7 +89,42 @@ const onParentIdsUpdate = value => {
       >
         {{ $t('rooms.copy_invitation_link') }}
       </VBtn>
+      <VBtn
+        size="small"
+        variant="outlined"
+        prepend-icon="tabler-refresh"
+        :loading="invitationLinkLoading"
+        @click="regenerateConfirmOpen = true"
+      >
+        {{ $t('rooms.regenerate_invitation_link') }}
+      </VBtn>
     </div>
+
+    <VDialog
+      v-model="regenerateConfirmOpen"
+      max-width="480"
+    >
+      <VCard :title="$t('rooms.regenerate_invitation_link')">
+        <VCardText>
+          {{ $t('rooms.regenerate_invitation_confirm') }}
+        </VCardText>
+        <VCardActions class="justify-end gap-2 pa-4 pt-0">
+          <VBtn
+            variant="tonal"
+            color="secondary"
+            @click="regenerateConfirmOpen = false"
+          >
+            {{ $t('Close') }}
+          </VBtn>
+          <VBtn
+            color="warning"
+            @click="regenerateConfirmOpen = false; emit('regenerateInvitationLink')"
+          >
+            {{ $t('rooms.regenerate_invitation_link') }}
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
 
     <AppAutocomplete
       v-if="isParentSpecific"

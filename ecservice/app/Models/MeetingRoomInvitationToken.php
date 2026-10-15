@@ -10,6 +10,7 @@ class MeetingRoomInvitationToken extends Model
     protected $fillable = [
         'meeting_room_id',
         'token_hash',
+        'token_encrypted',
         'expires_at',
         'revoked_at',
     ];

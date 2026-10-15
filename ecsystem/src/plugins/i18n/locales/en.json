@@ -1242,6 +1242,8 @@
     "copy_invitation_link": "Copy invitation link",
     "regenerate_invitation_link": "Generate new invitation link",
     "invitation_link_copied": "Invitation link copied",
+    "regenerate_invitation_confirm": "This will revoke the current invitation link. Anyone with the old link will no longer be able to join. Continue?",
+    "invitation_clipboard_failed": "Could not copy to the clipboard. Check browser permissions or copy the link manually.",
     "invitation_invalid": "This invitation link is invalid or has expired. Please contact your center for a new link.",
     "invitation_accepting": "Opening meeting room…",
     "target_parents": "Target parents",
@@ -1264,6 +1266,19 @@
     "attendance_empty": "No attendance records yet. Join time is recorded when the meeting link is opened.",
     "attendance_public_hint": "This is a public room with many eligible parents — only users who actually joined are listed.",
     "attendance_other_participants": "Other participants (staff)"
+  },
+  "meeting_rooms": {
+    "Access denied": "You do not have access to this meeting room.",
+    "Parents required": "Select at least one parent for a parent-specific room.",
+    "Invalid parent selection": "One or more selected parents are invalid for this center.",
+    "Room not found": "Meeting room not found.",
+    "Invitation unavailable": "Invitation link is not available.",
+    "Invitation already issued": "An invitation link was already created. Regenerate to get a new link.",
+    "Invitation link not retrievable": "This invitation link cannot be copied. Generate a new link to replace the previous one.",
+    "Invitation invalid": "This invitation link is invalid or has expired.",
+    "Invitation not authorized": "You are not authorized to use this invitation.",
+    "Login required": "Please sign in to accept this invitation.",
+    "Attendance unavailable": "Attendance tracking is not available on this server."
   },
   "attendances": {
     "attend": "Attend",

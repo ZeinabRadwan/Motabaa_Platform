@@ -7,7 +7,8 @@ use App\Models\MeetingRoomInvitationToken;
 use App\Models\MeetingRoomLinkGrant;
 use App\Models\System\System;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -40,11 +41,37 @@ class MeetingRoomInvitationService
      */
     public static function ensureActivePlainToken(MeetingRoom $room): ?string
     {
+        return self::resolveActivePlainToken($room, true);
+    }
+
+    /**
+     * Returns the plain token for the room's active invitation, optionally creating one.
+     */
+    public static function resolveActivePlainToken(MeetingRoom $room, bool $createIfMissing = false): ?string
+    {
         if (! self::tablesReady() || ! MeetingRoomAccess::isLinkInviteAudience($room)) {
             return null;
         }
 
-        $existing = MeetingRoomInvitationToken::query()
+        $existing = self::findActiveTokenForRoom($room);
+        if ($existing) {
+            return self::plainFromTokenRow($existing);
+        }
+
+        if ($createIfMissing) {
+            return self::createToken($room);
+        }
+
+        return null;
+    }
+
+    public static function findActiveTokenForRoom(MeetingRoom $room): ?MeetingRoomInvitationToken
+    {
+        if (! self::tablesReady()) {
+            return null;
+        }
+
+        return MeetingRoomInvitationToken::query()
             ->where('meeting_room_id', $room->id)
             ->whereNull('revoked_at')
             ->where(function ($q) {
@@ -52,12 +79,37 @@ class MeetingRoomInvitationService
             })
             ->orderByDesc('id')
             ->first();
+    }
 
-        if ($existing) {
+    /**
+     * Active token exists but was stored before encrypted retrieval was available.
+     */
+    public static function activeInvitationTokenIsLegacy(MeetingRoom $room): bool
+    {
+        $token = self::findActiveTokenForRoom($room);
+        if (! $token) {
+            return false;
+        }
+
+        return ! self::tokenRowHasRetrievablePlain($token);
+    }
+
+    public static function plainFromTokenRow(MeetingRoomInvitationToken $token): ?string
+    {
+        if (! self::tokenRowHasRetrievablePlain($token)) {
             return null;
         }
 
-        return self::createToken($room);
+        try {
+            return Crypt::decryptString((string) $token->token_encrypted);
+        } catch (DecryptException) {
+            return null;
+        }
+    }
+
+    private static function tokenRowHasRetrievablePlain(MeetingRoomInvitationToken $token): bool
+    {
+        return filled($token->token_encrypted);
     }
 
     /**
@@ -222,6 +274,7 @@ class MeetingRoomInvitationService
         MeetingRoomInvitationToken::query()->create([
             'meeting_room_id' => $room->id,
             'token_hash' => self::hashToken($plain),
+            'token_encrypted' => Crypt::encryptString($plain),
             'expires_at' => null,
             'revoked_at' => null,
         ]);

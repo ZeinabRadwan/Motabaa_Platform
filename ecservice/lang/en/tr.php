@@ -1104,6 +1104,7 @@ return [
         "Room not found" => "Meeting room not found.",
         "Invitation unavailable" => "Invitation link is not available.",
         "Invitation already issued" => "An invitation link was already created. Regenerate to get a new link.",
+        "Invitation link not retrievable" => "This invitation link cannot be copied. Generate a new link to replace the previous one.",
         "Invitation invalid" => "This invitation link is invalid or has expired.",
         "Invitation not authorized" => "You are not authorized to use this invitation.",
         "Login required" => "Please sign in to accept this invitation.",

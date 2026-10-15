@@ -210,6 +210,7 @@ return [
         'Room not found' => '##meeting_rooms.Room not found&&',
         'Invitation unavailable' => '##meeting_rooms.Invitation unavailable&&',
         'Invitation already issued' => '##meeting_rooms.Invitation already issued&&',
+        'Invitation link not retrievable' => '##meeting_rooms.Invitation link not retrievable&&',
         'Invitation invalid' => '##meeting_rooms.Invitation invalid&&',
         'Invitation not authorized' => '##meeting_rooms.Invitation not authorized&&',
         'Login required' => '##meeting_rooms.Login required&&',

@@ -11,6 +11,7 @@ import ability from '@/plugins/casl/ability'
 import { isParentMeetingParticipant } from '@core/utils/meetingRoomAccess'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import MeetingRoomAccessFields from '@/components/meeting-rooms/MeetingRoomAccessFields.vue'
+import { useMeetingRoomInvitationLink } from '@/composables/useMeetingRoomInvitationLink'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import {
   meetingAudienceBadgeClass,
@@ -38,7 +39,17 @@ const searchQuery = ref('')
 const newRoom = ref('')
 const audienceType = ref('general')
 const lastInvitationUrl = ref('')
-const invitationLinkLoading = ref(false)
+const {
+  invitationLinkLoading,
+  copyInvitationLink,
+  regenerateInvitationLink,
+} = useMeetingRoomInvitationLink({
+  fetchInvitationLink: (roomId, rotate) => roomsReqest.fetchInvitationLink(roomId, rotate),
+  snackbarRef,
+  getRoomId: () => editingRoomId.value,
+  getCachedUrl: () => lastInvitationUrl.value,
+  setCachedUrl: url => { lastInvitationUrl.value = url },
+})
 const selectedParentIds = ref([])
 const rooms = ref([])
 const roomsLoading = ref(false)
@@ -198,38 +209,6 @@ const saveRoom = async () => {
         saveLoading.value = false
     })
 }
-
-const copyInvitationLink = async (rotate = false) => {
-  if (editingRoomId.value <= 0 && ! lastInvitationUrl.value)
-    return
-
-  invitationLinkLoading.value = true
-  try {
-    let url = lastInvitationUrl.value
-    if (editingRoomId.value > 0) {
-      const response = await roomsReqest.fetchInvitationLink(editingRoomId.value, rotate)
-      url = response.data?.data?.invitation_url
-    }
-    if (url) {
-      lastInvitationUrl.value = url
-      await navigator.clipboard.writeText(url)
-      snackbarRef.value.exposevisibleSnackbar(i18n.global.t('rooms.invitation_link_copied'), 'success')
-    }
-  }
-  catch (error) {
-    if (error.response?.data?.requires_rotate && editingRoomId.value > 0) {
-      await copyInvitationLink(true)
-      return
-    }
-    const msg = error.response?.data?.errors?.error?.[0]
-    if (msg)
-      snackbarRef.value.exposevisibleSnackbar(msg, 'error')
-  }
-  finally {
-    invitationLinkLoading.value = false
-  }
-}
-
 
 watchServerTableFetch(fetchAllRooms, {
   search: searchQuery,
@@ -476,7 +455,8 @@ watchServerTableFetch(fetchAllRooms, {
                 :parent-option-title="parentOptionTitle"
                 :show-invitation-actions="isLinkInvite && (lastInvitationUrl || editingRoomId > 0)"
                 :invitation-link-loading="invitationLinkLoading"
-                @copy-invitation-link="copyInvitationLink(false)"
+                @copy-invitation-link="copyInvitationLink"
+                @regenerate-invitation-link="regenerateInvitationLink"
               />
             </VCol>
           </VRow>

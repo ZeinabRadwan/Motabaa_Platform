@@ -8,6 +8,7 @@ import {
 } from '@core/utils/impersonation'
 import { translateApiValidationMessage } from '@core/utils/termOverlap'
 import { currentCenterId } from '@core/utils/centerContext'
+import { buildLoginLocation } from '@core/utils/loginRedirect'
 
 import {
   clearReferenceCache,
@@ -168,7 +169,11 @@ axiosIns.interceptors.response.use(response => {
     clearReferenceCache()
     useSessionStore().clearSession()
 
-    router.push('/login')
+    const current = router.currentRoute.value
+    if (current.name !== 'login')
+      router.push(buildLoginLocation(current.fullPath))
+    else
+      router.push({ name: 'login' })
   }
 
   return Promise.reject(error)

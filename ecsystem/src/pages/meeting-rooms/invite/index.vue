@@ -1,6 +1,7 @@
 <script setup>
 import { roomsApi } from '@/plugins/apis/roomsReqest'
 import { useSessionStore } from '@/stores/useSessionStore'
+import { buildLoginLocation } from '@core/utils/loginRedirect'
 import i18n from '@/plugins/i18n/index.js'
 
 const route = useRoute()
@@ -28,10 +29,7 @@ const redeem = async () => {
         return
       }
 
-      await router.replace({
-        name: 'login',
-        query: { to: route.fullPath },
-      })
+      await router.replace(buildLoginLocation(route.fullPath))
       return
     }
 
@@ -104,6 +102,7 @@ onMounted(() => {
 
 <route lang="yaml">
 meta:
+  layout: blank
   meetingRoomInvite: true
 </route>
 

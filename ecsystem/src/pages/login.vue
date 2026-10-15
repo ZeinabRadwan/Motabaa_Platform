@@ -7,6 +7,7 @@ import {
   getRememberedEmail,
   isRememberMeEnabled,
 } from '@core/utils/authStorage'
+import { resolvePostLoginRedirect } from '@core/utils/loginRedirect'
 
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {
@@ -100,7 +101,7 @@ const login = () => {
       email: loginIdentifier,
     })
 
-    const redirectTo = route.query.to ? String(route.query.to) : '/'
+    const redirectTo = resolvePostLoginRedirect(route)
     const go = () => router.replace(redirectTo)
 
     if (sessionStore.center) {

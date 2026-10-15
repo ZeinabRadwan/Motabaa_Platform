@@ -1279,6 +1279,8 @@
     "copy_invitation_link": "نسخ رابط الدعوة",
     "regenerate_invitation_link": "إنشاء رابط دعوة جديد",
     "invitation_link_copied": "تم نسخ رابط الدعوة",
+    "regenerate_invitation_confirm": "سيؤدي هذا إلى إلغاء رابط الدعوة الحالي. من يملك الرابط القديم لن يتمكن من الانضمام. هل تريد المتابعة؟",
+    "invitation_clipboard_failed": "تعذر النسخ إلى الحافظة. تحقق من صلاحيات المتصفح أو انسخ الرابط يدوياً.",
     "invitation_invalid": "رابط الدعوة غير صالح أو منتهٍ. يرجى التواصل مع المركز للحصول على رابط جديد.",
     "invitation_accepting": "جاري فتح غرفة الاجتماع…",
     "target_parents": "أولياء الأمور المستهدفون",
@@ -1301,6 +1303,19 @@
     "attendance_empty": "لا توجد سجلات حضور بعد. يُسجَّل الدخول عند فتح رابط الاجتماع.",
     "attendance_public_hint": "الغرفة عامة وعدد أولياء الأمور كبير — يُعرض من دخل الاجتماع فعلياً فقط.",
     "attendance_other_participants": "مشاركون آخرون (فريق)"
+  },
+  "meeting_rooms": {
+    "Access denied": "ليس لديك صلاحية الوصول إلى هذه الغرفة.",
+    "Parents required": "اختر ولي أمر واحد على الأقل للغرفة المخصصة.",
+    "Invalid parent selection": "أحد أولياء الأمور المختارين غير صالح لهذا المركز.",
+    "Room not found": "لم يتم العثور على غرفة الاجتماع.",
+    "Invitation unavailable": "رابط الدعوة غير متاح.",
+    "Invitation already issued": "تم إنشاء رابط دعوة مسبقاً. يمكنك إنشاء رابط جديد لإبطال الرابط السابق.",
+    "Invitation link not retrievable": "لا يمكن نسخ رابط الدعوة الحالي. أنشئ رابطاً جديداً لاستبدال الرابط السابق.",
+    "Invitation invalid": "رابط الدعوة غير صالح أو منتهٍ.",
+    "Invitation not authorized": "غير مصرح لك باستخدام هذه الدعوة.",
+    "Login required": "يرجى تسجيل الدخول لقبول الدعوة.",
+    "Attendance unavailable": "متابعة الحضور غير متاحة على هذا الخادم."
   },
   "attendances": {
     "attend": "حضر",

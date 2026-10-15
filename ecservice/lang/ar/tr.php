@@ -1102,6 +1102,7 @@ return [
         "Room not found" => "لم يتم العثور على الغرفة.",
         "Invitation unavailable" => "رابط الدعوة غير متاح.",
         "Invitation already issued" => "تم إنشاء رابط دعوة مسبقاً. يمكنك إنشاء رابط جديد لإبطال الرابط السابق.",
+        "Invitation link not retrievable" => "لا يمكن نسخ رابط الدعوة الحالي. أنشئ رابطاً جديداً لاستبدال الرابط السابق.",
         "Invitation invalid" => "رابط الدعوة غير صالح أو منتهي.",
         "Invitation not authorized" => "لا يمكنك استخدام هذه الدعوة.",
         "Login required" => "يرجى تسجيل الدخول لقبول الدعوة.",

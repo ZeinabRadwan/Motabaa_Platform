@@ -249,13 +249,12 @@ class MeetingRoomController extends Controller
             $plain = MeetingRoomInvitationService::rotatePlainToken($roomModel);
             $url = $plain ? MeetingRoomInvitationService::buildInvitationUrl($plain) : null;
         } else {
-            $plain = MeetingRoomInvitationService::ensureActivePlainToken($roomModel);
+            $plain = MeetingRoomInvitationService::resolveActivePlainToken($roomModel, true);
             if ($plain) {
                 $url = MeetingRoomInvitationService::buildInvitationUrl($plain);
-            } elseif (MeetingRoomInvitationService::roomHasActiveInvitationToken($roomModel)) {
+            } elseif (MeetingRoomInvitationService::activeInvitationTokenIsLegacy($roomModel)) {
                 return response()->json([
-                    'errors' => ['error' => [__('validation.meeting_rooms.Invitation already issued')]],
-                    'requires_rotate' => true,
+                    'errors' => ['error' => [__('validation.meeting_rooms.Invitation link not retrievable')]],
                 ], 422);
             } else {
                 $url = null;
