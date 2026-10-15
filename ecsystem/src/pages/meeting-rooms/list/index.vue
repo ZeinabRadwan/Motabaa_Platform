@@ -11,6 +11,7 @@ import ability from '@/plugins/casl/ability'
 import { isParentMeetingParticipant } from '@core/utils/meetingRoomAccess'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import MeetingRoomAccessFields from '@/components/meeting-rooms/MeetingRoomAccessFields.vue'
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import {
   meetingAudienceBadgeClass,
   meetingAudienceBadgeLabel,
@@ -244,10 +245,7 @@ watchServerTableFetch(fetchAllRooms, {
 
 <template>
   <div class="meeting-rooms-page">
-    <Teleport
-      v-if="canManageRooms"
-      to="#general-page-header-actions"
-    >
+    <PageHeaderActions v-if="canManageRooms">
       <VBtn
         color="primary"
         prepend-icon="tabler-plus"
@@ -256,7 +254,7 @@ watchServerTableFetch(fetchAllRooms, {
       >
         {{ $t('rooms.add_meeting_room') }}
       </VBtn>
-    </Teleport>
+    </PageHeaderActions>
 
     <VForm ref="refVForm">
       <div class="athar-page-toolbar meeting-rooms-toolbar">

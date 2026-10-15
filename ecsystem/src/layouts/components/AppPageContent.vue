@@ -2,6 +2,17 @@
 import AppBreadcrumb from '@/components/AppBreadcrumb.vue'
 import GeneralPageHeader from '@/components/GeneralPageHeader.vue'
 import SidebarMobileToggle from '@/layouts/components/SidebarMobileToggle.vue'
+import { markRaw, provide, shallowRef } from 'vue'
+
+const headerActionsComponent = shallowRef(null)
+
+provide('registerGeneralPageHeaderActions', component => {
+  headerActionsComponent.value = component ? markRaw(component) : null
+})
+
+provide('unregisterGeneralPageHeaderActions', () => {
+  headerActionsComponent.value = null
+})
 </script>
 
 <template>
@@ -16,7 +27,12 @@ import SidebarMobileToggle from '@/layouts/components/SidebarMobileToggle.vue'
       <div
         id="general-page-header-actions"
         class="general-page-header__actions"
-      />
+      >
+        <component
+          :is="headerActionsComponent"
+          v-if="headerActionsComponent"
+        />
+      </div>
     </div>
     <slot />
   </div>

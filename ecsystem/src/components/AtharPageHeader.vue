@@ -1,7 +1,7 @@
 <script setup>
 /**
  * @deprecated Page title/subtitle are rendered globally via GeneralPageHeader in AppPageContent.
- * Use Teleport to="#general-page-header-actions" for primary actions only.
+ * Use PageHeaderActions for primary actions in the page header.
  */
 defineProps({
   title: { type: String, default: '' },

@@ -7,6 +7,7 @@ import {
 } from '@/plugins/apis/accountRequest'
 import { useSessionStore } from '@/stores/useSessionStore'
 import AccountProfileOverview from '@/views/account/AccountProfileOverview.vue'
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue'
 import cuntries from '@core/utils/cuntries'
 import { genderTypes } from '@core/utils/generalItems'
@@ -251,10 +252,7 @@ onMounted(loadProfile)
 
 <template>
   <div class="account-profile">
-    <Teleport
-      v-if="!loading && userData && activeTab === 'info' && !isEditing"
-      to="#general-page-header-actions"
-    >
+    <PageHeaderActions v-if="!loading && userData && activeTab === 'info' && !isEditing">
       <VBtn
         color="primary"
         prepend-icon="tabler-edit"
@@ -263,7 +261,7 @@ onMounted(loadProfile)
       >
         {{ $t('Edit') }}
       </VBtn>
-    </Teleport>
+    </PageHeaderActions>
 
     <div
       v-if="loading"
