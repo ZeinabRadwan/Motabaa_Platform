@@ -18,6 +18,12 @@ class SCaseResource extends JsonResource
     {
         $currentTerm = Term::currentForCenter($this->center_id);
 
+        $teacher = minimalUserReferenceFromRelation($this->teacher);
+        $physiotherapist = minimalUserReferenceFromRelation($this->physiotherapist);
+        $occupationalTherapy = minimalUserReferenceFromRelation($this->occupational_therapy);
+        $psychotherapist = minimalUserReferenceFromRelation($this->psychotherapist);
+        $pronunciationSpeech = minimalUserReferenceFromRelation($this->pronunciation_speech);
+
         return [
             'id' => $this->id,
             'center_id' => $this->center_id,
@@ -28,16 +34,16 @@ class SCaseResource extends JsonResource
             'disability_type_names' => $this->disabilities->pluck('name'),
             'services_provided' => $this->services->pluck('id'),
             'services' => $this->services->pluck('name'),
-            'teacher_id' => $this->teacher[0]['id'] ?? null,
-            'teacher' => $this->teacher[0] ?? null,
-            'physiotherapist' => $this->physiotherapist[0] ?? null,
-            'physiotherapist_id' => $this->physiotherapist[0]['id'] ?? null,
-            'occupational_therapy' => $this->occupational_therapy[0] ?? null,
-            'occupational_therapy_id' => $this->occupational_therapy[0]['id'] ?? null,
-            'psychotherapist' => $this->psychotherapist[0] ?? null,
-            'psychotherapist_id' => $this->psychotherapist[0]['id'] ?? null,
-            'pronunciation_speech_specialist' => $this->pronunciation_speech[0] ?? null,
-            'pronunciation_speech_specialist_id' => $this->pronunciation_speech[0]['id'] ?? null,
+            'teacher_id' => $teacher['id'] ?? null,
+            'teacher' => $teacher,
+            'physiotherapist' => $physiotherapist,
+            'physiotherapist_id' => $physiotherapist['id'] ?? null,
+            'occupational_therapy' => $occupationalTherapy,
+            'occupational_therapy_id' => $occupationalTherapy['id'] ?? null,
+            'psychotherapist' => $psychotherapist,
+            'psychotherapist_id' => $psychotherapist['id'] ?? null,
+            'pronunciation_speech_specialist' => $pronunciationSpeech,
+            'pronunciation_speech_specialist_id' => $pronunciationSpeech['id'] ?? null,
             'id_or_residence_number' => $this->id_or_residence_number,
             'nationality' => $this->nationality,
             'gender' => $this->gender,
@@ -46,7 +52,7 @@ class SCaseResource extends JsonResource
             'birthdate_formated' => \Carbon\Carbon::parse($this->birthdate)->format('Y-m-d'),
             'parent_id' => $this->parent_id,
             'parents_id' => $this->parents->pluck('id'),
-            'parents' => $this->parents,
+            'parents' => $this->parents->map(fn ($parent) => minimalUserReference($parent))->values(),
             'emergency_contact' => $this->emergency_contact,
             'phone' => $this->phone,
             'blood_type' => $this->blood_type,

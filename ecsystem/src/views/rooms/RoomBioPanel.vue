@@ -7,9 +7,11 @@ import {roomsApi} from "@/plugins/apis/roomsReqest"
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import i18n from '@/plugins/i18n/index.js';
+import MeetingRoomAccessFields from '@/components/meeting-rooms/MeetingRoomAccessFields.vue'
 import {
-    meetingRoomAudienceTypes,
-} from '@core/utils/generalItems';
+  meetingAudienceBadgeClass,
+  meetingAudienceBadgeLabel,
+} from '@/utils/meetingRoomAudienceUi'
 
 const props = defineProps({
   roomData: {
@@ -39,7 +41,7 @@ const time = ref(null)
 const canManageRooms = computed(() => can('edit_meetings', 'edit_meetings') || can('admin_meetings', 'admin_meetings'))
 const isParentSpecific = computed(() => editAudienceType.value === 'parents')
 const isLinkInvite = computed(() => editAudienceType.value === 'link_invite')
-const isPublicAudience = computed(() => editAudienceType.value === 'general')
+const isLinkInviteRoom = computed(() => props.roomData?.audience_type === 'link_invite')
 
 const normalizeAudienceType = value => {
   if (value === 'parents' || value === 'link_invite')
@@ -251,89 +253,102 @@ if (props.roomData.user && !props.roomData.user.picture) {
   <VRow>
     <!-- SECTION User Details --> 
     <VCol cols="12">
-      <VCard v-if="props.roomData">
-        <VCardText class="text-center pt-15">
-          <!-- 👉 Avatar -->
-          <VAvatar
-            rounded
-            :size="100"
-            :color="!props.roomData.avatar ? 'primary' : undefined"
-            :variant="!props.roomData.avatar ? 'tonal' : undefined"
-          >
-            <VImg
-              v-if="props.roomData.user.picture"
-              :src="props.roomData.user.picture.file_url"
+      <VCard
+        v-if="props.roomData"
+        class="meeting-room-detail"
+        elevation="0"
+      >
+        <div class="meeting-room-detail__hero">
+          <span class="meeting-room-detail__hero-icon">
+            <VIcon
+              icon="tabler-video"
+              size="34"
             />
-            <span
-              v-else
-              class="text-2xl font-weight-medium"
+          </span>
+          <h2 class="meeting-room-detail__title">
+            {{ props.roomData.title }}
+          </h2>
+          <div class="meeting-room-detail__chips">
+            <VChip
+              size="small"
+              label
+              :color="resolveUserStatusVariant(deletedRoom? 'inactive' : 'active' )"
             >
-              {{ avatarText(props.roomData.user.name) }}
+              {{ deletedRoom? $t('Inactive') :$t('Active_user') }}
+            </VChip>
+            <VChip
+              size="small"
+              label
+              variant="tonal"
+            >
+              {{ meetingAudienceBadgeLabel(props.roomData.audience_type) }}
+            </VChip>
+          </div>
+        </div>
+
+        <div class="meeting-room-detail__meta">
+          <div class="meeting-room-detail__meta-row">
+            <span class="meeting-room-detail__meta-label">{{ $t('rooms.create_by') }}</span>
+            <div class="d-flex align-center gap-2 meeting-room-detail__meta-value">
+              <VAvatar
+                size="32"
+                variant="tonal"
+              >
+                <VImg
+                  v-if="props.roomData.user.picture"
+                  :src="props.roomData.user.picture.file_url"
+                />
+                <span v-else>{{ avatarText(props.roomData.user.name) }}</span>
+              </VAvatar>
+              {{ props.roomData.user.name }}
+            </div>
+          </div>
+          <div class="meeting-room-detail__meta-row">
+            <span class="meeting-room-detail__meta-label">{{ $t('rooms.audience_type') }}</span>
+            <span
+              class="meeting-room-card__badge meeting-room-detail__meta-value"
+              :class="meetingAudienceBadgeClass(props.roomData.audience_type)"
+            >
+              {{ props.roomData.audience_type_name || meetingAudienceBadgeLabel(props.roomData.audience_type) }}
             </span>
-          </VAvatar>
-        </VCardText>
+          </div>
+        </div>
 
-        <VCardText>
-          <!-- 👉 User Details list -->
-          <VList class="card-list mt-2">
-            <VListItem>
-              <VListItemTitle>
-                <h6 class="text-h6">
-                  {{$t('Name')}}:
-                  <span class="text-body-1">
-                    {{ props.roomData.title }}
-                  </span>
-                </h6>
-              </VListItemTitle>
-            </VListItem>
+        <VAlert
+          v-if="isLinkInviteRoom && canManageRooms"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="meeting-room-detail__invite-banner"
+        >
+          {{ $t('rooms.audience_hint_link_invite') }}
+        </VAlert>
 
-            <VListItem>
-              <VListItemTitle>
-                <h6 class="text-h6">
-                  {{$t('rooms.create_by')}}:
-                  <span class="text-body-1">
-                    {{ props.roomData.user.name }}
-                  </span>
-                </h6>
-              </VListItemTitle>
-            </VListItem>
+        <div
+          v-if="isLinkInviteRoom && canManageRooms"
+          class="meeting-access-fields__invite-actions meeting-room-detail__invite-banner"
+        >
+          <VBtn
+            size="small"
+            variant="tonal"
+            prepend-icon="tabler-copy"
+            :loading="invitationLinkLoading"
+            @click="copyInvitationLink(false)"
+          >
+            {{ $t('rooms.copy_invitation_link') }}
+          </VBtn>
+          <VBtn
+            size="small"
+            variant="outlined"
+            prepend-icon="tabler-refresh"
+            :loading="invitationLinkLoading"
+            @click="copyInvitationLink(true)"
+          >
+            {{ $t('rooms.regenerate_invitation_link') }}
+          </VBtn>
+        </div>
 
-            <VListItem>
-              <VListItemTitle>
-                <h6 class="text-h6">
-                  {{ $t('rooms.audience_type') }}:
-                  <VChip
-                    size="small"
-                    label
-                    class="ms-1"
-                    :color="props.roomData.audience_type === 'parents' ? 'primary' : props.roomData.audience_type === 'link_invite' ? 'warning' : 'secondary'"
-                  >
-                    {{ props.roomData.audience_type_name || $t('rooms.audience_badge_general') }}
-                  </VChip>
-                </h6>
-              </VListItemTitle>
-            </VListItem>
-
-            <VListItem>
-              <VListItemTitle>
-                <h6 class="text-h6">
-                  {{$t('Status')}}:
-                  <VChip
-                    :color="resolveUserStatusVariant(deletedRoom? 'inactive' : 'active' )"
-                    size="small"
-                    label
-                    class="text-capitalize"
-                  >
-                  {{ deletedRoom? $t('Inactive') :$t('Active_user') }}
-                </VChip>
-                </h6>
-              </VListItemTitle>
-            </VListItem>
-
-
-          </VList>
-        </VCardText>
-        <VCardText class="d-flex justify-center gap-2 flex-wrap">
+        <div class="meeting-room-detail__actions">
           <VBtn
             v-if="canManageRooms"
             variant="tonal"
@@ -376,22 +391,25 @@ if (props.roomData.user && !props.roomData.user.picture) {
           >
             {{ $t('Active') }}
           </VBtn>
-        </VCardText>
-        <VCardText
+        </div>
+        <div
           v-if="hasMeetingUrl"
-          class="d-flex justify-center gap-2 pointer-cursor"
+          class="meeting-room-detail__link-card"
         >
-          <div class="mb-1" >
-            <VIcon @click="copyLink" icon="tabler-clipboard" />
-            <VTooltip
-              activator="parent"
-              location="bottom"
-            >
-              {{$t(copyLinkText)}}
-            </VTooltip>
+          <div class="meeting-room-detail__link-head">
+            <span class="meeting-room-detail__link-label">{{ $t('rooms.meeting_link_label') }}</span>
+            <VBtn
+              size="x-small"
+              variant="text"
+              icon="tabler-copy"
+              @click="copyLink"
+            />
           </div>
-          <span @click="openUrl" class="text-primary text-h6 font-weight-bold mt-1">{{ meetingUrlBase }}</span>
-        </VCardText>
+          <span
+            class="meeting-room-detail__link-url"
+            @click="openUrl"
+          >{{ meetingUrlBase }}</span>
+        </div>
       </VCard>
     </VCol>
     <!-- !SECTION -->
@@ -456,75 +474,15 @@ if (props.roomData.user && !props.roomData.user.picture) {
               />
             </VCol>
             <VCol cols="12">
-              <div class="text-body-2 font-weight-medium mb-2">
-                {{ $t('rooms.audience_type') }}
-              </div>
-              <VRadioGroup
-                v-model="editAudienceType"
-                hide-details
-              >
-                <VRadio
-                  v-for="opt in meetingRoomAudienceTypes()"
-                  :key="opt.value"
-                  :label="opt.title"
-                  :value="opt.value"
-                />
-              </VRadioGroup>
-            </VCol>
-            <VCol
-              v-if="isPublicAudience"
-              cols="12"
-            >
-              <p class="text-body-2 text-medium-emphasis mb-0">
-                {{ $t('rooms.audience_hint_public') }}
-              </p>
-            </VCol>
-            <VCol
-              v-if="isLinkInvite"
-              cols="12"
-            >
-              <p class="text-body-2 text-medium-emphasis mb-0">
-                {{ $t('rooms.audience_hint_link_invite') }}
-              </p>
-            </VCol>
-            <VCol
-              v-if="isLinkInvite && canManageRooms"
-              cols="12"
-              class="d-flex flex-wrap gap-2"
-            >
-              <VBtn
-                size="small"
-                variant="tonal"
-                :loading="invitationLinkLoading"
-                @click="copyInvitationLink(false)"
-              >
-                {{ $t('rooms.copy_invitation_link') }}
-              </VBtn>
-              <VBtn
-                size="small"
-                variant="outlined"
-                :loading="invitationLinkLoading"
-                @click="copyInvitationLink(true)"
-              >
-                {{ $t('rooms.regenerate_invitation_link') }}
-              </VBtn>
-            </VCol>
-            <VCol
-              v-if="isParentSpecific"
-              cols="12"
-            >
-              <AppAutocomplete
-                v-model="editParentIds"
-                :server-search="searchParents"
-                :item-title="parentOptionTitle"
-                item-value="id"
-                :label="$t('rooms.target_parents')"
-                :no-data-text="$t('autocomplete.no_results')"
-                multiple
-                chips
-                closable-chips
-                clearable
-                :preload-limit="50"
+              <MeetingRoomAccessFields
+                v-model:audience-type="editAudienceType"
+                v-model:selected-parent-ids="editParentIds"
+                :search-parents="searchParents"
+                :parent-option-title="parentOptionTitle"
+                :show-invitation-actions="isLinkInvite && canManageRooms"
+                :invitation-link-loading="invitationLinkLoading"
+                @copy-invitation-link="copyInvitationLink(false)"
+                @regenerate-invitation-link="copyInvitationLink(true)"
               />
             </VCol>
           </VRow>
@@ -554,12 +512,7 @@ if (props.roomData.user && !props.roomData.user.picture) {
 
 </template>
 
-<style lang="scss" scoped>
-.card-list {
-  --v-card-list-gap: 0.75rem;
-}
-
-.text-capitalize {
-  text-transform: capitalize !important;
-}
+<style lang="scss">
+@import '@/styles/meeting-rooms-list.scss';
+@import '@/styles/meeting-room-detail.scss';
 </style>

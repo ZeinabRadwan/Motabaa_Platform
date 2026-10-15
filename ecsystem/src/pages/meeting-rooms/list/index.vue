@@ -1,6 +1,6 @@
 <script setup>
 import { watchServerTableFetch } from '@core/utils/tableFetch'
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import {roomsApi} from "@/plugins/apis/roomsReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import i18n from '@/plugins/i18n/index.js';
@@ -9,12 +9,15 @@ import { can } from '@layouts/plugins/casl'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {
     statusItems,
-    meetingRoomAudienceTypes,
 } from '@core/utils/generalItems';
+import MeetingRoomAccessFields from '@/components/meeting-rooms/MeetingRoomAccessFields.vue'
+import {
+  meetingAudienceBadgeClass,
+  meetingAudienceBadgeLabel,
+} from '@/utils/meetingRoomAudienceUi'
 
 const roomsReqest = roomsApi()
 const userListStore = useUserListStore()
-const route = useRoute()
 const router = useRouter()
 const refVForm = ref()
 const snackbarRef = ref(null);
@@ -32,6 +35,7 @@ const lastInvitationUrl = ref('')
 const invitationLinkLoading = ref(false)
 const selectedParentIds = ref([])
 const rooms = ref([])
+const roomsLoading = ref(false)
 const roomDialog = ref(false);
 const editingRoomId = ref(-1)
 const saveLoading = ref(false)
@@ -40,7 +44,6 @@ const selectedStatus = ref('active')
 const canManageRooms = computed(() => can('edit_meetings', 'edit_meetings') || can('admin_meetings', 'admin_meetings'))
 const isParentSpecific = computed(() => audienceType.value === 'parents')
 const isLinkInvite = computed(() => audienceType.value === 'link_invite')
-const isPublicAudience = computed(() => audienceType.value === 'general')
 
 const normalizeAudienceType = value => {
   if (value === 'parents' || value === 'link_invite')
@@ -63,15 +66,6 @@ const parentOptionTitle = item => {
   return `${u.name}${phone}`
 }
 
-const audienceBadge = room => {
-  if (room.audience_type === 'parents')
-    return i18n.global.t('rooms.audience_badge_parents')
-  if (room.audience_type === 'link_invite')
-    return i18n.global.t('rooms.audience_badge_link_invite')
-
-  return i18n.global.t('rooms.audience_badge_general')
-}
-
 const resetRoomForm = () => {
   newRoom.value = ''
   audienceType.value = 'general'
@@ -81,6 +75,7 @@ const resetRoomForm = () => {
 }
 
 const fetchAllRooms = () => {
+    roomsLoading.value = true
     roomsReqest.fetchAll({
       q: searchQuery.value,
       status: selectedStatus.value,
@@ -89,7 +84,20 @@ const fetchAllRooms = () => {
 
     }).then(response => {
         rooms.value = response.data.data
+    }).finally(() => {
+      roomsLoading.value = false
     })
+}
+
+const openRoom = roomId => {
+  router.push(`/meeting-rooms/view/${roomId}`)
+}
+
+const onRoomCardKeydown = (event, roomId) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    openRoom(roomId)
+  }
 }
 
 const openCreateRoom = () => {
@@ -196,233 +204,236 @@ watchServerTableFetch(fetchAllRooms, {
 </script>
 
 <template>
-  <div>
-    <VRow>
-      <VCol cols="12">
-        <VForm 
-              ref="refVForm"
-            >
-        <VCard class="padding-30p">    
-            <VCard class="border-1p">
-                <template v-slot:title>
-                    <VRow>
-                        <span class="v-col v-col-12 justify-lg-space-between d-flex align-center gap-4"> 
-                            <VSpacer />
-                            <div  class="d-flex gap-4">
-                                <AppTextField
-                                style="inline-size: 15rem;"
-                                    v-model="searchQuery"
-                                    :placeholder="$t('Search')"
-                                    density="compact"
-                                />
-                                <AppSelect
-                                    v-if="can('admin_meetings','admin_meetings')"
-                                    v-model="selectedStatus"
-                                    :items="statusItems()"
-                                    clearable
-                                    clear-icon="tabler-x"
-                                >
-                                </AppSelect>
-                                <VBtn @click="openCreateRoom" v-if="canManageRooms">
-                                    {{ $t('rooms.add_meeting_room') }}
-                                </VBtn>
-                            </div>
-                        </span>
-                    </VRow>
-                </template>
-                <VDivider></VDivider>
-                <v-card-text>
-                    <VRow>
-                        <VCol
-                            cols="12"
-                            md="4"
-                            v-for="room in rooms"
-                            :key="room.id"
-                        >
-                            <VCard class="cursor-pointer" @click="()=> router.push('/meeting-rooms/view/'+room.id)">
-                                <VCardText>
-                                    <VRow>
-                                        <VCol cols="12" class="d-flex align-center justify-space-between flex-wrap gap-2">
-                                            <div class="d-flex align-center">
-                                            <VAvatar
-                                                rounded
-                                                :color="!room.deleted_at ? 'success' : 'error'"
-                                                size="40"
-                                                variant="tonal"
-                                                class="me-3"
-                                                icon="tabler-messages"
-                                            />
-                                            <div class="d-flex flex-column">
-                                                <h6 class="text-base" :class="!room.deleted_at ? 'text-success' : 'text-error'">
-                                                    {{ room.title }}
-                                                </h6>
-                                            </div>
-                                            </div>
-                                            <VChip
-                                              size="small"
-                                              label
-                                              :color="room.audience_type === 'parents' ? 'primary' : room.audience_type === 'link_invite' ? 'warning' : 'secondary'"
-                                            >
-                                              {{ audienceBadge(room) }}
-                                            </VChip>
-                                        </VCol>
-                                        <VCol cols="12"><span class="text-body-1 font-weight-bold">{{$t('rooms.create_by')}}</span></VCol>
-                                        
-                                        <VCol cols="12">
-                                            <div class="d-flex align-center justify-space-between flex-wrap gap-2">
-                                            <div class="d-flex align-center">
-                                                <VAvatar
-                                                    size="40"
-                                                    :variant="'tonal'"
-                                                    class="me-3"
-                                                >
-                                                    <VImg
-                                                        v-if="room.user.picture"
-                                                        :src="room.user.picture.file_url"
-                                                    />
-                                                    <span v-else>{{ avatarText(room.user.name) }}</span>
-                                                </VAvatar>
-                                                <div class="d-flex flex-column">
-                                                    <h6 class="text-base">
-                                                        {{room.user.name}}
-                                                    </h6>
-                                                </div>
-                                            </div>
-                                            <VBtn
-                                              v-if="canManageRooms"
-                                              size="small"
-                                              variant="tonal"
-                                              @click="openEditRoom(room, $event)"
-                                            >
-                                              {{ $t('Edit') }}
-                                            </VBtn>
-                                            </div>
-                                        </VCol>
-                                    </VRow>
-                                </VCardText>
-                            </VCard>
-                        </VCol>
-                        
-                    </VRow>
-
-                </v-card-text>
-            </VCard>
-        </VCard>
-      </VForm>
-      </VCol>
-    </VRow>
-    <VDialog
-        v-model="roomDialog"
-        persistent
-        class="v-dialog-sm"
-        max-width="560"
+  <div class="meeting-rooms-page">
+    <Teleport
+      v-if="canManageRooms"
+      to="#general-page-header-actions"
     >
-        <VCard :title="editingRoomId > 0 ? $t('rooms.edit_meeting_room') : $t('rooms.add_meeting_room')">
-        <VCardText>
-            <VRow>
-                <VCol cols="12">
-                    <AppTextField
-                        v-model="newRoom"
-                        :label="$t('rooms.room_name')"
-                    />
-                </VCol>
-                <VCol cols="12">
-                  <div class="text-body-2 font-weight-medium mb-2">
-                    {{ $t('rooms.audience_type') }}
-                  </div>
-                  <VRadioGroup
-                    v-model="audienceType"
-                    hide-details
-                  >
-                    <VRadio
-                      v-for="opt in meetingRoomAudienceTypes()"
-                      :key="opt.value"
-                      :label="opt.title"
-                      :value="opt.value"
-                    />
-                  </VRadioGroup>
-                </VCol>
-                <VCol
-                  v-if="isPublicAudience"
-                  cols="12"
+      <VBtn
+        color="primary"
+        prepend-icon="tabler-plus"
+        class="general-page-header__btn-primary"
+        @click="openCreateRoom"
+      >
+        {{ $t('rooms.add_meeting_room') }}
+      </VBtn>
+    </Teleport>
+
+    <VForm ref="refVForm">
+      <div class="athar-page-toolbar">
+        <AppTextField
+          v-model="searchQuery"
+          class="athar-page-toolbar__field"
+          :placeholder="$t('Search')"
+          density="compact"
+          prepend-inner-icon="tabler-search"
+          hide-details
+        />
+        <div class="athar-page-toolbar__actions">
+          <AppSelect
+            v-if="can('admin_meetings','admin_meetings')"
+            v-model="selectedStatus"
+            :items="statusItems()"
+            density="compact"
+            hide-details
+            clearable
+            clear-icon="tabler-x"
+            style="inline-size: 10rem;"
+          />
+        </div>
+      </div>
+
+      <div
+        v-if="roomsLoading"
+        class="meeting-rooms-loading"
+        role="status"
+      >
+        <VProgressCircular
+          indeterminate
+          color="primary"
+          size="44"
+        />
+      </div>
+
+      <div
+        v-else-if="!rooms.length"
+        class="meeting-rooms-empty"
+      >
+        <span class="meeting-rooms-empty__icon">
+          <VIcon
+            icon="tabler-video"
+            size="28"
+          />
+        </span>
+        <h2 class="meeting-rooms-empty__title">
+          {{ $t('rooms.empty_list_title') }}
+        </h2>
+        <p class="meeting-rooms-empty__hint">
+          {{ $t('rooms.empty_list_hint') }}
+        </p>
+        <VBtn
+          v-if="canManageRooms"
+          color="primary"
+          prepend-icon="tabler-plus"
+          class="mt-2"
+          @click="openCreateRoom"
+        >
+          {{ $t('rooms.add_meeting_room') }}
+        </VBtn>
+      </div>
+
+      <div
+        v-else
+        class="meeting-rooms-grid"
+      >
+        <article
+          v-for="room in rooms"
+          :key="room.id"
+          class="meeting-room-card"
+          tabindex="0"
+          role="button"
+          @click="openRoom(room.id)"
+          @keydown="onRoomCardKeydown($event, room.id)"
+        >
+          <div class="meeting-room-card__head">
+            <span class="meeting-room-card__icon">
+              <VIcon
+                icon="tabler-video"
+                size="22"
+              />
+            </span>
+            <div class="meeting-room-card__title-wrap">
+              <h3 class="meeting-room-card__title">
+                {{ room.title }}
+              </h3>
+              <div class="meeting-room-card__badges">
+                <span
+                  class="meeting-room-card__badge"
+                  :class="room.deleted_at ? 'meeting-room-card__badge--inactive' : 'meeting-room-card__badge--active'"
                 >
-                  <p class="text-body-2 text-medium-emphasis mb-0">
-                    {{ $t('rooms.audience_hint_public') }}
-                  </p>
-                </VCol>
-                <VCol
-                  v-if="isLinkInvite"
-                  cols="12"
+                  {{ room.deleted_at ? $t('Inactive') : $t('Active_user') }}
+                </span>
+                <span
+                  class="meeting-room-card__badge"
+                  :class="meetingAudienceBadgeClass(room.audience_type)"
                 >
-                  <p class="text-body-2 text-medium-emphasis mb-0">
-                    {{ $t('rooms.audience_hint_link_invite') }}
-                  </p>
-                </VCol>
-                <VCol
-                  v-if="isLinkInvite && (lastInvitationUrl || editingRoomId > 0)"
-                  cols="12"
-                  class="d-flex flex-wrap gap-2"
-                >
-                  <VBtn
-                    size="small"
-                    variant="tonal"
-                    :loading="invitationLinkLoading"
-                    @click="copyInvitationLink(false)"
-                  >
-                    {{ $t('rooms.copy_invitation_link') }}
-                  </VBtn>
-                  <VBtn
-                    v-if="editingRoomId > 0"
-                    size="small"
-                    variant="outlined"
-                    :loading="invitationLinkLoading"
-                    @click="copyInvitationLink(true)"
-                  >
-                    {{ $t('rooms.regenerate_invitation_link') }}
-                  </VBtn>
-                </VCol>
-                <VCol
-                  v-if="isParentSpecific"
-                  cols="12"
-                >
-                  <AppAutocomplete
-                    v-model="selectedParentIds"
-                    :server-search="searchParents"
-                    :item-title="parentOptionTitle"
-                    item-value="id"
-                    :label="$t('rooms.target_parents')"
-                    :no-data-text="$t('autocomplete.no_results')"
-                    multiple
-                    chips
-                    closable-chips
-                    clearable
-                    :preload-limit="50"
-                  />
-                </VCol>
-            </VRow>
-        </VCardText>
-        <VCardText class="d-flex justify-end gap-3 flex-wrap">
+                  {{ meetingAudienceBadgeLabel(room.audience_type) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="meeting-room-card__meta">
+            <p class="meeting-room-card__meta-label">
+              {{ $t('rooms.create_by') }}
+            </p>
+            <div class="meeting-room-card__creator">
+              <VAvatar
+                size="36"
+                variant="tonal"
+              >
+                <VImg
+                  v-if="room.user?.picture"
+                  :src="room.user.picture.file_url"
+                />
+                <span v-else>{{ avatarText(room.user?.name) }}</span>
+              </VAvatar>
+              <p class="meeting-room-card__creator-name">
+                {{ room.user?.name }}
+              </p>
+            </div>
+          </div>
+
+          <div class="meeting-room-card__footer">
             <VBtn
+              v-if="canManageRooms"
+              size="small"
+              variant="text"
+              @click="openEditRoom(room, $event)"
+            >
+              {{ $t('Edit') }}
+            </VBtn>
+            <span
+              class="meeting-room-card__cta"
+              :aria-label="$t('rooms.open_room')"
+            >
+              <VIcon
+                icon="tabler-chevron-left"
+                size="18"
+              />
+            </span>
+          </div>
+        </article>
+      </div>
+    </VForm>
+
+    <VDialog
+      v-model="roomDialog"
+      persistent
+      max-width="580"
+    >
+      <VCard>
+        <VCardItem>
+          <template #prepend>
+            <span class="meeting-rooms-dialog__title-icon">
+              <VIcon icon="tabler-door-enter" />
+            </span>
+          </template>
+          <VCardTitle class="pa-0">
+            {{ editingRoomId > 0 ? $t('rooms.edit_meeting_room') : $t('rooms.add_meeting_room') }}
+          </VCardTitle>
+        </VCardItem>
+        <VDivider />
+        <VCardText>
+          <VRow>
+            <VCol cols="12">
+              <AppTextField
+                v-model="newRoom"
+                :label="$t('rooms.room_name')"
+                prepend-inner-icon="tabler-edit"
+              />
+            </VCol>
+            <VCol cols="12">
+              <MeetingRoomAccessFields
+                v-model:audience-type="audienceType"
+                v-model:selected-parent-ids="selectedParentIds"
+                :search-parents="searchParents"
+                :parent-option-title="parentOptionTitle"
+                :show-invitation-actions="isLinkInvite && (lastInvitationUrl || editingRoomId > 0)"
+                :invitation-link-loading="invitationLinkLoading"
+                @copy-invitation-link="copyInvitationLink(false)"
+                @regenerate-invitation-link="copyInvitationLink(true)"
+              />
+            </VCol>
+          </VRow>
+        </VCardText>
+        <VDivider />
+        <VCardText class="meeting-rooms-dialog__actions">
+          <VBtn
             color="secondary"
             variant="tonal"
             :disabled="saveLoading"
             @click="roomDialog = false"
-            >
-                {{ $t('Close') }}
-            </VBtn>
-            <VBtn
-              color="success"
-              :loading="saveLoading"
-              @click="saveRoom"
-            >
-                {{ $t('Save') }}
-            </VBtn>
+          >
+            {{ $t('Close') }}
+          </VBtn>
+          <VBtn
+            color="success"
+            :loading="saveLoading"
+            @click="saveRoom"
+          >
+            {{ $t('Save') }}
+          </VBtn>
         </VCardText>
-        </VCard>
+      </VCard>
     </VDialog>
     <SnackbarComponent ref="snackbarRef" />
   </div>
 </template>
+
+<style lang="scss">
+@import '@/styles/meeting-rooms-list.scss';
+</style>
 <route lang="yaml">
   meta:
     action: access_meetings

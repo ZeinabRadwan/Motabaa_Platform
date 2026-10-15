@@ -195,6 +195,56 @@ if (! function_exists('isParentUser')) {
     }
 }
 
+if (! function_exists('minimalUserReference')) {
+    /**
+     * Id + display name only — for embedded staff/parent users in case and goal APIs.
+     *
+     * @param  \App\Models\User|array<string, mixed>|null  $user
+     * @return array{id: int|string|null, name: string|null}|null
+     */
+    function minimalUserReference($user): ?array
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        if (is_array($user)) {
+            $id = $user['id'] ?? null;
+            $name = $user['name'] ?? null;
+
+            return ($id === null && $name === null) ? null : ['id' => $id, 'name' => $name];
+        }
+
+        if ($user instanceof \Illuminate\Database\Eloquent\Model) {
+            return ['id' => $user->getKey(), 'name' => $user->getAttribute('name')];
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('minimalUserReferenceFromRelation')) {
+    /**
+     * @param  \Illuminate\Support\Collection|\Illuminate\Database\Eloquent\Collection|array|null  $relation
+     */
+    function minimalUserReferenceFromRelation($relation): ?array
+    {
+        if ($relation === null) {
+            return null;
+        }
+
+        if ($relation instanceof \Illuminate\Support\Collection) {
+            return minimalUserReference($relation->first());
+        }
+
+        if (is_array($relation)) {
+            return minimalUserReference($relation[0] ?? null);
+        }
+
+        return minimalUserReference($relation);
+    }
+}
+
 if (! function_exists('isImpersonating')) {
     function isImpersonating($user = null) {
         $user = ($user) ? $user : auth()->user();

@@ -66,7 +66,10 @@ class GoalsResource extends JsonResource
         $payload = [
             'id' => $this->id,
             'case_id' => $this->case_id,
-            'case' => $this->case,
+            'case' => $this->case ? [
+                'id' => $this->case->id,
+                'name' => $this->case->name,
+            ] : null,
             'title' => $this->goal_title,
             'description' => $this->description,
             'term_id' => $this->term_id,

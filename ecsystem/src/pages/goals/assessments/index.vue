@@ -16,6 +16,7 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
+import { openExportDownload } from '@core/utils/exportDownload'
 
 const route = useRoute()
 const router = useRouter()
@@ -180,7 +181,7 @@ const printGoals = () => {
 
     }).then(response => {
       loading.value.period_pdf = false;
-      window.open(response.data.data.url, '_blank');
+      openExportDownload(response.data.data.url);
     }).catch(error => {
       loading.value.period_pdf = false;
       console.error(error)

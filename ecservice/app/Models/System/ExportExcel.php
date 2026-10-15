@@ -53,11 +53,18 @@ class ExportExcel {
     }
 
     /**
-     * Path for browser download relative to the frontend axios base (VITE_APP_API_URL, ends with /api).
+     * Absolute URL for opening the temp export/PDF (works from SPA or mobile WebView).
      * Token must be a query param — it may contain "/" characters.
      */
     public static function downloadUrl(string $token): string
     {
-        return '/file/download?token='.rawurlencode($token);
+        $query = 'token='.rawurlencode($token);
+        $base = rtrim((string) config('app.url'), '/');
+
+        if ($base !== '') {
+            return $base.'/api/file/download?'.$query;
+        }
+
+        return route('file.download').'?'.$query;
     }
 }

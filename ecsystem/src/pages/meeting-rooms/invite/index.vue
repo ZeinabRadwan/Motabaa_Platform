@@ -59,39 +59,54 @@ onMounted(() => {
 </script>
 
 <template>
-  <VRow class="justify-center mt-16">
-    <VCol
-      cols="12"
-      md="6"
-      lg="5"
-    >
-      <VCard>
-        <VCardText class="text-center py-10">
-          <VProgressCircular
-            v-if="loading"
-            indeterminate
-            color="primary"
-            class="mb-4"
+  <div class="meeting-rooms-invite">
+    <div class="meeting-rooms-invite__card">
+      <div class="meeting-rooms-invite__hero">
+        <span class="meeting-rooms-invite__icon">
+          <VIcon
+            icon="tabler-link"
+            size="30"
           />
-          <p
-            v-else-if="errorMessage"
-            class="text-body-1 text-error mb-0"
-          >
-            {{ errorMessage }}
-          </p>
-          <p
-            v-else
-            class="text-body-1 mb-0"
-          >
-            {{ $t('rooms.invitation_accepting') }}
-          </p>
-        </VCardText>
-      </VCard>
-    </VCol>
-  </VRow>
+        </span>
+        <h1 class="meeting-rooms-invite__title">
+          {{ $t('rooms.invite_page_title') }}
+        </h1>
+        <p class="text-body-2 text-medium-emphasis mb-0">
+          {{ $t('rooms.invite_page_subtitle') }}
+        </p>
+      </div>
+      <div class="meeting-rooms-invite__body">
+        <VProgressCircular
+          v-if="loading"
+          indeterminate
+          color="primary"
+          size="44"
+          class="mb-3"
+        />
+        <VAlert
+          v-else-if="errorMessage"
+          type="error"
+          variant="tonal"
+          class="text-start"
+        >
+          {{ errorMessage }}
+        </VAlert>
+        <p
+          v-else
+          class="text-body-1 mb-0"
+        >
+          {{ $t('rooms.invitation_accepting') }}
+        </p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <route lang="yaml">
 meta:
   meetingRoomInvite: true
 </route>
+
+<style lang="scss">
+@import '@/styles/meeting-room-detail.scss';
+</style>

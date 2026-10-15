@@ -22,7 +22,7 @@ class GoalStepsResource extends JsonResource
             'performance_evaluation' => $this->performance_evaluation,
             'reinforcement' => $this->reinforcement,
             'order' => $this->order,
-            'created_by' => $this->createdBy,
+            'created_by' => minimalUserReference($this->createdBy),
             'deleted_at' => $this->deleted_at,
         ];
     }
