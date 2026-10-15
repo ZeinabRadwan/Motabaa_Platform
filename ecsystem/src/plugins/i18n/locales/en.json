@@ -1143,6 +1143,9 @@
   "center_activities": {
     "menu": "Activities & events",
     "title": "Activities & events",
+    "list_subtitle": "Browse center activities and events, and manage who can view each one.",
+    "list_empty": "No activities yet. Create one to start adding photos and content.",
+    "open_activity": "View activity",
     "parent_title": "Center activities",
     "add": "Add activity",
     "edit": "Edit activity",

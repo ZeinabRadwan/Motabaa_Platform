@@ -1,0 +1,211 @@
+@use '@/styles/athar-dashboard-tokens.scss' as athar;
+
+.center-activities-list-page {
+  --ca-radius: 14px;
+  --ca-border: rgba(18, 59, 102, 0.08);
+  margin-block-end: 1.5rem;
+}
+
+.center-activities-list-shell {
+  overflow: hidden;
+  border: 1px solid var(--ca-border);
+  border-radius: var(--ca-radius);
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(18, 59, 102, 0.06);
+}
+
+.center-activities-list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border-block-end: 1px solid var(--ca-border);
+  background: #fafcff;
+}
+
+.center-activities-list-toolbar__search {
+  flex: 1 1 14rem;
+  max-inline-size: 22rem;
+}
+
+.center-activities-list-body {
+  padding: 1rem 1.1rem 1.25rem;
+}
+
+.center-activities-list-loader {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1rem;
+}
+
+.center-activities-list-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.center-activities-list-card {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100%;
+  border: 1px solid var(--ca-border);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    border-color: rgba(8, 126, 217, 0.28);
+    box-shadow: 0 8px 22px rgba(8, 126, 217, 0.1);
+  }
+}
+
+.center-activities-list-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.65rem;
+}
+
+.center-activities-list-card__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.5rem;
+  block-size: 2.5rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #087ed9, #123b66);
+  color: #fff;
+}
+
+.center-activities-list-card__title-wrap {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.center-activities-list-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #123b66;
+}
+
+.center-activities-list-card__term {
+  display: inline-flex;
+  margin-block-start: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #eaf5ff;
+  color: #087ed9;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.center-activities-list-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0 1rem 1rem;
+}
+
+.center-activities-list-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.center-activities-list-card__label {
+  font-weight: 700;
+  color: #64748b;
+}
+
+.center-activities-list-card__value {
+  color: #123b66;
+  font-weight: 600;
+}
+
+.center-activities-list-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block-start: auto;
+  padding: 0.65rem 1rem;
+  border-block-start: 1px solid rgba(18, 59, 102, 0.06);
+  background: #fafcff;
+}
+
+.center-activities-list-card__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #087ed9;
+}
+
+.center-activities-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.center-activities-list-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  border-radius: 12px;
+  background: #eaf5ff;
+  color: rgba(#087ed9, 0.75);
+}
+
+.center-activities-list-empty__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #123b66;
+}
+
+.center-activities-list-dialog.v-card {
+  border-radius: 14px;
+}
+
+.v-theme--dark {
+  .center-activities-list-shell,
+  .center-activities-list-card {
+    background: rgb(var(--v-theme-surface));
+  }
+
+  .center-activities-list-card__title,
+  .center-activities-list-card__value,
+  .center-activities-list-empty__title {
+    color: rgba(var(--v-theme-on-surface), 0.92);
+  }
+
+  .center-activities-list-toolbar,
+  .center-activities-list-card__footer {
+    background: rgba(var(--v-theme-surface), 0.5);
+  }
+}
