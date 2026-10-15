@@ -23,6 +23,7 @@ import {
 const sessionStore = useSessionStore()
 const snackbarRef = ref(null)
 const loading = ref(true)
+const loadError = ref('')
 const saving = ref(false)
 const savingPassword = ref(false)
 const isEditing = ref(false)
@@ -119,11 +120,38 @@ function mergeSessionUser(user) {
   sessionStore.patchUserData(merged)
 }
 
+function extractProfileUser(payload) {
+  if (!payload || typeof payload !== 'object')
+    return null
+
+  if (payload.id != null && payload.name != null)
+    return payload
+
+  if (payload.data && typeof payload.data === 'object')
+    return extractProfileUser(payload.data)
+
+  return null
+}
+
 async function loadProfile() {
   loading.value = true
+  loadError.value = ''
   try {
     const { data } = await fetchAccountProfile()
-    applyUserToForm(data.data)
+    const user = extractProfileUser(data)
+    if (!user) {
+      loadError.value = i18n.global.t('account.profile_load_empty')
+
+      return
+    }
+    applyUserToForm(user)
+  }
+  catch (e) {
+    const status = e.response?.status
+    if (status === 401 || status === 403)
+      loadError.value = i18n.global.t('account.profile_load_unauthorized')
+    else
+      loadError.value = e.response?.data?.message || i18n.global.t('account.profile_load_failed')
   }
   finally {
     loading.value = false
@@ -240,6 +268,8 @@ onMounted(loadProfile)
     <div
       v-if="loading"
       class="d-flex justify-center py-16"
+      role="status"
+      aria-live="polite"
     >
       <VProgressCircular
         indeterminate
@@ -247,6 +277,28 @@ onMounted(loadProfile)
         size="48"
       />
     </div>
+
+    <VAlert
+      v-else-if="loadError"
+      type="error"
+      variant="tonal"
+      prominent
+      class="account-profile__state-alert"
+      role="alert"
+    >
+      <div class="account-profile__state-alert-body">
+        <p class="mb-3">
+          {{ loadError }}
+        </p>
+        <VBtn
+          color="primary"
+          variant="flat"
+          @click="loadProfile"
+        >
+          {{ $t('Retry') }}
+        </VBtn>
+      </div>
+    </VAlert>
 
     <template v-else-if="userData">
       <nav
@@ -624,4 +676,6 @@ onMounted(loadProfile)
 meta:
   action: read
   subject: Auth
+  pageTitleKey: account.profile_title
+  pageSubtitleKey: account.profile_subtitle
 </route>

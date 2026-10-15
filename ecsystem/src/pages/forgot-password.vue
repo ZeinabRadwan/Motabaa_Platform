@@ -140,10 +140,6 @@ const onSubmit = () => {
       >
         {{ $t('Send Reset Link') }}
       </VBtn>
-
-      <p class="auth-page__footer">
-        {{ $t('Auth platform footer') }}
-      </p>
     </VForm>
   </AuthPageShell>
 

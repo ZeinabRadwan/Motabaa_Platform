@@ -20,8 +20,12 @@ class MeetingRoomRequest extends FormRequest
     {
         return [
             'title' => 'required|string|max:191',
-            'type' => 'required|integer',
-            'audience_type' => ['required', Rule::in([MeetingRoom::AUDIENCE_GENERAL, MeetingRoom::AUDIENCE_PARENTS])],
+            'type' => 'sometimes|integer',
+            'audience_type' => ['required', Rule::in([
+                MeetingRoom::AUDIENCE_GENERAL,
+                MeetingRoom::AUDIENCE_PARENTS,
+                MeetingRoom::AUDIENCE_LINK_INVITE,
+            ])],
             'parent_ids' => 'nullable|array',
             'parent_ids.*' => 'integer|exists:users,id',
         ];

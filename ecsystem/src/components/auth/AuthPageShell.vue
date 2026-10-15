@@ -21,7 +21,8 @@ const props = defineProps({
   },
 })
 
-const DESKTOP_LOGIN_MQ = '(min-width: 960px)'
+/** Lock document scroll only when the viewport is wide and tall enough for the form to sit comfortably. */
+const DESKTOP_LOGIN_LOCK_MQ = '(min-width: 960px) and (min-height: 720px)'
 
 function preloadAuthBackgrounds() {
   const desktop = window.matchMedia('(min-width: 1280px)').matches
@@ -40,8 +41,9 @@ function preloadAuthBackgrounds() {
   document.head.appendChild(link)
 }
 
-function lockLoginViewport() {
-  if (!props.lockDesktopViewport || !window.matchMedia(DESKTOP_LOGIN_MQ).matches)
+function syncLoginViewportLock() {
+  unlockLoginViewport()
+  if (!props.lockDesktopViewport || !window.matchMedia(DESKTOP_LOGIN_LOCK_MQ).matches)
     return
 
   document.documentElement.classList.add('login-page-viewport-lock')
@@ -55,10 +57,14 @@ function unlockLoginViewport() {
 
 onMounted(() => {
   preloadAuthBackgrounds()
-  lockLoginViewport()
+  syncLoginViewportLock()
+  window.addEventListener('resize', syncLoginViewportLock)
 })
 
-onUnmounted(unlockLoginViewport)
+onUnmounted(() => {
+  window.removeEventListener('resize', syncLoginViewportLock)
+  unlockLoginViewport()
+})
 </script>
 
 <template>
@@ -83,12 +89,17 @@ onUnmounted(unlockLoginViewport)
         :class="{ 'auth-page__card--offset-mobile': mobileCardOffset }"
         :dir="dir"
       >
-        <img
+        <div
           v-if="showLogo"
-          :src="BUNDLED_LOGIN_LOGO"
-          alt="Athar"
-          class="auth-page__logo"
+          class="auth-page__logo-wrap"
         >
+          <img
+            :src="BUNDLED_LOGIN_LOGO"
+            alt="Athar"
+            class="auth-page__logo"
+            decoding="async"
+          >
+        </div>
 
         <slot />
       </div>
@@ -99,7 +110,7 @@ onUnmounted(unlockLoginViewport)
 <style lang="scss">
 @use '@/styles/auth-page.scss';
 
-@media (min-width: 960px) {
+@media (min-width: 960px) and (min-height: 720px) {
   html.login-page-viewport-lock,
   body.login-page-viewport-lock {
     overflow: hidden !important;

@@ -57,6 +57,10 @@ export const canNavigate = to => {
       return true;
     }
   } catch (error) { }
+  if (to.matched.some(route => route.meta.meetingRoomInvite)) {
+    return true
+  }
+
   if (to.matched.some(route => route.meta.meetingRoomAccess)) {
     return canAccessMeetingRooms()
   }

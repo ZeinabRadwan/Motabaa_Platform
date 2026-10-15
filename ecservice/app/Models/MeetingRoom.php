@@ -15,6 +15,8 @@ class MeetingRoom extends Model
 
     public const AUDIENCE_PARENTS = 'parents';
 
+    public const AUDIENCE_LINK_INVITE = 'link_invite';
+
     protected $fillable = [
         'center_id',
         'created_by_id',
@@ -58,6 +60,7 @@ class MeetingRoom extends Model
     {
         return match ($this->audience_type ?? self::AUDIENCE_GENERAL) {
             self::AUDIENCE_PARENTS => __('tr.meeting_rooms.audience_parents_label'),
+            self::AUDIENCE_LINK_INVITE => __('tr.meeting_rooms.audience_link_invite_label'),
             default => __('tr.meeting_rooms.audience_general_label'),
         };
     }

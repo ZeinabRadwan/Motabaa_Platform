@@ -8,7 +8,6 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import i18n from '@/plugins/i18n/index.js';
 import {
-    meetingRoomsTypes,
     meetingRoomAudienceTypes,
 } from '@core/utils/generalItems';
 
@@ -30,14 +29,23 @@ const isDialogVisibleDate = ref(false)
 const editDialog = ref(false)
 const saveLoading = ref(false)
 const editTitle = ref('')
-const editType = ref('')
 const editAudienceType = ref('general')
+const lastInvitationUrl = ref('')
+const invitationLinkLoading = ref(false)
 const editParentIds = ref([])
 const date = ref(null)
 const time = ref(null)
 
 const canManageRooms = computed(() => can('edit_meetings', 'edit_meetings') || can('admin_meetings', 'admin_meetings'))
 const isParentSpecific = computed(() => editAudienceType.value === 'parents')
+const isLinkInvite = computed(() => editAudienceType.value === 'link_invite')
+const isPublicAudience = computed(() => editAudienceType.value === 'general')
+
+const normalizeAudienceType = value => {
+  if (value === 'parents' || value === 'link_invite')
+    return value
+  return 'general'
+}
 const hasMeetingUrl = computed(() => !!props.roomData?.meeting_url)
 const meetingUrlBase = computed(() => {
   if (!props.roomData?.meeting_url)
@@ -157,16 +165,16 @@ const copyLink = () => {
 
 const openEditDialog = () => {
   editTitle.value = props.roomData.title
-  editType.value = String(props.roomData.type)
-  editAudienceType.value = props.roomData.audience_type === 'parents' ? 'parents' : 'general'
+  editAudienceType.value = normalizeAudienceType(props.roomData.audience_type)
   editParentIds.value = Array.isArray(props.roomData.assigned_parent_ids)
     ? [...props.roomData.assigned_parent_ids]
     : []
+  lastInvitationUrl.value = ''
   editDialog.value = true
 }
 
 const saveEdit = () => {
-  if (!editTitle.value?.trim() || !editType.value) {
+  if (!editTitle.value?.trim()) {
     snackbarRef.value.exposevisibleSnackbar(i18n.global.t('validtion.missing_field'), 'error');
     return
   }
@@ -178,14 +186,17 @@ const saveEdit = () => {
   saveLoading.value = true
   const payload = {
     title: editTitle.value.trim(),
-    type: editType.value,
     audience_type: editAudienceType.value,
     parent_ids: isParentSpecific.value ? editParentIds.value : [],
   }
 
-  roomsReqest.put(payload, String(props.roomData.id)).then(() => {
+  roomsReqest.put(payload, String(props.roomData.id)).then(response => {
     snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
-    editDialog.value = false
+    const invitationUrl = response.data?.data?.invitation_url
+    if (invitationUrl)
+      lastInvitationUrl.value = invitationUrl
+    if (! isLinkInvite.value)
+      editDialog.value = false
     return roomsReqest.show(Number(props.roomData.id))
   }).then(response => {
     if (response?.data?.data)
@@ -198,6 +209,32 @@ const saveEdit = () => {
   }).finally(() => {
     saveLoading.value = false
   })
+}
+
+const copyInvitationLink = async (rotate = false) => {
+  invitationLinkLoading.value = true
+  try {
+    let url = lastInvitationUrl.value
+    const response = await roomsReqest.fetchInvitationLink(props.roomData.id, rotate)
+    url = response.data?.data?.invitation_url
+    if (url) {
+      lastInvitationUrl.value = url
+      await navigator.clipboard.writeText(url)
+      snackbarRef.value.exposevisibleSnackbar(i18n.global.t('rooms.invitation_link_copied'), 'success')
+    }
+  }
+  catch (error) {
+    if (error.response?.data?.requires_rotate) {
+      await copyInvitationLink(true)
+      return
+    }
+    const msg = error.response?.data?.errors?.error?.[0]
+    if (msg)
+      snackbarRef.value.exposevisibleSnackbar(msg, 'error')
+  }
+  finally {
+    invitationLinkLoading.value = false
+  }
 }
 
 if (props.roomData.user && !props.roomData.user.picture) {
@@ -264,23 +301,12 @@ if (props.roomData.user && !props.roomData.user.picture) {
             <VListItem>
               <VListItemTitle>
                 <h6 class="text-h6">
-                  {{$t('rooms.room_type')}}:
-                  <span class="text-body-1">
-                    {{ props.roomData.type_name }}
-                  </span>
-                </h6>
-              </VListItemTitle>
-            </VListItem>
-
-            <VListItem>
-              <VListItemTitle>
-                <h6 class="text-h6">
                   {{ $t('rooms.audience_type') }}:
                   <VChip
                     size="small"
                     label
                     class="ms-1"
-                    :color="props.roomData.audience_type === 'parents' ? 'primary' : 'secondary'"
+                    :color="props.roomData.audience_type === 'parents' ? 'primary' : props.roomData.audience_type === 'link_invite' ? 'warning' : 'secondary'"
                   >
                     {{ props.roomData.audience_type_name || $t('rooms.audience_badge_general') }}
                   </VChip>
@@ -430,15 +456,6 @@ if (props.roomData.user && !props.roomData.user.picture) {
               />
             </VCol>
             <VCol cols="12">
-              <AppSelect
-                v-model="editType"
-                :label="$t('rooms.room_type')"
-                :items="meetingRoomsTypes()"
-                clearable
-                clear-icon="tabler-x"
-              />
-            </VCol>
-            <VCol cols="12">
               <div class="text-body-2 font-weight-medium mb-2">
                 {{ $t('rooms.audience_type') }}
               </div>
@@ -453,6 +470,44 @@ if (props.roomData.user && !props.roomData.user.picture) {
                   :value="opt.value"
                 />
               </VRadioGroup>
+            </VCol>
+            <VCol
+              v-if="isPublicAudience"
+              cols="12"
+            >
+              <p class="text-body-2 text-medium-emphasis mb-0">
+                {{ $t('rooms.audience_hint_public') }}
+              </p>
+            </VCol>
+            <VCol
+              v-if="isLinkInvite"
+              cols="12"
+            >
+              <p class="text-body-2 text-medium-emphasis mb-0">
+                {{ $t('rooms.audience_hint_link_invite') }}
+              </p>
+            </VCol>
+            <VCol
+              v-if="isLinkInvite && canManageRooms"
+              cols="12"
+              class="d-flex flex-wrap gap-2"
+            >
+              <VBtn
+                size="small"
+                variant="tonal"
+                :loading="invitationLinkLoading"
+                @click="copyInvitationLink(false)"
+              >
+                {{ $t('rooms.copy_invitation_link') }}
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="outlined"
+                :loading="invitationLinkLoading"
+                @click="copyInvitationLink(true)"
+              >
+                {{ $t('rooms.regenerate_invitation_link') }}
+              </VBtn>
             </VCol>
             <VCol
               v-if="isParentSpecific"

@@ -1,7 +1,6 @@
 <script setup>
 import AppBreadcrumb from '@/components/AppBreadcrumb.vue'
 import GeneralPageHeader from '@/components/GeneralPageHeader.vue'
-import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import SidebarMobileToggle from '@/layouts/components/SidebarMobileToggle.vue'
 </script>
 
@@ -11,7 +10,6 @@ import SidebarMobileToggle from '@/layouts/components/SidebarMobileToggle.vue'
       <SidebarMobileToggle />
       <AppBreadcrumb />
       <VSpacer />
-      <NavBarNotifications class="app-page-content__notifications" />
     </div>
     <GeneralPageHeader />
     <slot />
@@ -27,21 +25,19 @@ import SidebarMobileToggle from '@/layouts/components/SidebarMobileToggle.vue'
   margin-block-end: 0.25rem;
 }
 
-.app-page-content__notifications {
-  flex-shrink: 0;
-}
+</style>
 
-@media (max-width: 1279.98px) {
-  .app-page-content__top {
-    position: sticky;
-    inset-block-start: 0;
-    z-index: 10;
-    margin-inline: -0.25rem;
-    padding-block: 0.35rem 0.5rem;
-    padding-inline: 0.25rem;
-    margin-block-end: 0.5rem;
-    background: rgb(var(--v-theme-background));
-    border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  }
+<!-- layout-wrapper is an ancestor; class tracks the same breakpoint as SidebarMobileToggle -->
+<style lang="scss">
+.layout-wrapper.layout-overlay-nav .app-page-content__top {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 12;
+  margin-inline: -0.25rem;
+  padding-block: 0.35rem 0.5rem;
+  padding-inline: 0.25rem;
+  margin-block-end: 0.5rem;
+  background-color: rgb(var(--v-theme-background));
+  border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 </style>

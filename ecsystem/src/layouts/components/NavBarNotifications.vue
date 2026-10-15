@@ -1,6 +1,14 @@
 <script setup>
 import { fetchUserNotifications, markUserNotificationRead } from '@/plugins/apis/notificationsRequest'
 
+const props = defineProps({
+  /** VMenu location (e.g. sidebar footer uses `top start`). */
+  location: {
+    type: String,
+    default: 'bottom end',
+  },
+})
+
 const router = useRouter()
 const notifications = ref([])
 
@@ -96,6 +104,7 @@ const handleNotificationClick = notification => {
 <template>
   <Notifications
     :notifications="notifications"
+    :location="props.location"
     @remove="removeNotification"
     @read="markRead"
     @unread="markUnRead"

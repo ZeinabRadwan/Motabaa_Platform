@@ -20,8 +20,8 @@ class MeetingRoomsResource extends JsonResource
         return [
             'id' => $this->id,
             'title' => $this->name,
-            'type' => $this->type,
-            'type_name' => $this->typeName(),
+            'type' => $this->when($canManage, $this->type),
+            'type_name' => $this->when($canManage, fn () => $this->typeName()),
             'audience_type' => $this->audience_type ?? \App\Models\MeetingRoom::AUDIENCE_GENERAL,
             'audience_type_name' => $this->audienceTypeName(),
             'meeting_url' => $canAccess && MeetingRoomAccess::userCanViewMeetingUrl($user, $this->resource)

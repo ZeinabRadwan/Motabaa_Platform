@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Term;
 use App\Models\System\System;
 use App\Support\MeetingRoomAccess;
+use App\Support\MeetingRoomInvitationService;
 use App\Support\MeetingRoomNotifier;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -24,17 +25,9 @@ class MeetingRoomController extends Controller
         $user = auth()->user();
         $isAdminMeetings = $user->can('admin_meetings');
         $parent = isHasRole(System::USER_TYPE_PARENT_ROLE_NAME);
-        $specialistTeacherIds = [];
         $keyword = mb_ereg_replace(' ', '%', getFTS($request->q));
 
         $center = Term::resolveCenterId($user, $request->center_id);
-
-        if ($parent) {
-            $user->load(['scaseParent.teacher:id', 'scaseParent.specialists:id']);
-            $teacherIds = $user->scaseParent->pluck('teacher.*.id')->flatten()->all();
-            $specialistIds = $user->scaseParent->pluck('specialists.*.id')->flatten()->all();
-            $specialistTeacherIds = array_merge($teacherIds, $specialistIds);
-        }
 
         $perPage = resolvePerPage($request);
 
@@ -49,16 +42,10 @@ class MeetingRoomController extends Controller
             )
             ->when(
                 ! $isAdminMeetings && $parent,
-                fn ($q) => $q->where(function ($query) use ($user, $specialistTeacherIds) {
-                    $query->where(function ($generalAudience) use ($specialistTeacherIds) {
-                        $generalAudience->where(function ($audience) {
-                            $audience->whereNull('audience_type')
-                                ->orWhere('audience_type', MeetingRoom::AUDIENCE_GENERAL);
-                        })
-                            ->where(function ($inner) use ($specialistTeacherIds) {
-                                $inner->whereIn('created_by_id', $specialistTeacherIds)
-                                    ->orWhere('type', MeetingRoom::TYPE_GENERAL);
-                            });
+                fn ($q) => $q->where(function ($query) use ($user) {
+                    $query->where(function ($publicAudience) {
+                        $publicAudience->whereNull('audience_type')
+                            ->orWhere('audience_type', MeetingRoom::AUDIENCE_GENERAL);
                     })
                         ->orWhere(function ($parentSpecific) use ($user) {
                             $parentSpecific->where('audience_type', MeetingRoom::AUDIENCE_PARENTS)
@@ -112,6 +99,11 @@ class MeetingRoomController extends Controller
         }
 
         $input = $request->validated();
+        if (! $request->has('type')) {
+            unset($input['type']);
+        } elseif (! isset($input['type'])) {
+            $input['type'] = MeetingRoom::TYPE_GENERAL;
+        }
         $input['created_by_id'] = $user->id;
         $input['center_id'] = null;
         if ($request->center_id && $user->isInCenter($request->center_id)) {
@@ -151,6 +143,11 @@ class MeetingRoomController extends Controller
                     ->delete();
             }
 
+            if ($input['audience_type'] !== MeetingRoom::AUDIENCE_LINK_INVITE) {
+                MeetingRoomInvitationService::revokeTokensForRoom($meeting);
+                MeetingRoomInvitationService::clearGrantsForRoom($meeting);
+            }
+
             return $meeting->fresh(['assignedParents']);
         });
 
@@ -161,7 +158,93 @@ class MeetingRoomController extends Controller
             MeetingRoomNotifier::syncForRoom($meeting);
         }
 
-        return success();
+        $responseData = ['room_id' => $meeting->id];
+        if ($meeting->audience_type === MeetingRoom::AUDIENCE_LINK_INVITE) {
+            $plain = MeetingRoomInvitationService::ensureActivePlainToken($meeting);
+            if ($plain) {
+                $responseData['invitation_url'] = MeetingRoomInvitationService::buildInvitationUrl($plain);
+            }
+        }
+
+        return success($responseData);
+    }
+
+    public function invitationLink(Request $request, $room)
+    {
+        $user = auth()->user();
+        if (! $user->can('edit_meetings') && ! $user->can('admin_meetings')) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Access denied')]]], 403);
+        }
+
+        $center = Term::resolveCenterId($user, $request->center_id);
+        $roomModel = MeetingRoom::query()
+            ->when($center, fn ($q) => $q->where('center_id', $center))
+            ->find($room);
+
+        if (! $roomModel || ! MeetingRoomAccess::isLinkInviteAudience($roomModel)) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Room not found')]]], 422);
+        }
+
+        $rotate = filter_var($request->query('rotate', false), FILTER_VALIDATE_BOOLEAN);
+        if ($rotate) {
+            $plain = MeetingRoomInvitationService::rotatePlainToken($roomModel);
+            $url = $plain ? MeetingRoomInvitationService::buildInvitationUrl($plain) : null;
+        } else {
+            $plain = MeetingRoomInvitationService::ensureActivePlainToken($roomModel);
+            if ($plain) {
+                $url = MeetingRoomInvitationService::buildInvitationUrl($plain);
+            } elseif (MeetingRoomInvitationService::roomHasActiveInvitationToken($roomModel)) {
+                return response()->json([
+                    'errors' => ['error' => [__('validation.meeting_rooms.Invitation already issued')]],
+                    'requires_rotate' => true,
+                ], 422);
+            } else {
+                $url = null;
+            }
+        }
+
+        if (! $url) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Invitation unavailable')]]], 422);
+        }
+
+        return apiResponse(['invitation_url' => $url]);
+    }
+
+    public function invitationStatus(Request $request)
+    {
+        $token = (string) $request->query('token', '');
+        $valid = MeetingRoomInvitationService::tokenIsValid($token);
+
+        return apiResponse([
+            'valid' => $valid,
+            'requires_login' => ! auth()->check(),
+        ]);
+    }
+
+    public function redeemInvitation(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string|min:16|max:128',
+        ]);
+
+        $user = auth()->user();
+        if (! $user) {
+            return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Login required')]]], 401);
+        }
+
+        $result = MeetingRoomInvitationService::redeemForUser((string) $request->token, $user);
+        if (! $result['ok']) {
+            $message = match ($result['error']) {
+                'center', 'role' => __('validation.meeting_rooms.Invitation not authorized'),
+                default => __('validation.meeting_rooms.Invitation invalid'),
+            };
+
+            return response()->json(['errors' => ['error' => [$message]]], 403);
+        }
+
+        return apiResponse([
+            'room_id' => $result['room']->id,
+        ]);
     }
 
     public function delete($id)
@@ -257,6 +340,27 @@ class MeetingRoomController extends Controller
     {
         if (MeetingRoomAccess::isParentSpecificAudience($meetingRoom)) {
             return $meetingRoom->assignedParents()->get();
+        }
+
+        if (MeetingRoomAccess::isLinkInviteAudience($meetingRoom)) {
+            if (! MeetingRoomInvitationService::tablesReady()) {
+                return collect();
+            }
+
+            return User::query()
+                ->whereIn('id', function ($q) use ($meetingRoom) {
+                    $q->select('user_id')
+                        ->from('meeting_room_link_grants')
+                        ->where('meeting_room_id', $meetingRoom->id);
+                })
+                ->get();
+        }
+
+        if (MeetingRoomAccess::isPublicAudience($meetingRoom)) {
+            return User::query()
+                ->whereHas('centers', fn ($q) => $q->where('centers.id', $meetingRoom->center_id))
+                ->whereHas('roles', fn ($q) => $q->where('default_name', System::USER_TYPE_PARENT_ROLE_NAME))
+                ->get();
         }
 
         $roles = [];

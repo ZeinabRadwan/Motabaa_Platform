@@ -214,6 +214,11 @@ return [
         'Parents required' => '##meeting_rooms.Parents required&&',
         'Invalid parent selection' => '##meeting_rooms.Invalid parent selection&&',
         'Room not found' => '##meeting_rooms.Room not found&&',
+        'Invitation unavailable' => '##meeting_rooms.Invitation unavailable&&',
+        'Invitation already issued' => '##meeting_rooms.Invitation already issued&&',
+        'Invitation invalid' => '##meeting_rooms.Invitation invalid&&',
+        'Invitation not authorized' => '##meeting_rooms.Invitation not authorized&&',
+        'Login required' => '##meeting_rooms.Login required&&',
     ],
     'questionnaires' => [
         "Questionnaire already exists" => "##questionnaires.Questionnaire already exists&&",

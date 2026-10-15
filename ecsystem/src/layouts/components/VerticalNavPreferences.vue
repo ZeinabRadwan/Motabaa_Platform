@@ -1,4 +1,5 @@
 <script setup>
+import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import { isDarkPreferred, useThemeConfig } from '@core/composable/useThemeConfig'
 import { ensureLocale } from '@/plugins/i18n/localeLoader'
 import { useI18n } from 'vue-i18n'
@@ -25,6 +26,10 @@ const languageTooltip = computed(() => (
   locale.value === 'ar'
     ? t('navbar.toggle_lang_en')
     : t('navbar.toggle_lang_ar')
+))
+
+const notificationMenuLocation = computed(() => (
+  isAppRtl.value ? 'top end' : 'top start'
 ))
 
 function toggleTheme() {
@@ -96,6 +101,11 @@ watch(locale, val => {
         </template>
         <span>{{ languageTooltip }}</span>
       </VTooltip>
+
+      <NavBarNotifications
+        class="athar-nav-prefs__notifications"
+        :location="notificationMenuLocation"
+      />
     </div>
   </div>
 </template>

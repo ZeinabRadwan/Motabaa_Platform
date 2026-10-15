@@ -9,7 +9,6 @@ import { can } from '@layouts/plugins/casl'
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {
     statusItems,
-    meetingRoomsTypes,
     meetingRoomAudienceTypes,
 } from '@core/utils/generalItems';
 
@@ -28,8 +27,9 @@ const options = ref({
 
 const searchQuery = ref('')
 const newRoom = ref('')
-const newRoomType = ref('')
 const audienceType = ref('general')
+const lastInvitationUrl = ref('')
+const invitationLinkLoading = ref(false)
 const selectedParentIds = ref([])
 const rooms = ref([])
 const roomDialog = ref(false);
@@ -39,6 +39,14 @@ const selectedStatus = ref('active')
 
 const canManageRooms = computed(() => can('edit_meetings', 'edit_meetings') || can('admin_meetings', 'admin_meetings'))
 const isParentSpecific = computed(() => audienceType.value === 'parents')
+const isLinkInvite = computed(() => audienceType.value === 'link_invite')
+const isPublicAudience = computed(() => audienceType.value === 'general')
+
+const normalizeAudienceType = value => {
+  if (value === 'parents' || value === 'link_invite')
+    return value
+  return 'general'
+}
 
 const searchParents = params => userListStore.searchItems({
   ...params,
@@ -58,16 +66,18 @@ const parentOptionTitle = item => {
 const audienceBadge = room => {
   if (room.audience_type === 'parents')
     return i18n.global.t('rooms.audience_badge_parents')
+  if (room.audience_type === 'link_invite')
+    return i18n.global.t('rooms.audience_badge_link_invite')
 
   return i18n.global.t('rooms.audience_badge_general')
 }
 
 const resetRoomForm = () => {
   newRoom.value = ''
-  newRoomType.value = ''
   audienceType.value = 'general'
   selectedParentIds.value = []
   editingRoomId.value = -1
+  lastInvitationUrl.value = ''
 }
 
 const fetchAllRooms = () => {
@@ -91,8 +101,8 @@ const openEditRoom = (room, event) => {
   event?.stopPropagation?.()
   editingRoomId.value = Number(room.id)
   newRoom.value = room.title
-  newRoomType.value = String(room.type)
-  audienceType.value = room.audience_type === 'parents' ? 'parents' : 'general'
+  audienceType.value = normalizeAudienceType(room.audience_type)
+  lastInvitationUrl.value = ''
   selectedParentIds.value = Array.isArray(room.assigned_parent_ids)
     ? [...room.assigned_parent_ids]
     : []
@@ -104,7 +114,7 @@ const saveRoom = async () => {
     if (validation && validation.valid === false)
       return
 
-    if (!newRoom.value?.trim() || !newRoomType.value) {
+    if (!newRoom.value?.trim()) {
         snackbarRef.value.exposevisibleSnackbar(i18n.global.t('validtion.missing_field'), 'error');
         return;
     }
@@ -116,7 +126,6 @@ const saveRoom = async () => {
     saveLoading.value = true
     const payload = {
       title: newRoom.value.trim(),
-      type: newRoomType.value,
       audience_type: audienceType.value,
       parent_ids: isParentSpecific.value ? selectedParentIds.value : [],
     }
@@ -124,8 +133,16 @@ const saveRoom = async () => {
     roomsReqest.put(payload, String(editingRoomId.value)).then(response => {
         if (response.status == 200) {
             snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
-            roomDialog.value = false;
-            resetRoomForm()
+            const invitationUrl = response.data?.data?.invitation_url
+            if (invitationUrl)
+              lastInvitationUrl.value = invitationUrl
+            if (! isLinkInvite.value) {
+              roomDialog.value = false
+              resetRoomForm()
+            }
+            else if (response.data?.data?.room_id) {
+              editingRoomId.value = Number(response.data.data.room_id)
+            }
             fetchAllRooms()
         }
     }).catch(error => {
@@ -136,6 +153,37 @@ const saveRoom = async () => {
     }).finally(() => {
         saveLoading.value = false
     })
+}
+
+const copyInvitationLink = async (rotate = false) => {
+  if (editingRoomId.value <= 0 && ! lastInvitationUrl.value)
+    return
+
+  invitationLinkLoading.value = true
+  try {
+    let url = lastInvitationUrl.value
+    if (editingRoomId.value > 0) {
+      const response = await roomsReqest.fetchInvitationLink(editingRoomId.value, rotate)
+      url = response.data?.data?.invitation_url
+    }
+    if (url) {
+      lastInvitationUrl.value = url
+      await navigator.clipboard.writeText(url)
+      snackbarRef.value.exposevisibleSnackbar(i18n.global.t('rooms.invitation_link_copied'), 'success')
+    }
+  }
+  catch (error) {
+    if (error.response?.data?.requires_rotate && editingRoomId.value > 0) {
+      await copyInvitationLink(true)
+      return
+    }
+    const msg = error.response?.data?.errors?.error?.[0]
+    if (msg)
+      snackbarRef.value.exposevisibleSnackbar(msg, 'error')
+  }
+  finally {
+    invitationLinkLoading.value = false
+  }
 }
 
 
@@ -206,14 +254,14 @@ watchServerTableFetch(fetchAllRooms, {
                                             />
                                             <div class="d-flex flex-column">
                                                 <h6 class="text-base" :class="!room.deleted_at ? 'text-success' : 'text-error'">
-                                                    {{ room.title }} ({{ room.type_name ? room.type_name : '' }})
+                                                    {{ room.title }}
                                                 </h6>
                                             </div>
                                             </div>
                                             <VChip
                                               size="small"
                                               label
-                                              :color="room.audience_type === 'parents' ? 'primary' : 'secondary'"
+                                              :color="room.audience_type === 'parents' ? 'primary' : room.audience_type === 'link_invite' ? 'warning' : 'secondary'"
                                             >
                                               {{ audienceBadge(room) }}
                                             </VChip>
@@ -279,16 +327,6 @@ watchServerTableFetch(fetchAllRooms, {
                     />
                 </VCol>
                 <VCol cols="12">
-                    <AppSelect
-                        v-model="newRoomType"
-                        :label="$t('rooms.room_type')"
-                        :items="meetingRoomsTypes()"
-                        clearable
-                        clear-icon="tabler-x"
-                    >
-                    </AppSelect>
-                </VCol>
-                <VCol cols="12">
                   <div class="text-body-2 font-weight-medium mb-2">
                     {{ $t('rooms.audience_type') }}
                   </div>
@@ -303,6 +341,45 @@ watchServerTableFetch(fetchAllRooms, {
                       :value="opt.value"
                     />
                   </VRadioGroup>
+                </VCol>
+                <VCol
+                  v-if="isPublicAudience"
+                  cols="12"
+                >
+                  <p class="text-body-2 text-medium-emphasis mb-0">
+                    {{ $t('rooms.audience_hint_public') }}
+                  </p>
+                </VCol>
+                <VCol
+                  v-if="isLinkInvite"
+                  cols="12"
+                >
+                  <p class="text-body-2 text-medium-emphasis mb-0">
+                    {{ $t('rooms.audience_hint_link_invite') }}
+                  </p>
+                </VCol>
+                <VCol
+                  v-if="isLinkInvite && (lastInvitationUrl || editingRoomId > 0)"
+                  cols="12"
+                  class="d-flex flex-wrap gap-2"
+                >
+                  <VBtn
+                    size="small"
+                    variant="tonal"
+                    :loading="invitationLinkLoading"
+                    @click="copyInvitationLink(false)"
+                  >
+                    {{ $t('rooms.copy_invitation_link') }}
+                  </VBtn>
+                  <VBtn
+                    v-if="editingRoomId > 0"
+                    size="small"
+                    variant="outlined"
+                    :loading="invitationLinkLoading"
+                    @click="copyInvitationLink(true)"
+                  >
+                    {{ $t('rooms.regenerate_invitation_link') }}
+                  </VBtn>
                 </VCol>
                 <VCol
                   v-if="isParentSpecific"

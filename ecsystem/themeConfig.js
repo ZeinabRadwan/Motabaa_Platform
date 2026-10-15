@@ -1,5 +1,5 @@
-import { breakpointsVuetify } from '@vueuse/core'
 import { VIcon } from 'vuetify/components/VIcon'
+import { OVERLAY_NAV_BREAKPOINT_PX } from '@/constants/layoutBreakpoints'
 
 // ❗ Logo SVG must be imported with ?raw suffix
 import { defineThemeConfig } from '@core'
@@ -17,7 +17,7 @@ export const { themeConfig, layoutConfig } = defineThemeConfig({
     logo: h('img', { src: resolveSidebarLogoSrc(centerData, userData), style: `line-height:0; color: rgb(var(--v-global-theme-primary)); width: ${centerData ? '80px' : '150px'}` }),
     contentWidth: ContentWidth.Boxed,
     contentLayoutNav: AppContentLayoutNav.Vertical,
-    overlayNavFromBreakpoint: breakpointsVuetify.lg,
+    overlayNavFromBreakpoint: OVERLAY_NAV_BREAKPOINT_PX,
     enableI18n: true,
     theme: 'system',
     isRtl: true,

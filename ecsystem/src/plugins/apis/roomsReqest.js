@@ -41,5 +41,20 @@ export const roomsApi = defineStore('rooms', {
       })
     },
 
+    invitationStatus(token) {
+      return axios.get('/meeting-rooms/invitations/status', { params: { token } })
+    },
+
+    redeemInvitation(token) {
+      return axios.post('/meeting-rooms/invitations/redeem', { token })
+    },
+
+    fetchInvitationLink(roomId, rotate = false) {
+      const centerId = withResolvedCenterId()
+      return axios.get(`/meeting-rooms/${roomId}/invitation-link`, {
+        params: { center_id: centerId, rotate: rotate ? 1 : 0 },
+      })
+    },
+
   },
 })

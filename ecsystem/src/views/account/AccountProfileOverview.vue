@@ -78,7 +78,17 @@ const displayFields = computed(() => {
       <span>{{ $t('account.tab_info') }}</span>
     </header>
 
-    <div class="account-profile__fields-grid">
+    <p
+      v-if="displayFields.length === 0"
+      class="account-profile__empty-hint"
+    >
+      {{ $t('account.profile_no_details') }}
+    </p>
+
+    <div
+      v-else
+      class="account-profile__fields-grid"
+    >
       <div
         v-for="(field, index) in displayFields"
         :key="index"

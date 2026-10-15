@@ -31,6 +31,10 @@ Route::prefix('questionnaires')->middleware(['auth.sanctum.optional'])->group(fu
     Route::post('/{task}/add_answers', [App\Http\Controllers\General\QuestionnaireController::class, 'addAnswers']);
 });
 
+Route::prefix('meeting-rooms/invitations')->middleware(['auth.sanctum.optional'])->group(function () {
+    Route::get('/status', [App\Http\Controllers\General\MeetingRoomController::class, 'invitationStatus']);
+});
+
 Route::prefix('centers')->group(function () {
     Route::get('/packages', [App\Http\Controllers\General\CenterController::class, 'packages']);
 });
@@ -218,6 +222,12 @@ Route::get('/fix', function () {
 
 Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
 
+    Route::prefix('account')->group(function () {
+        Route::get('/profile', [App\Http\Controllers\Account\ProfileController::class, 'show']);
+        Route::post('/profile', [App\Http\Controllers\Account\ProfileController::class, 'update']);
+        Route::put('/password', [App\Http\Controllers\Account\ProfileController::class, 'updatePassword']);
+    });
+
     Route::prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\Admin\UserController::class, 'index']);
         Route::post('/import', [App\Http\Controllers\Admin\UserController::class, 'import']);
@@ -307,6 +317,8 @@ Route::group(['middleware' => ['auth:sanctum', 'auth.relations']], function () {
 
     Route::prefix('meeting-rooms')->group(function () {
         Route::get('/', [App\Http\Controllers\General\MeetingRoomController::class, 'index']);
+        Route::post('/invitations/redeem', [App\Http\Controllers\General\MeetingRoomController::class, 'redeemInvitation']);
+        Route::get('/{room}/invitation-link', [App\Http\Controllers\General\MeetingRoomController::class, 'invitationLink']);
         Route::get('/{room}/show', [App\Http\Controllers\General\MeetingRoomController::class, 'show']);
         Route::put('/put/{room}', [App\Http\Controllers\General\MeetingRoomController::class, 'put']);
         Route::delete('/{id}', [App\Http\Controllers\General\MeetingRoomController::class, 'delete']);

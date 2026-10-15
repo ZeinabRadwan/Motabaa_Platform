@@ -273,6 +273,10 @@ export const meetingRoomAudienceTypes = () => [
     title: i18n.global.t('rooms.audience_parents'),
     value: 'parents',
   },
+  {
+    title: i18n.global.t('rooms.audience_link_invite'),
+    value: 'link_invite',
+  },
 ]
 
 export const independentAssistanceTypeItems = () => {

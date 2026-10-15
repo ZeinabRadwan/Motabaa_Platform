@@ -315,6 +315,25 @@ $athar-radius: 16px;
   padding: 1.25rem 1.375rem 1.375rem;
 }
 
+.account-profile__state-alert {
+  max-inline-size: 40rem;
+}
+
+.account-profile__state-alert-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.account-profile__empty-hint {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  color: rgba($athar-navy, 0.62);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
 .account-profile__actions {
   display: flex;
   flex-wrap: wrap;

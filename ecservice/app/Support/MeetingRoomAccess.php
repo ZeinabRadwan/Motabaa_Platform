@@ -13,6 +13,18 @@ class MeetingRoomAccess
         return ($room->audience_type ?? MeetingRoom::AUDIENCE_GENERAL) === MeetingRoom::AUDIENCE_PARENTS;
     }
 
+    public static function isLinkInviteAudience(MeetingRoom $room): bool
+    {
+        return ($room->audience_type ?? MeetingRoom::AUDIENCE_GENERAL) === MeetingRoom::AUDIENCE_LINK_INVITE;
+    }
+
+    public static function isPublicAudience(MeetingRoom $room): bool
+    {
+        $audience = $room->audience_type ?? MeetingRoom::AUDIENCE_GENERAL;
+
+        return $audience === MeetingRoom::AUDIENCE_GENERAL || $audience === '';
+    }
+
     public static function userCanAccess(?User $user, MeetingRoom $room): bool
     {
         if (! $user) {
@@ -29,6 +41,27 @@ class MeetingRoomAccess
 
         if ($user->can('admin_meetings')) {
             return true;
+        }
+
+        if (self::isLinkInviteAudience($room)) {
+            if ($user->can('edit_meetings') && (int) $room->created_by_id === (int) $user->id) {
+                return true;
+            }
+
+            if ($user->can('show_meetings') || $user->can('access_meetings') || $user->can('edit_meetings')) {
+                if ((int) $room->created_by_id === (int) $user->id) {
+                    return true;
+                }
+                if ((int) $room->type === MeetingRoom::TYPE_ADMINISTRATIVE) {
+                    return true;
+                }
+            }
+
+            if (self::userHasParentRole($user) && MeetingRoomInvitationService::parentHasLinkGrant($user, $room)) {
+                return true;
+            }
+
+            return false;
         }
 
         if (self::isParentSpecificAudience($room)) {
@@ -49,7 +82,7 @@ class MeetingRoomAccess
         }
 
         if (self::userHasParentRole($user)) {
-            return self::parentCanAccessGeneralAudienceRoom($user, $room);
+            return self::isPublicAudience($room);
         }
 
         if ($user->can('edit_meetings') || $user->can('show_meetings') || $user->can('access_meetings')) {
@@ -65,18 +98,24 @@ class MeetingRoomAccess
         return self::userCanAccess($user, $room);
     }
 
-    public static function parentCanAccessGeneralAudienceRoom(User $user, MeetingRoom $room): bool
+    /**
+     * Whether the room may appear in a parent's meeting-room list (sidebar / index).
+     */
+    public static function parentCanListRoom(User $user, MeetingRoom $room): bool
     {
-        if ((int) $room->type === MeetingRoom::TYPE_GENERAL) {
-            return true;
+        if (! self::userHasParentRole($user) || ! $user->isInCenter((int) $room->center_id)) {
+            return false;
         }
 
-        $user->loadMissing(['scaseParent.teacher:id', 'scaseParent.specialists:id']);
-        $teacherIds = $user->scaseParent->pluck('teacher.*.id')->flatten()->all();
-        $specialistIds = $user->scaseParent->pluck('specialists.*.id')->flatten()->all();
-        $staffIds = array_merge($teacherIds, $specialistIds);
+        if (self::isLinkInviteAudience($room)) {
+            return false;
+        }
 
-        return in_array((int) $room->created_by_id, array_map('intval', $staffIds), true);
+        if (self::isParentSpecificAudience($room)) {
+            return self::assignedParentCanAccess($user, $room);
+        }
+
+        return self::isPublicAudience($room);
     }
 
     /**
