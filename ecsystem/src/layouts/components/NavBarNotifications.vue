@@ -7,6 +7,10 @@ const props = defineProps({
     type: String,
     default: 'bottom end',
   },
+  activatorVariant: {
+    type: String,
+    default: 'icon-btn',
+  },
 })
 
 const router = useRouter()
@@ -105,6 +109,7 @@ const handleNotificationClick = notification => {
   <Notifications
     :notifications="notifications"
     :location="props.location"
+    :activator-variant="props.activatorVariant"
     @remove="removeNotification"
     @read="markRead"
     @unread="markUnRead"

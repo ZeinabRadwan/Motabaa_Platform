@@ -42,6 +42,11 @@ const canManageRooms = computed(() => can('edit_meetings', 'edit_meetings') || c
 const isParentSpecific = computed(() => editAudienceType.value === 'parents')
 const isLinkInvite = computed(() => editAudienceType.value === 'link_invite')
 const isLinkInviteRoom = computed(() => props.roomData?.audience_type === 'link_invite')
+const assignedParentsList = computed(() => {
+  if (Array.isArray(props.roomData?.assigned_parents) && props.roomData.assigned_parents.length)
+    return props.roomData.assigned_parents
+  return []
+})
 
 const normalizeAudienceType = value => {
   if (value === 'parents' || value === 'link_invite')
@@ -311,6 +316,23 @@ if (props.roomData.user && !props.roomData.user.picture) {
             >
               {{ props.roomData.audience_type_name || meetingAudienceBadgeLabel(props.roomData.audience_type) }}
             </span>
+          </div>
+          <div
+            v-if="props.roomData.audience_type === 'parents' && assignedParentsList.length"
+            class="meeting-room-detail__meta-row meeting-room-detail__meta-row--stack"
+          >
+            <span class="meeting-room-detail__meta-label">{{ $t('rooms.target_parents') }}</span>
+            <div class="d-flex flex-wrap gap-2 meeting-room-detail__meta-value">
+              <VChip
+                v-for="parent in assignedParentsList"
+                :key="parent.id"
+                size="small"
+                label
+                variant="tonal"
+              >
+                {{ parent.name }}
+              </VChip>
+            </div>
           </div>
         </div>
 

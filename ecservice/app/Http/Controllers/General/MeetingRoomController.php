@@ -104,7 +104,6 @@ class MeetingRoomController extends Controller
         } elseif (! isset($input['type'])) {
             $input['type'] = MeetingRoom::TYPE_GENERAL;
         }
-        $input['created_by_id'] = $user->id;
         $input['center_id'] = null;
         if ($request->center_id && $user->isInCenter($request->center_id)) {
             $input['center_id'] = $request->center_id;
@@ -132,15 +131,25 @@ class MeetingRoomController extends Controller
             return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Room not found')]]], 422);
         }
 
+        if (! $existing) {
+            $input['created_by_id'] = $user->id;
+        }
+
         $meeting = DB::transaction(function () use ($input, $roomId, $parentIds) {
             $meeting = MeetingRoom::updateOrCreate(['id' => $roomId > 0 ? $roomId : null], $input);
             $meeting->assignedParents()->sync($parentIds);
 
             if (\Illuminate\Support\Facades\Schema::hasTable('meeting_room_notified_users')) {
-                DB::table('meeting_room_notified_users')
-                    ->where('meeting_room_id', $meeting->id)
-                    ->whereNotIn('user_id', $parentIds ?: [0])
-                    ->delete();
+                if ($input['audience_type'] === MeetingRoom::AUDIENCE_PARENTS) {
+                    DB::table('meeting_room_notified_users')
+                        ->where('meeting_room_id', $meeting->id)
+                        ->whereNotIn('user_id', $parentIds ?: [0])
+                        ->delete();
+                } elseif ($input['audience_type'] === MeetingRoom::AUDIENCE_LINK_INVITE) {
+                    DB::table('meeting_room_notified_users')
+                        ->where('meeting_room_id', $meeting->id)
+                        ->delete();
+                }
             }
 
             if ($input['audience_type'] !== MeetingRoom::AUDIENCE_LINK_INVITE) {
@@ -154,7 +163,7 @@ class MeetingRoomController extends Controller
         $type = $roomId > 0 ? 'edit_meeting' : 'add_meeting';
         Log::add($type, $meeting, $meeting->id, '');
 
-        if ($meeting->audience_type === MeetingRoom::AUDIENCE_PARENTS) {
+        if ($meeting->audience_type !== MeetingRoom::AUDIENCE_LINK_INVITE) {
             MeetingRoomNotifier::syncForRoom($meeting);
         }
 
@@ -249,7 +258,7 @@ class MeetingRoomController extends Controller
 
     public function delete($id)
     {
-        $record = MeetingRoom::find($id);
+        $record = $this->findManageableMeetingRoom((int) $id);
         if (! $record) {
             return response()->json(['message' => 'Record not found', 'status' => false], 404);
         }
@@ -261,7 +270,7 @@ class MeetingRoomController extends Controller
 
     public function restore($id)
     {
-        $record = MeetingRoom::withTrashed()->find($id);
+        $record = $this->findManageableMeetingRoom((int) $id, withTrashed: true);
         if (! $record) {
             return response()->json(['message' => 'Record not found', 'status' => false], 404);
         }
@@ -331,6 +340,21 @@ class MeetingRoomController extends Controller
         Log::add('start_meeting_message', $message, $message->id, json_encode($logData));
 
         return success();
+    }
+
+    private function findManageableMeetingRoom(int $id, bool $withTrashed = false): ?MeetingRoom
+    {
+        $user = auth()->user();
+        if (! $user->can('edit_meetings') && ! $user->can('admin_meetings')) {
+            return null;
+        }
+
+        $center = Term::resolveCenterId($user, request()->center_id);
+
+        return MeetingRoom::query()
+            ->when($withTrashed, fn ($q) => $q->withTrashed())
+            ->when($center, fn ($q) => $q->where('center_id', $center))
+            ->find($id);
     }
 
     /**

@@ -105,6 +105,7 @@ watch(locale, val => {
       <NavBarNotifications
         class="athar-nav-prefs__notifications"
         :location="notificationMenuLocation"
+        activator-variant="sidebar-toggle"
       />
     </div>
   </div>

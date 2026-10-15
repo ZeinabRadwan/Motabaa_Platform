@@ -7,10 +7,7 @@ const fieldDir = computed(() => (locale.value === 'ar' ? 'rtl' : 'ltr'))
 </script>
 
 <template>
-  <AuthPageShell
-    :dir="fieldDir"
-    mobile-card-offset
-  >
+  <AuthPageShell :dir="fieldDir">
     <header class="auth-page__intro">
       <h1 class="auth-page__title">
         {{ $t('centers.Please click the activation link we sent to your email') }}

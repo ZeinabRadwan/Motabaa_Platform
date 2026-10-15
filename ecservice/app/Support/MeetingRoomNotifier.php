@@ -12,13 +12,20 @@ class MeetingRoomNotifier
 {
     public static function syncForRoom(MeetingRoom $room): void
     {
-        if (! MeetingRoomAccess::isParentSpecificAudience($room) || ! Schema::hasTable('notifications')) {
+        if (! Schema::hasTable('notifications') || MeetingRoomAccess::isLinkInviteAudience($room)) {
             return;
         }
 
-        $room->loadMissing('assignedParents');
-        $assignedIds = $room->assignedParents->pluck('id')->map(fn ($id) => (int) $id);
-        if ($assignedIds->isEmpty()) {
+        if (MeetingRoomAccess::isParentSpecificAudience($room)) {
+            $room->loadMissing('assignedParents');
+            $targetIds = $room->assignedParents->pluck('id')->map(fn ($id) => (int) $id);
+        } elseif (MeetingRoomAccess::isPublicAudience($room)) {
+            $targetIds = MeetingRoomAccess::eligibleCenterParentIds((int) $room->center_id);
+        } else {
+            return;
+        }
+
+        if ($targetIds->isEmpty()) {
             return;
         }
 
@@ -30,7 +37,7 @@ class MeetingRoomNotifier
                 ->map(fn ($id) => (int) $id);
         }
 
-        $toNotify = $assignedIds->diff($alreadyNotified)->values();
+        $toNotify = $targetIds->diff($alreadyNotified)->values();
         if ($toNotify->isEmpty()) {
             return;
         }

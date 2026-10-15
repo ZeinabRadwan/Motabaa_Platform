@@ -16,13 +16,14 @@ class MeetingRoomNotifierTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_sync_skips_when_room_is_general_audience(): void
+    public function test_sync_skips_link_invite_audience(): void
     {
         Schema::shouldReceive('hasTable')->with('notifications')->andReturn(true);
 
         $room = new MeetingRoom([
             'id' => 1,
-            'audience_type' => MeetingRoom::AUDIENCE_GENERAL,
+            'audience_type' => MeetingRoom::AUDIENCE_LINK_INVITE,
+            'center_id' => 1,
         ]);
 
         MeetingRoomNotifier::syncForRoom($room);

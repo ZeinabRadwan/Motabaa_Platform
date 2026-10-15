@@ -28,8 +28,19 @@ class MeetingRoomsResource extends JsonResource
                 ? $this->meetingUrl()
                 : null,
             'assigned_parent_ids' => $this->when($canManage, function () {
+                if ($this->relationLoaded('assignedParents')) {
+                    return $this->assignedParents->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+                }
+
                 return $this->assignedParents()->pluck('users.id')->map(fn ($id) => (int) $id)->values()->all();
             }),
+            'assigned_parents' => $this->when(
+                $canManage && $this->relationLoaded('assignedParents'),
+                fn () => $this->assignedParents->map(fn ($p) => [
+                    'id' => (int) $p->id,
+                    'name' => $p->name,
+                ])->values()->all()
+            ),
             'user' => new \App\Http\Resources\Admin\User\UserGeneralResource($this->user),
             'deleted_at' => $this->deleted_at,
             'created_at' => $this->created_at,

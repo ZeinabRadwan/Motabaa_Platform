@@ -733,6 +733,7 @@
   "navbar.toggle_theme_light": "التبديل إلى الوضع الفاتح",
   "navbar.toggle_lang_ar": "التبديل إلى العربية",
   "navbar.toggle_lang_en": "التبديل إلى الإنجليزية",
+  "navbar.notifications": "الإشعارات",
   "account.profile_title": "الملف الشخصي",
   "account.profile_subtitle": "عرض وتعديل بيانات حسابك",
   "account.tab_info": "البيانات الشخصية",

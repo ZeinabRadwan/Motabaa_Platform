@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\MeetingRoom;
 use App\Models\System\System;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 class MeetingRoomAccess
 {
@@ -159,5 +160,20 @@ class MeetingRoomAccess
         }
 
         return $room->assignedParents()->where('users.id', $user->id)->exists();
+    }
+
+    /**
+     * Parent user IDs eligible for public meeting rooms in a center.
+     *
+     * @return Collection<int, int>
+     */
+    public static function eligibleCenterParentIds(int $centerId): Collection
+    {
+        return User::query()
+            ->where('status', User::STATUS_CAN_LOGIN)
+            ->whereHas('centers', fn ($q) => $q->where('centers.id', $centerId))
+            ->whereHas('roles', fn ($q) => $q->where('roles.default_name', System::USER_TYPE_PARENT_ROLE_NAME))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
     }
 }

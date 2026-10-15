@@ -656,6 +656,7 @@
   "navbar.toggle_theme_light": "Switch to light mode",
   "navbar.toggle_lang_ar": "Switch to Arabic",
   "navbar.toggle_lang_en": "Switch to English",
+  "navbar.notifications": "Notifications",
   "account.profile_title": "My profile",
   "account.profile_subtitle": "View and update your account details",
   "account.tab_info": "Personal information",

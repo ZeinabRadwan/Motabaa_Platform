@@ -248,29 +248,8 @@
     align-items: center;
     justify-content: center;
 
-    #notification-btn {
-      inline-size: 2.375rem;
-      block-size: 2.375rem;
-      border: 1px solid var(--athar-nav-border);
-      border-radius: 10px;
-      background: var(--athar-nav-surface);
-      color: var(--athar-nav-primary);
-      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
-
-      .v-icon {
-        color: var(--athar-nav-primary);
-        font-size: 20px !important;
-      }
-
-      &:hover {
-        border-color: rgba(8, 127, 217, 0.3);
-        background: var(--athar-nav-hover-bg);
-        box-shadow: 0 2px 8px rgba(8, 127, 217, 0.1);
-      }
-
-      &:active {
-        transform: scale(0.96);
-      }
+    .athar-nav-prefs__toggle {
+      position: relative;
     }
 
     .notification-badge .v-badge__badge {
