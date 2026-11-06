@@ -24,29 +24,35 @@ const userTab = ref(null)
 const tabs = computed(() => {
   const items = [
     {
+      id: 'info',
       icon: 'tabler-user',
-      title: 'بيانات الحالة',
+      titleKey: 'case_profile.tab_info',
     },
     {
-      icon: 'tabler-message',
-      title: 'تعليقات',
+      id: 'messages',
+      icon: 'tabler-video',
+      titleKey: 'case_profile.tab_session_clips',
     },
     {
+      id: 'attendance',
       icon: 'tabler-calendar-check',
-      title: 'الحضور',
+      titleKey: 'case_profile.tab_attendance',
       staffOnly: true,
     },
     {
+      id: 'payments',
       icon: 'tabler-currency-dollar',
-      title: 'الرسوم الدراسية',
+      titleKey: 'case_profile.tab_payments',
     },
     {
+      id: 'files',
       icon: 'tabler-file-description',
-      title: 'المرفقات',
+      titleKey: 'case_profile.tab_files',
     },
     {
-      icon: 'tabler-file-description',
-      title: 'الإحصائيات',
+      id: 'statistics',
+      icon: 'tabler-chart-bar',
+      titleKey: 'case_profile.tab_statistics',
     },
   ]
 
@@ -80,14 +86,14 @@ casesReqest.fetchCase(Number(route.params.id)).then(response => {
       >
         <VTab
           v-for="tab in tabs"
-          :key="tab.icon"
+          :key="tab.id"
         >
           <VIcon
             :size="18"
             :icon="tab.icon"
             class="me-1"
           />
-          <span>{{ tab.title }}</span>
+          <span>{{ $t(tab.titleKey) }}</span>
         </VTab>
       </VTabs>
 

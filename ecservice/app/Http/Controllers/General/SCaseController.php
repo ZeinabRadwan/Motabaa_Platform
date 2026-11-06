@@ -27,6 +27,9 @@ use Illuminate\Support\Collection;
 use App\Models\Log;
 use App\Models\Term;
 use App\Support\CaseListAccess;
+use App\Support\CaseProfileAccess;
+use App\Support\ParentAccountResolver;
+use App\Support\ParentCaseAccess;
 
 use App\Models\System\ExportExcel;
 use App\Exports\ExportCases;
@@ -401,8 +404,15 @@ class SCaseController extends Controller
 
     public function fetchImage(Request $request, SCase $case) {
 
+        if ($denied = ParentCaseAccess::denyIfParentCannotAccessCase($case)) {
+            return $denied;
+        }
+
         if($request->attendance_id) {
             $attendance = Attendance::find($request->attendance_id);
+            if (isParentUser() && (! $attendance || (int) $attendance->case_id !== (int) $case->id)) {
+                return Term::forbiddenResponse();
+            }
             $fileURL = $attendance->urlFile();
             if($fileURL)
                 return apiResponse($fileURL);
@@ -429,6 +439,10 @@ class SCaseController extends Controller
 
     public function files(Request $request, SCase $case)
     {
+        if ($denied = CaseProfileAccess::denyView($case)) {
+            return $denied;
+        }
+
         $keywords = getFTS($request->q);
         
         $perPage = resolvePerPage($request);
@@ -441,6 +455,10 @@ class SCaseController extends Controller
 
     public function addFile(Request $request, SCase $case)
     {
+        if ($denied = CaseProfileAccess::denyManageFiles($case)) {
+            return $denied;
+        }
+
         if($request->hasFile('file')) {
 
             $file = $request->file('file');
@@ -464,6 +482,10 @@ class SCaseController extends Controller
 
     public function deleteFile(Request $request, SCase $case)
     {
+        if ($denied = CaseProfileAccess::denyManageFiles($case)) {
+            return $denied;
+        }
+
         $case->deleteFile($request->file_name, $request->file_extension);
         Log::add('delete_case_file', $case, $case->id, '');
         return response()->json(['message' => 'Record deleted successfully', 'status' => true]);
@@ -471,6 +493,10 @@ class SCaseController extends Controller
 
     public function pdf(Request $request, SCase $case, $pdfType)
     {
+        if ($denied = ParentCaseAccess::denyIfParentCannotAccessCase($case)) {
+            return $denied;
+        }
+
         ini_set('max_execution_time', 30000);
         $date = Carbon::now()->toDateString();
         if($pdfType && $pdfType == 'general_data'){
@@ -547,6 +573,10 @@ class SCaseController extends Controller
         )
         ->orderBy('term_id', 'DESC')
         ->orderBy('case_id', 'ASC');
+
+        if (isParentUser($user)) {
+            $fees->whereHas('case', fn ($q) => $q->linkedToParentUser($user->id));
+        }
 
         if (!Term::applyVisibleTerm($fees, $user, $center, $request->term_id)) {
             return Term::forbiddenResponse();
@@ -762,6 +792,10 @@ class SCaseController extends Controller
         )
         ->orderBy('scase_id', 'ASC')
         ->orderBy('batch', 'ASC');
+
+        if (isParentUser($user)) {
+            $payments->whereHas('scase', fn ($q) => $q->linkedToParentUser($user->id));
+        }
 
         if (!Term::applyVisibleTerm($payments, $user, $center, $request->term_id)) {
             return Term::forbiddenResponse();
@@ -1188,9 +1222,10 @@ class SCaseController extends Controller
     
                 $emergencyContact = isset($record['emergency_contact']) ? $record['emergency_contact'] : null;
                 $phone = isset($record['phone']) ? $record['phone'] : null;
-                $parent = null;
-                if($emergencyContact) $parent = User::where('phone', $emergencyContact)->first();
-                if($phone && !$parent) $parent = User::where('phone', $phone)->first();
+                $parent = ParentAccountResolver::findReusableParentForNewCase(
+                    null,
+                    $emergencyContact ?: $phone
+                );
 
 
                 if(!isset($record['parents_id']))

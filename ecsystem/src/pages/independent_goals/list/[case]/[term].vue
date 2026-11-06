@@ -22,6 +22,11 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
+import { isParentUser } from '@core/utils/staffSessionVisibility'
+import ParentPageShell from '@/layouts/components/ParentPageShell.vue'
+import ParentBeneficiarySelector from '@/views/parent/ParentBeneficiarySelector.vue'
+import ParentPublishedGoalsList from '@/views/parent/ParentPublishedGoalsList.vue'
+import { openParentIndependentSkills } from '@/composables/useParentIndependentSkillsNav'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,6 +90,15 @@ const isDialogTransferGoalVisible = ref(false);
 const transferTerms = ref([]);
 const dialogTransferGoalID = ref();
 const transferToTerm = ref();
+const parentSearchQuery = ref('')
+
+const onParentBeneficiaryChange = caseId => {
+  if (caseId == null || caseId === '')
+    return
+  if (Number(caseId) === Number(route.params.case))
+    return
+  openParentIndependentSkills(router, caseId)
+}
 
 const options = ref({
   page: 1,
@@ -514,7 +528,39 @@ const transferGoal = () => {
 </script>
 
 <template>
-  <section>
+  <section v-if="isParentUser()">
+    <ParentPageShell
+      title-i18n-key="independent.parent_page_title"
+      subtitle-i18n-key="independent.parent_skills_subtitle"
+    >
+      <template #beneficiary>
+        <ParentBeneficiarySelector
+          :model-value="Number(route.params.case)"
+          @update:model-value="onParentBeneficiaryChange"
+        />
+      </template>
+
+      <VCard>
+        <VCardText class="d-flex flex-wrap gap-4 align-center">
+          <AppTextField
+            v-model="parentSearchQuery"
+            :placeholder="$t('Search')"
+            density="compact"
+            style="max-inline-size: 16rem;"
+            hide-details
+          />
+        </VCardText>
+        <VDivider />
+        <ParentPublishedGoalsList
+          :case-id="route.params.case"
+          :term-id="route.params.term"
+          category="independent"
+          :search-query="parentSearchQuery"
+        />
+      </VCard>
+    </ParentPageShell>
+  </section>
+  <section v-else>
     <VRow>
       <VCol cols="12">
         <VCard>

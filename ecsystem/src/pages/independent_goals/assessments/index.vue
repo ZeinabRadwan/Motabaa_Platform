@@ -15,8 +15,16 @@ import {
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
-import { sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
+import { isParentUser, sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
 import { openExportDownload } from '@core/utils/exportDownload'
+import ParentBeneficiaryPicker from '@/views/parent/ParentBeneficiaryPicker.vue'
+import { fetchParentCaseTermId } from '@/composables/useParentEducationalProgramNav'
+import { resolveBeneficiarySelection, useParentBeneficiary } from '@/composables/useParentBeneficiary'
+
+const isParent = isParentUser()
+const { selectedBeneficiaryId, selectBeneficiary } = useParentBeneficiary()
+const parentResolving = ref(isParent)
+const parentNeedsPick = computed(() => isParent && !parentResolving.value && !parentReady.value)
 
 const route = useRoute()
 const router = useRouter()
@@ -82,11 +90,92 @@ const canEvaluate = computed(() =>
   && period.value != null && period.value !== ''
 )
 
-onMounted(() => {
-  termItems().then(data => {
-    itemsTerm.value = data
-  })
-  fetchFeilds()
+const parentCaseName = ref('')
+const parentReady = ref(!isParent)
+
+const applyParentCaseFromQuery = async () => {
+  if (!isParent) {
+    parentReady.value = true
+
+    return
+  }
+
+  let caseId = route.query.case ?? selectedBeneficiaryId.value
+
+  if (!caseId) {
+    const { selected } = await resolveBeneficiarySelection()
+    if (selected) {
+      selectBeneficiary(selected)
+      caseId = selected.id
+    }
+  }
+  else {
+    const { selected, clearedInvalid } = await resolveBeneficiarySelection({ routeCaseId: caseId })
+    if (!selected || clearedInvalid) {
+      parentReady.value = false
+      selectedCase.value = null
+
+      return
+    }
+    caseId = selected.id
+  }
+
+  if (!caseId) {
+    parentReady.value = false
+    selectedCase.value = null
+    parentResolving.value = false
+
+    return
+  }
+
+  parentReady.value = true
+  parentResolving.value = false
+  try {
+    const { caseRecord, termId } = await fetchParentCaseTermId(caseId)
+    parentCaseName.value = caseRecord?.name || ''
+    selectedCase.value = Number(caseId)
+    if (termId) {
+      selectedTerm.value = termId
+      const termData = (itemsTerm.value || []).find(item => item.id == termId)
+      const periods = periodTermItems(termData)
+      if (periods.length)
+        period.value = periods[0].value
+    }
+    casesItem.value = caseRecord ? [{ id: caseRecord.id, name: caseRecord.name }] : []
+    options.value.itemsPerPage = 100
+  }
+  catch (error) {
+    console.error(error)
+    parentReady.value = false
+  }
+}
+
+const onParentSelectBeneficiary = async item => {
+  selectBeneficiary(item)
+  await router.replace({ name: 'independent_goals-assessments', query: { case: String(item.id) } })
+  await applyParentCaseFromQuery()
+}
+
+watch(selectedBeneficiaryId, async (id, previous) => {
+  if (!isParent || id == null || id === previous)
+    return
+
+  if (route.query.case && Number(route.query.case) === Number(id))
+    return
+
+  await router.replace({ name: 'independent_goals-assessments', query: { case: String(id) } })
+  await applyParentCaseFromQuery()
+})
+
+watch(() => route.query.case, () => {
+  applyParentCaseFromQuery()
+})
+
+onMounted(async () => {
+  itemsTerm.value = await termItems()
+  if (!isParent)
+    fetchFeilds()
+  await applyParentCaseFromQuery()
 });
 
 const casesFilterKey = computed(() => [
@@ -95,14 +184,15 @@ const casesFilterKey = computed(() => [
   selectedFeild.value,
 ].join('|'))
 
+// Parents have no filters; their case and term are set together from the selected child.
 watch(teacher, () => {
-  if(!updatingGoal.value) {
+  if(!updatingGoal.value && !isParent) {
     selectedCase.value = null
   }
 })
 
 watch([selectedTerm, selectedFeild], () => {
-  if (!updatingGoal.value) {
+  if (!updatingGoal.value && !isParent) {
     selectedCase.value = null
   }
 })
@@ -259,6 +349,10 @@ const translatedHeaders = () => {
 
   if(selectedCase.value) {
     headers = headers.filter(header => header.key != 'case')
+  }
+
+  if (isParent) {
+    headers = headers.filter(header => ['behavioral_goal', 'assessment'].includes(header.key))
   }
 
   let translatedHeaders = headers.map(header => ({
@@ -441,12 +535,41 @@ watchAssessmentTableFetch({
 </script>
 
 <template>
-  <section>
+  <section v-if="isParent && !parentReady">
+    <ParentBeneficiaryPicker
+      v-if="parentNeedsPick"
+      title-i18n-key="goals.parent_assessment_picker_title"
+      hint-i18n-key="goals.parent_assessment_picker_hint"
+      :auto-select-single="false"
+      @select="onParentSelectBeneficiary"
+    />
+    <div
+      v-else-if="parentResolving"
+      class="pa-6 d-flex justify-center"
+    >
+      <VProgressCircular
+        indeterminate
+        color="primary"
+      />
+    </div>
+  </section>
+  <section v-else>
     <VRow>
       <VCol cols="12">
         <VCard>
+          <VCardText v-if="isParent">
+            <h3 class="text-h5">
+              {{ $t('goals.parent_assessment_heading', { name: parentCaseName }) }}
+            </h3>
+            <p
+              v-if="!loading.goals && !goals.length"
+              class="text-medium-emphasis mt-3 mb-0"
+            >
+              {{ $t('goals.parent_assessment_empty') }}
+            </p>
+          </VCardText>
           <!-- 👉 Filters -->
-          <VCardText>
+          <VCardText v-if="!isParent">
             <VRow>
               <VCol
                 cols="12"
@@ -529,7 +652,10 @@ watchAssessmentTableFetch({
 
           <VDivider />
 
-          <VCardText class="d-flex flex-wrap py-4 gap-4">
+          <VCardText
+            v-if="!isParent"
+            class="d-flex flex-wrap py-4 gap-4"
+          >
             <div class="me-3 d-flex gap-3">
               <AppSelect
                 :model-value="options.itemsPerPage"
@@ -558,7 +684,7 @@ watchAssessmentTableFetch({
               <VBtn v-if="can('edit_independent-evaluations', 'edit_independent-evaluations') && goals.length>0 && canEvaluate && periodStatus != 1 && !canDoes('parent')" @click="saveGoals" :disabled="!updatingGoal">
                 {{ $t('Save') }}
               </VBtn>
-              <VBtn v-if="can('edit_independent-evaluations', 'edit_independent-evaluations') && goals.length>0 && canEvaluate && periodStatus == 1 && !canDoes('parent')" color="success" @click="printGoals" :loading="loading.period_pdf">
+              <VBtn v-if="goals.length>0 && canEvaluate && !canDoes('parent')" color="success" @click="printGoals" :loading="loading.period_pdf" :disabled="updatingGoal">
                 {{ $t('print_period') }}
               </VBtn>
               <VBtn v-if="can('edit_independent-evaluations', 'edit_independent-evaluations') && goals.length>0 && canEvaluate && periodStatus != 1 && !canDoes('parent')" color="success" @click="dialogPeriodAction('finish')" :disabled="updatingGoal">
@@ -574,6 +700,7 @@ watchAssessmentTableFetch({
 
           <!-- SECTION datatable -->
           <VDataTableServer
+            v-if="!isParent || goals.length || loading.goals"
             v-model:items-per-page="options.itemsPerPage"
             v-model:page="options.page"
             :items="goals"
@@ -765,4 +892,7 @@ watchAssessmentTableFetch({
   meta:
     action: access_independent-evaluations
     subject: access_independent-evaluations
+    actionsAny:
+      - access_independent-evaluations
+      - access_parent-independent-evaluations
 </route>

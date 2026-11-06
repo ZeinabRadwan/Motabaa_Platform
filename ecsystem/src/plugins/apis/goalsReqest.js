@@ -23,7 +23,64 @@ export const goalsApi = defineStore('goals', {
       params['center_id'] = Number(localStorage.getItem('center'));
       return axios.get('/goals/filter', { params })
     },
+
+    fetchParentTreatmentCategories(params) {
+      params['center_id'] = Number(localStorage.getItem('center'));
+      return axios.get('/goals/parent-treatment-categories', { params })
+    },
     
+    fetchParentDetails(id, params = {}) {
+      params['center_id'] = Number(localStorage.getItem('center'));
+      return axios.get(`/goals/parent-details/${id}`, { params, silentForbidden: true })
+    },
+
+    addParentMessage(id, { caseId, section, field, file, fileName, content }, onProgress, signal) {
+      const formData = new FormData()
+      formData.append('center_id', String(Number(localStorage.getItem('center'))))
+      formData.append('case_id', String(caseId))
+      formData.append('section', section)
+      formData.append(field, file, fileName || file.name)
+      if (content)
+        formData.append('content', content)
+
+      return axios.post(`/goals/parent-details/${id}/messages`, formData, {
+        silentForbidden: true,
+        signal,
+
+        // Large videos on mobile networks can take longer than the instance default.
+        timeout: 0,
+        onUploadProgress: event => {
+          const total = event.total || file.size
+          if (onProgress && total)
+            onProgress(Math.min(100, Math.round((event.loaded / total) * 100)))
+        },
+      })
+    },
+
+    addParentMessageChunk(id, { caseId, section, field, uploadId, file, fileName, chunk, content }, onProgress, signal) {
+      const formData = new FormData()
+
+      formData.append('center_id', String(Number(localStorage.getItem('center'))))
+      formData.append('case_id', String(caseId))
+      formData.append('section', section)
+      formData.append('field', field)
+      formData.append('upload_id', uploadId)
+      formData.append('file_name', fileName || file.name)
+      formData.append('total_size', String(file.size))
+      formData.append('total_chunks', String(chunk.totalChunks))
+      formData.append('chunk_index', String(chunk.index))
+      formData.append('chunk', chunk.blob, 'chunk')
+      if (chunk.isLast && content)
+        formData.append('content', content)
+
+      return axios.post(`/goals/parent-details/${id}/messages/chunks`, formData, {
+        silentForbidden: true,
+        signal,
+        timeout: 180000,
+        onUploadProgress: event => onProgress?.(event.loaded),
+      })
+    },
+
     fetchSteps(params) { return axios.get('/goals/steps', { params }) },
     fetchPeriodStatus(params) { return axios.get('/goals/period_status', { params }) },
     fetchEvaluationsSteps(params) { return axios.get('/goals/evaluations_steps', { params }) },

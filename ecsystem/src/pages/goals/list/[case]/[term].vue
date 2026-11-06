@@ -1,5 +1,5 @@
 <script setup>
-import { applyServerTableOptions, watchServerTableFetch } from '@core/utils/tableFetch'
+import { applyServerTableOptions, fetchAllPages, watchServerTableFetch } from '@core/utils/tableFetch'
 import { paginationMeta } from '@/@fake-db/utils'
 import i18n from '@/plugins/i18n/index.js'
 import { avatarText } from '@core/utils/formatters'
@@ -22,6 +22,20 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
+import { isParentUser } from '@core/utils/staffSessionVisibility'
+import ParentGoalTitleLink from '@/components/parent/ParentGoalTitleLink.vue'
+import ParentGoalSearchField from '@/components/parent/ParentGoalSearchField.vue'
+import { useParentBeneficiary } from '@/composables/useParentBeneficiary'
+import { openParentIndividualPlan } from '@/composables/useParentEducationalProgramNav'
+import { filterByAnyWord, goalTitleTexts } from '@/utils/parentGoalSearch'
+
+const isParent = isParentUser()
+
+const parentGoalDetailsLocation = goal => (
+  can('access_education-goals', 'access_education-goals')
+    ? { name: 'goals-details-case-term-goal', params: { case: route.params.case, term: route.params.term, goal: goal.id } }
+    : null
+)
 
 const route = useRoute()
 const router = useRouter()
@@ -33,6 +47,9 @@ const goalsReqest = goalsApi()
 const termsReqest = termsApi()
 
 const searchQuery = ref('')
+
+// Parents search the whole loaded plan on the page, by any word of the visible columns.
+const parentSearch = ref('')
 const selectedFeild = ref(null)
 const snackbarRef = ref(null)
 const itemsFeild = ref([])
@@ -106,25 +123,42 @@ watch(editToDate, query => {
 // 👉 Fetching users
 const fetchGoals = () => {
   loading.value.goals = true
-  goalsReqest.fetchAll({
+
+  const caseId = route.params.case
+  const termId = route.params.term
+
+  const params = {
     q: searchQuery.value,
     status: selectedStatus.value,
     category: 'educational',
-    case_id: route.params.case,
-    term_id: route.params.term,
+    case_id: caseId,
+    term_id: termId,
     feild_id: selectedFeild.value,
     date_from: selectedFrom.value,
     date_to: selectedTo.value,
     options: options.value,
     page: options.value.page,
+  }
 
-  }).then(response => {
+  // Parents see the whole plan without pagination controls, so every page is loaded.
+  const request = isParent
+    ? fetchAllPages(page => goalsReqest.fetchAll({ ...params, page, options: { ...options.value, page } }))
+    : goalsReqest.fetchAll(params)
+
+  request.then(response => {
+    if (caseId !== route.params.case || termId !== route.params.term)
+      return
+
     users.value = response.data.data
     totalPage.value = Math.ceil(response.data.total / response.data.perPage)
     totalGoals.value = response.data.total
     options.value.page = response.data.currentPage
     loading.value.goals = false
   }).catch(error => {
+    if (caseId !== route.params.case || termId !== route.params.term)
+      return
+
+    loading.value.goals = false
     console.error(error)
   })
 }
@@ -143,6 +177,7 @@ const fetchFeilds = () => {
           title: i18n.global.t("without_feild")
         })
     }).catch(error => {
+        loading.value.feilds = false
         console.error(error)
     })
 };
@@ -157,7 +192,13 @@ const fetchTerm = () => {
 
 const fetchCase = () => {
   loading.value.cases = true;
-  casesReqest.fetchCase(route.params.case).then(response => {
+
+  const caseId = route.params.case
+
+  casesReqest.fetchCase(caseId).then(response => {
+    if (caseId !== route.params.case)
+      return
+
     loading.value.cases = false;
     selectedCase.value = response.data.data
     casesItem.value = [{ id: response.data.data.id, name: response.data.data.name }]
@@ -170,6 +211,41 @@ const fetchCase = () => {
 
 fetchCase()
 fetchTerm()
+
+// The route component is reused when only the case or term changes (e.g. switching child).
+watch(() => [route.params.case, route.params.term], (next, previous) => {
+  if (route.name !== 'goals-list-case-term' || (next[0] === previous[0] && next[1] === previous[1]))
+    return
+
+  users.value = []
+  selectedFeild.value = null
+  parentSearch.value = ''
+  options.value.page = 1
+  fetchCase()
+  fetchTerm()
+})
+
+const displayedGoals = computed(() => (isParent
+  ? filterByAnyWord(users.value, parentSearch.value, goal => [
+    ...goalTitleTexts(goal, i18n.global.t),
+    goal.assessment_first_feild?.title,
+    goal.assessment_parent?.title,
+  ])
+  : users.value))
+
+if (isParent) {
+  options.value.itemsPerPage = 100
+
+  const { selectedBeneficiaryId } = useParentBeneficiary()
+
+  watch(selectedBeneficiaryId, id => {
+    if (id == null || Number(id) === Number(route.params.case))
+      return
+
+    openParentIndividualPlan(router, id)
+  })
+}
+
 const onTableOptions = incoming => applyServerTableOptions(options, incoming)
 
 watchServerTableFetch(fetchGoals, {
@@ -235,8 +311,7 @@ const translatedHeaders = () => {
   ]
 
   if(canDoes('parent')) {
-    delete headers[5]
-    delete headers[6]
+    headers = headers.filter(header => !['assessment', 'status', 'actions'].includes(header.key))
   }
 
   let translatedHeaders = headers.map(header => ({
@@ -515,8 +590,33 @@ const transferGoal = () => {
   <VRow>
     <VCol cols="12">
       <VCard>
+        <VCardText v-if="isParent">
+          <h3 class="text-h5">
+            {{ $t('goals.parent_plan_heading', { name: selectedCase?.name || '' }) }}
+          </h3>
+          <p
+            v-if="!loading.goals && !users.length"
+            class="text-medium-emphasis mt-3 mb-0"
+          >
+            {{ $t('goals.parent_plan_empty') }}
+          </p>
+          <ParentGoalSearchField
+            v-if="users.length"
+            v-model="parentSearch"
+            class="mt-4"
+            style="max-inline-size: 32rem;"
+            :total="users.length"
+            :shown="displayedGoals.length"
+          />
+          <p
+            v-if="!loading.goals && users.length && !displayedGoals.length"
+            class="text-medium-emphasis mt-3 mb-0"
+          >
+            {{ $t('parent_goal_search.no_results') }}
+          </p>
+        </VCardText>
         <!-- 👉 Filters -->
-        <VCardText>
+        <VCardText v-else>
           <VRow>
             <VCol
               cols="12"
@@ -613,7 +713,10 @@ const transferGoal = () => {
 
         <VDivider />
 
-        <VCardText class="d-flex flex-wrap py-4 gap-4">
+        <VCardText
+          v-if="!isParent"
+          class="d-flex flex-wrap py-4 gap-4"
+        >
           <div class="me-3 d-flex gap-3">
             <AppSelect
               :model-value="options.itemsPerPage"
@@ -666,11 +769,12 @@ const transferGoal = () => {
         <VDataTableServer
           v-model:items-per-page="options.itemsPerPage"
           v-model:page="options.page"
-          :items="users"
+          :items="displayedGoals"
           :loading="loading.goals"
-          :items-length="totalGoals"
+          :items-length="isParent ? displayedGoals.length : totalGoals"
           :headers="translatedHeaders()"
           class="dataTable"
+          :hide-default-footer="isParent"
           @update:options="onTableOptions"
         >
           <template #item.assessment="{ item }">
@@ -694,11 +798,17 @@ const transferGoal = () => {
           <template #item.behavioral_goal="{ item }">
             <div class="align-center">
               <RouterLink
+                v-if="!isParent"
                 :to="{ name: 'goals-sessions-case-term-goal', params: { case: route.params.case, term: route.params.term, goal: item.raw.id } }"
                 class="font-weight-medium user-list-name"
               >
                 <span>{{ item.raw.title }}</span> <span v-if="item.raw.standard">{{ $t(item.raw.standard) }}</span> <span v-if="item.raw.generalization">{{ $t(item.raw.generalization) }}</span>
               </RouterLink>
+              <ParentGoalTitleLink
+                v-else
+                :goal="item.raw"
+                :to="parentGoalDetailsLocation(item.raw)"
+              />
             </div>
           </template>
 
@@ -792,7 +902,7 @@ const transferGoal = () => {
           <template #item.actions="{ item }">
 
             <IconBtn 
-              v-if="can('access_education-goals','access_education-goals')" 
+              v-if="!isParent && can('access_education-goals','access_education-goals')" 
               :title="$t('View')" 
               @click="router.push({ name: 'goals-sessions-case-term-goal', params: { case: route.params.case, term: route.params.term, goal: item.raw.id } });"
             >
@@ -856,7 +966,10 @@ const transferGoal = () => {
           </template>
 
           <!-- pagination -->
-          <template #bottom>
+          <template
+            v-if="!isParent"
+            #bottom
+          >
             <VDivider />
             <div class="d-flex align-center justify-sm-space-between justify-center flex-wrap gap-3 pa-5 pt-3">
               <p class="text-sm text-disabled mb-0">

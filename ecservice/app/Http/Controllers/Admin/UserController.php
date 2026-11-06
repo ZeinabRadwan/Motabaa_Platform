@@ -24,6 +24,10 @@ use App\Exports\ExportParents;
 use App\Mail\SystemMail;
 use App\Models\UserFileMeta;
 use App\Models\Term;
+use App\Support\ParentAccountResolver;
+use App\Support\ParentAccountService;
+use App\Support\ParentIdentity;
+use App\Support\ParentPhoneNumberService;
 
 class UserController extends Controller
 {
@@ -265,6 +269,86 @@ class UserController extends Controller
             $input['status'] = User::STATUS_CANNT_LOGIN;
         }
 
+        if (ParentIdentity::roleIdsIncludeParent($input['roles'] ?? null)) {
+            if ($normalizedEmail = ParentIdentity::normalizeEmail($input['email'] ?? null)) {
+                $input['email'] = $normalizedEmail;
+            }
+            if ($canonicalPhone = ParentIdentity::canonicalPhone($input['phone'] ?? null)) {
+                $input['phone'] = $canonicalPhone;
+            }
+
+            $resolution = ParentAccountResolver::resolveForContact(
+                $input['email'] ?? null,
+                $input['phone'] ?? null
+            );
+
+            if ($resolution['conflict']) {
+                return response()->json([
+                    'errors' => [
+                        'parent_identity' => [__('validation.parent_identity.conflict', [
+                            'reason' => $resolution['conflict_reason'],
+                        ])],
+                    ],
+                    'parent_identity' => $resolution,
+                ], 422);
+            }
+
+            $nonParentBlock = ParentAccountService::nonParentContactBlock(
+                $input['email'] ?? null,
+                $input['phone'] ?? null
+            );
+            if ($nonParentBlock['blocked']) {
+                return response()->json([
+                    'errors' => [
+                        'parent_identity' => [__('validation.parent_identity.staff_collision')],
+                    ],
+                    'parent_identity' => $resolution,
+                ], 422);
+            }
+
+            if ($resolution['existing_user_id']) {
+                $existing = User::find($resolution['existing_user_id']);
+                if (! $existing || ! isParentUser($existing)) {
+                    return response()->json([
+                        'errors' => ['parent_identity' => [__('validation.parent_identity.conflict', ['reason' => 'invalid_match'])]],
+                    ], 422);
+                }
+
+                $existing = ParentAccountService::reuseExistingParent(
+                    $existing,
+                    isset($input['center_id']) ? (int) $input['center_id'] : null,
+                    $input
+                );
+
+                Log::add('reuse_parent_account', $existing, $existing->id, json_encode([
+                    'match_reason' => $resolution['match_reason'],
+                ]));
+
+                return response()->json([
+                    'message' => __('validation.parent_identity.reused_account'),
+                    'status' => true,
+                    'reused_parent' => true,
+                    'user_id' => $existing->id,
+                    'data' => new UserResource($existing->load('roles')),
+                    'parent_identity' => $resolution,
+                ], 200);
+            }
+        }
+
+        if (ParentIdentity::roleIdsIncludeParent($input['roles'] ?? null)) {
+            $nonParentBlock = ParentAccountService::nonParentContactBlock(
+                $input['email'] ?? null,
+                $input['phone'] ?? null
+            );
+            if ($nonParentBlock['blocked']) {
+                return response()->json([
+                    'errors' => [
+                        'parent_identity' => [__('validation.parent_identity.staff_collision')],
+                    ],
+                ], 422);
+            }
+        }
+
         $user = User::create($input);
         if($input['center_id']){
             CenterUser::create(['center_id'=> $input['center_id'], 'user_id'=> $user->id]);
@@ -294,11 +378,21 @@ class UserController extends Controller
             $input['status'] = User::STATUS_CAN_LOGIN;
         }
 
+        $previousPhone = $user->phone;
+        $isParentAccount = isParentUser($user);
+        if ($isParentAccount && ($conflict = ParentPhoneNumberService::accountPhoneConflict($user, $input['phone'] ?? null))) {
+            return response()->json(['errors' => ['phone' => [__('validation.parent_phone_numbers.'.$conflict)]]], 422);
+        }
+
         $user->on_center_sponsorship = isset($input['on_center_sponsorship']) ? $input['on_center_sponsorship'] : 0;
         $user->update($input);
 
         if($input['roles']){
             $user->syncRoles(explode(',', $input['roles']));
+        }
+
+        if ($isParentAccount && $previousPhone !== $user->phone) {
+            ParentPhoneNumberService::syncAfterAccountPhoneChange($user, $previousPhone);
         }
 
         if($request->hasFile('image')){
@@ -324,7 +418,28 @@ class UserController extends Controller
 
     public function impersonate(ImpersonateRequest $request, User $user)
     {
+        try {
+            return $this->startImpersonation($request, $user);
+        } catch (\Throwable $e) {
+            report($e);
+            \Illuminate\Support\Facades\Log::error('impersonate_failed', [
+                'admin_id' => $request->user()?->id,
+                'target_id' => $user->id,
+                'exception' => get_class($e),
+                'file' => $e->getFile().':'.$e->getLine(),
+            ]);
+
+            return response()->json([
+                'errors' => ['error' => [__('validation.impersonation_session_failed')]],
+                'error_ref' => class_basename($e),
+            ], 500);
+        }
+    }
+
+    private function startImpersonation(ImpersonateRequest $request, User $user)
+    {
         $admin = $request->user();
+        $user->loadMissing('roles');
 
         if (isImpersonating($admin) || $user->id === $admin->id || isHasRole('admin', $user)) {
             return response()->json(['errors' => ['error' => [__("validation.You cannot impersonate this user.")]]], 422);
@@ -336,7 +451,16 @@ class UserController extends Controller
 
         $user->load(['roles', 'centers']);
         $startedAt = now();
-        $token = $user->createToken('impersonation:'.$admin->id.':'.$startedAt->timestamp)->plainTextToken;
+
+        try {
+            $token = $user->createToken('impersonation:'.$admin->id.':'.$startedAt->timestamp)->plainTextToken;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'errors' => ['error' => [__('validation.impersonation_token_failed')]],
+            ], 500);
+        }
 
         $description = sprintf(
             'Admin #%d %s (%s) started impersonating User #%d %s (%s) at %s',
@@ -349,13 +473,27 @@ class UserController extends Controller
             $startedAt->toDateTimeString()
         );
 
-        Log::add('impersonate_start', $user, $user->id, $description, $user->centers[0]->id ?? 0);
+        try {
+            Log::add('impersonate_start', $user, $user->id, $description, $user->centers[0]->id ?? 0);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        try {
+            $sessionUser = UserResource::forSession($user)->resolve($request);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'errors' => ['error' => [__('validation.impersonation_session_failed')]],
+            ], 500);
+        }
 
         return response()->json([
-            'user' => UserResource::forSession($user),
+            'user' => $sessionUser,
             'token' => $token,
             'status' => true,
-        ]);
+        ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     public function stop_impersonation(Request $request)
@@ -386,14 +524,26 @@ class UserController extends Controller
         );
 
         $target->loadMissing('centers');
-        Log::add('impersonate_stop', $target, $target->id, $description, $target->centers[0]->id ?? 0, $adminId ?: null);
+        try {
+            Log::add('impersonate_stop', $target, $target->id, $description, $target->centers[0]->id ?? 0, $adminId ?: null);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         $adminToken = null;
         $adminResource = null;
         if ($admin) {
             $admin->load(['roles', 'centers']);
-            $adminToken = $admin->createToken('auth-token')->plainTextToken;
-            $adminResource = UserResource::forSession($admin);
+            try {
+                $adminToken = $admin->createToken('auth-token')->plainTextToken;
+                $adminResource = UserResource::forSession($admin)->resolve($request);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'errors' => ['error' => [__('validation.impersonation_session_failed')]],
+                ], 500);
+            }
         }
 
         $token->delete();
@@ -402,7 +552,7 @@ class UserController extends Controller
             'status' => true,
             'token' => $adminToken,
             'user' => $adminResource,
-        ]);
+        ], 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     public function delete($id)
@@ -1051,27 +1201,47 @@ class UserController extends Controller
                         }
                         if(empty($headers->name) || empty($values[$headers->name])) continue;
             
-                        $user = null;
-                        if($values[$headers->id_or_residence_number] || $values[$headers->email] || $values[$headers->phone]) {
-                            $user = User::when(
+                        $normalizedEmail = ParentIdentity::normalizeEmail($values[$headers->email] ?? null);
+                        $canonicalPhone = ParentIdentity::canonicalPhone($values[$headers->phone] ?? null);
+                        $resolution = ParentAccountResolver::resolveForContact($normalizedEmail, $canonicalPhone);
+                        $reuseParentId = null;
+
+                        if ($resolution['conflict']) {
+                            $errors[] = __("tr.Error").": ".__('validation.parent_identity.conflict', [
+                                'reason' => $resolution['conflict_reason'],
+                            ]);
+                        } elseif (ParentAccountService::nonParentContactBlock($normalizedEmail, $canonicalPhone)['blocked']) {
+                            $errors[] = __("tr.Error").": ".__('validation.parent_identity.staff_collision');
+                        } elseif ($resolution['existing_user_id']) {
+                            $reuseParentId = (int) $resolution['existing_user_id'];
+                        } elseif ($values[$headers->id_or_residence_number] || $normalizedEmail || $canonicalPhone) {
+                            $legacyMatch = User::when(
                                 $values[$headers->id_or_residence_number],
                                 fn ($q) => $q->orWhere('id_or_residence_number', $values[$headers->id_or_residence_number])
                             )->when(
-                                $values[$headers->email],
-                                fn ($q) => $q->orWhere('email', $values[$headers->email])
+                                $normalizedEmail,
+                                fn ($q) => $q->orWhereRaw('LOWER(TRIM(email)) = ?', [$normalizedEmail])
                             )->when(
-                                $values[$headers->phone],
-                                fn ($q) => $q->orWhere('phone', $values[$headers->phone])
+                                $canonicalPhone,
+                                fn ($q) => $q->orWhere('phone', $canonicalPhone)
                             )
                             ->withTrashed()
                             ->first();
+                            if ($legacyMatch && ! isParentUser($legacyMatch)) {
+                                $errors[] = __("tr.Error").": ".__('validation.parent_identity.staff_collision');
+                            } elseif ($legacyMatch && isParentUser($legacyMatch)) {
+                                $reuseParentId = (int) $legacyMatch->id;
+                            }
                         }
-            
-                        if($user) {
-                            $errors[] = __("tr.Error").": ".__("tr.Errors.Already exists");
+
+                        $user = $reuseParentId
+                            ? User::withTrashed()->find($reuseParentId) ?? new User()
+                            : new User();
+
+                        if ($reuseParentId) {
+                            $user->import_reuse_parent = true;
+                            $user->import_reuse_parent_id = $reuseParentId;
                         }
-                            
-                        $user = new User();
             
                         if(!array_key_exists(trim($values[$headers->nationality]), $nationalities)) {
                             $errors[] = __("tr.Error").": ".__("tr.Errors.Missing nationality value");
@@ -1116,27 +1286,32 @@ class UserController extends Controller
                 if(isset($record['id']) && $record['id']>0)
                     $user = User::where('id', $record['id'])->withTrashed()->first();
                 else {
+                    $normalizedEmail = ParentIdentity::normalizeEmail($record['email'] ?? null);
+                    $canonicalPhone = ParentIdentity::canonicalPhone($record['phone'] ?? null);
+                    $resolution = ParentAccountResolver::resolveForContact($normalizedEmail, $canonicalPhone);
+
+                    if ($resolution['conflict'] || ParentAccountService::nonParentContactBlock($normalizedEmail, $canonicalPhone)['blocked']) {
+                        continue;
+                    }
+
+                    if ($resolution['existing_user_id']) {
+                        $existing = User::find($resolution['existing_user_id']);
+                        if ($existing && isParentUser($existing)) {
+                            ParentAccountService::reuseExistingParent($existing, (int) $request->center_id, $record);
+                            continue;
+                        }
+                    }
+
                     $user = new User();
                     $user->password = bcrypt('P@ssw0rd');
-
-                    if(isset($record['email']) && $record['email']) {
-                        $emailExists = User::where('email', $record['email'])->withTrashed()->first();
-                        if($emailExists)
-                            continue;
-                    }
-
-                    if(isset($record['phone']) && $record['phone']) {
-                        $phoneExists = User::where('phone', $record['phone'])->withTrashed()->first();
-                        if($phoneExists)
-                            continue;
-                    }
                 }
 
                 $user->name = $record['name'];
-                $user->email = $record['email'];	    	
+                $user->email = ParentIdentity::normalizeEmail($record['email'] ?? null) ?? $record['email'];
                 $user->nationality = isset($record['nationality_code']) ? $record['nationality_code'] : null;
                 $user->id_or_residence_number = isset($record['id_or_residence_number']) ? $record['id_or_residence_number'] : null;
-                $user->phone = isset($record['phone']) ? $record['phone'] : null;
+                $canonicalPhone = ParentIdentity::canonicalPhone($record['phone'] ?? null);
+                $user->phone = $canonicalPhone ?? ($record['phone'] ?? null);
                 $user->address_unit = isset($record['address_unit']) ? $record['address_unit'] : null;
                 $user->address_building = isset($record['address_building']) ? $record['address_building'] : null;
                 $user->address_street = isset($record['address_street']) ? $record['address_street'] : null;

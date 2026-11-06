@@ -1,0 +1,197 @@
+@use '@/styles/athar-dashboard-tokens.scss' as athar;
+
+.parent-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.parent-page__header {
+  margin: 0;
+}
+
+.parent-page__title {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: athar.$athar-navy-dark;
+  line-height: 1.3;
+}
+
+.parent-page__subtitle {
+  margin: 0.4rem 0 0;
+  font-size: 0.9375rem;
+  color: athar.$athar-muted;
+  max-width: 42rem;
+}
+
+.parent-page__body {
+  min-width: 0;
+}
+
+.parent-page-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.parent-page-skeleton__bar {
+  border-radius: athar.$athar-radius-sm;
+  background: linear-gradient(
+    90deg,
+    rgba(athar.$athar-navy-dark, 0.06) 25%,
+    rgba(athar.$athar-navy-dark, 0.1) 50%,
+    rgba(athar.$athar-navy-dark, 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: parent-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes parent-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.parent-layout-beneficiary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-block-end: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(athar.$athar-primary, 0.18);
+  border-radius: athar.$athar-radius-md;
+  background: athar.$athar-light-blue;
+}
+
+.parent-layout-beneficiary__loading {
+  min-block-size: 0.25rem;
+}
+
+.parent-layout-beneficiary__message {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.parent-layout-beneficiary__active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.parent-layout-beneficiary__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: athar.$athar-muted;
+}
+
+.parent-layout-beneficiary__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: athar.$athar-navy-dark;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.parent-layout-beneficiary__switcher,
+.parent-layout-beneficiary__switcher-only {
+  :deep(.parent-beneficiary-selector) {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    background: transparent;
+  }
+}
+
+.parent-beneficiary-selector {
+  border: 1px solid athar.$athar-border;
+  border-radius: athar.$athar-radius-md;
+  background: athar.$athar-surface;
+  box-shadow: athar.$athar-shadow-sm;
+  padding: 0.85rem 1rem;
+}
+
+.parent-beneficiary-selector__label {
+  margin: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: athar.$athar-muted;
+}
+
+.parent-beneficiary-selector__track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.parent-beneficiary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.65rem 0.35rem 0.35rem;
+  border: 1px solid athar.$athar-border;
+  border-radius: 999px;
+  background: athar.$athar-surface;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: athar.$athar-navy-dark;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: rgba(athar.$athar-primary, 0.35);
+    background: athar.$athar-light-blue;
+  }
+
+  &:focus-visible {
+    outline: 2px solid athar.$athar-primary;
+    outline-offset: 2px;
+  }
+
+  &--active {
+    border-color: rgba(athar.$athar-primary, 0.45);
+    background: athar.$athar-light-blue;
+    box-shadow: 0 0 0 1px rgba(athar.$athar-primary, 0.12);
+  }
+}
+
+.parent-beneficiary-chip__name {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parent-beneficiary-card--selected {
+  border-color: rgba(athar.$athar-primary, 0.45);
+  background: athar.$athar-light-blue;
+  box-shadow: 0 0 0 1px rgba(athar.$athar-primary, 0.1);
+}
+
+.parent-insight-status {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(athar.$athar-primary, 0.1);
+  color: athar.$athar-primary;
+}
+
+.parent-insight-status--attention {
+  background: rgba(234, 84, 85, 0.12);
+  color: rgb(180, 45, 46);
+}

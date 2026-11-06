@@ -51,6 +51,8 @@ const fields = computed(() => {
   ].filter(row => row.value !== null && row.value !== undefined && row.value !== '')
 })
 
+const phoneNumbers = computed(() => Array.isArray(props.userData.phone_numbers) ? props.userData.phone_numbers : [])
+
 const displayFields = computed(() => {
   const rolesText = props.userData.roles?.map(r => r.name).join(' · ')
 
@@ -109,6 +111,49 @@ const displayFields = computed(() => {
         </div>
       </div>
     </div>
+
+    <section
+      v-if="phoneNumbers.length > 0"
+      class="mt-6"
+    >
+      <p class="text-subtitle-2 font-weight-bold mb-1">
+        {{ $t('parent_phone_numbers.title') }}
+      </p>
+      <p class="text-body-2 text-medium-emphasis mb-3">
+        {{ $t('parent_phone_numbers.subtitle') }}
+      </p>
+      <div class="d-flex flex-column gap-2">
+        <div
+          v-for="item in phoneNumbers"
+          :key="item.id ?? `virtual-${item.phone}`"
+          class="d-flex flex-wrap align-center gap-2"
+        >
+          <span
+            dir="ltr"
+            class="font-weight-medium"
+          >{{ item.display_phone || item.phone }}</span>
+          <VChip
+            v-if="item.is_primary"
+            size="x-small"
+            color="primary"
+            label
+          >
+            {{ $t('parent_phone_numbers.primary') }}
+          </VChip>
+          <VChip
+            size="x-small"
+            :color="item.verified ? 'success' : 'warning'"
+            variant="tonal"
+          >
+            {{ item.verified ? $t('parent_phone_numbers.verified') : $t('parent_phone_numbers.unverified') }}
+          </VChip>
+          <span
+            v-if="item.label"
+            class="text-body-2 text-medium-emphasis"
+          >{{ item.label }}</span>
+        </div>
+      </div>
+    </section>
   </article>
 </template>
 

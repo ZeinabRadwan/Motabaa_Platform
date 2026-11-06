@@ -63,6 +63,7 @@ class User extends Authenticatable
         'contract_end_date',
         'id_expiry_date',
         'annual_leave_entitlement',
+        'merged_into_user_id',
     ];
 
     /**
@@ -260,6 +261,21 @@ class User extends Authenticatable
     public function fileMeta()
     {
         return $this->hasMany(UserFileMeta::class);
+    }
+
+    public function phoneNumbers()
+    {
+        return $this->hasMany(UserPhoneNumber::class)->orderByDesc('is_primary')->orderBy('id');
+    }
+
+    public static function hasPhoneNumbersTable(): bool
+    {
+        static $cached = null;
+        if ($cached === null) {
+            $cached = Schema::hasTable('user_phone_numbers');
+        }
+
+        return $cached;
     }
 
     public function annualLeaveEntitlement(): int

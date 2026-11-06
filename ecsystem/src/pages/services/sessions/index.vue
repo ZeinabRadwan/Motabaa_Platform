@@ -21,10 +21,19 @@ import {messagesApi} from "@/plugins/apis/messagesReqest"
 import { useMessageSendHandler } from '@/composables/useMessageSendHandler'
 import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
-import { canRunTreatmentSessions, goalAutocompleteTitle, isParentUser } from '@core/utils/staffSessionVisibility'
+import {
+  canRunTreatmentSessions,
+  goalAutocompleteTitle,
+  isParentBlockedProgramSessionRoute,
+  isParentUser,
+} from '@core/utils/staffSessionVisibility'
 
 const route = useRoute()
 const router = useRouter()
+
+if (isParentUser() && isParentBlockedProgramSessionRoute(route.name)) {
+  router.replace({ name: 'services-list' })
+}
 const messagesReqest = messagesApi()
 const userListStore = useUserListStore()
 const goalsReqest = goalsApi()

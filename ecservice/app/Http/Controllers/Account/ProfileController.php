@@ -7,6 +7,7 @@ use App\Http\Requests\Account\UpdatePasswordRequest;
 use App\Http\Requests\Account\UpdateProfileRequest;
 use App\Http\Resources\Admin\User\UserResource;
 use App\Models\User;
+use App\Support\ParentPhoneNumberService;
 
 class ProfileController extends Controller
 {
@@ -24,7 +25,17 @@ class ProfileController extends Controller
         $user = auth()->user();
         $input = $request->validated();
 
+        $previousPhone = $user->phone;
+        $isParentAccount = isParentUser($user);
+        if ($isParentAccount && ($conflict = ParentPhoneNumberService::accountPhoneConflict($user, $input['phone'] ?? null))) {
+            return response()->json(['errors' => ['phone' => [__('validation.parent_phone_numbers.'.$conflict)]]], 422);
+        }
+
         $user->update($input);
+
+        if ($isParentAccount && $previousPhone !== $user->phone) {
+            ParentPhoneNumberService::syncAfterAccountPhoneChange($user, $previousPhone);
+        }
 
         if ($request->hasFile('image')) {
             $currentImage = $request->current_image ?: null;

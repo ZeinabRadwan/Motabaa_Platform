@@ -6,6 +6,7 @@ import UserInfoView from '@/views/user/UserInfoView.vue';
 import UserFiles from '@/views/user/UserFiles.vue';
 import UserAttendance from '@/views/user/UserAttendance.vue';
 import UserLeaves from '@/views/user/UserLeaves.vue';
+import UserPhoneNumbers from '@/views/user/UserPhoneNumbers.vue'
 
 const userListStore = useUserListStore()
 const route = useRoute()
@@ -89,6 +90,13 @@ watchEffect(fetchUser)
       >
         <VWindowItem>
           <UserInfoView :user-data="userData" />
+          <UserPhoneNumbers
+            v-if="userData.is_parent_user && Array.isArray(userData.phone_numbers)"
+            class="mt-4"
+            :user-id="userData.id"
+            :initial-numbers="userData.phone_numbers"
+            @changed="data => { if (data?.account_phone) userData.phone = data.account_phone }"
+          />
         </VWindowItem>
 
         <VWindowItem>

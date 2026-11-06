@@ -24,11 +24,7 @@ const logout = async () => {
   router.push('/login')
 }
 
-const returnToAdmin = async () => {
-  const redirectTo = await returnToAdminAccount(() => userListStore.stopImpersonation())
-  if (redirectTo)
-    await router.replace(redirectTo)
-}
+const returnToAdmin = () => returnToAdminAccount(() => userListStore.stopImpersonation())
 </script>
 
 <template>

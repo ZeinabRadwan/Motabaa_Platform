@@ -54,6 +54,7 @@ const rooms = ref([])
 const roomsLoading = ref(false)
 const roomDialog = ref(false);
 const editingRoomId = ref(-1)
+const roomActive = ref(true)
 const saveLoading = ref(false)
 const selectedStatus = ref('all')
 const selectedAudienceFilter = ref('all')
@@ -99,6 +100,7 @@ const resetRoomForm = () => {
   audienceType.value = 'general'
   selectedParentIds.value = []
   editingRoomId.value = -1
+  roomActive.value = true
   lastInvitationUrl.value = ''
 }
 
@@ -156,6 +158,7 @@ const openEditRoom = (room, event) => {
   editingRoomId.value = Number(room.id)
   newRoom.value = room.title
   audienceType.value = normalizeAudienceType(room.audience_type)
+  roomActive.value = !room.deleted_at
   lastInvitationUrl.value = ''
   selectedParentIds.value = Array.isArray(room.assigned_parent_ids)
     ? [...room.assigned_parent_ids]
@@ -182,6 +185,7 @@ const saveRoom = async () => {
       title: newRoom.value.trim(),
       audience_type: audienceType.value,
       parent_ids: isParentSpecific.value ? selectedParentIds.value : [],
+      is_active: roomActive.value,
     }
 
     roomsReqest.put(payload, String(editingRoomId.value)).then(response => {
@@ -445,6 +449,18 @@ watchServerTableFetch(fetchAllRooms, {
                 :label="$t('rooms.room_name')"
                 prepend-inner-icon="tabler-edit"
               />
+            </VCol>
+            <VCol cols="12">
+              <VSwitch
+                v-model="roomActive"
+                color="success"
+                inset
+                hide-details
+                :label="roomActive ? $t('rooms.room_active') : $t('rooms.room_inactive')"
+              />
+              <p class="text-medium-emphasis text-body-2 mt-1 mb-0">
+                {{ roomActive ? $t('rooms.room_active_hint') : $t('rooms.room_inactive_hint') }}
+              </p>
             </VCol>
             <VCol cols="12">
               <MeetingRoomAccessFields

@@ -254,13 +254,28 @@ if (! function_exists('isImpersonating')) {
     }
 }
 
+if (! function_exists('userHasPermissionSafe')) {
+    function userHasPermissionSafe($user, $permission): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        try {
+            return $user->hasPermissionTo($permission, 'web');
+        } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist) {
+            return false;
+        }
+    }
+}
+
 if (! function_exists('can')) {
     function can($permission, $user = null) {
         
         $user = ($user) ? $user : auth()->user();
         if(!$user) return false;
         
-        return $user->checkPermissionTo($permission, 'web');
+        return userHasPermissionSafe($user, $permission);
     }
 }
 
@@ -270,7 +285,7 @@ if (! function_exists('canAll')) {
         if(empty($user)) return false;
         $permissions = collect($permissions)->flatten();
         foreach ($permissions as $permission) {
-            if (! $user->hasPermissionTo($permission, 'web')) {
+            if (! userHasPermissionSafe($user, $permission)) {
                 return false;
             }
         }
@@ -284,7 +299,7 @@ if (! function_exists('canAny')) {
         if(empty($user)) return false;
         $permissions = collect($permissions)->flatten();
         foreach ($permissions as $permission) {
-            if ($user->checkPermissionTo($permission, 'web')) {
+            if (userHasPermissionSafe($user, $permission)) {
                 return true;
             }
         }

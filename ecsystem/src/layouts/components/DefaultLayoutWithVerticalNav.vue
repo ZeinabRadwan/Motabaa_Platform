@@ -8,7 +8,6 @@ import AppPageContent from '@/layouts/components/AppPageContent.vue'
 import Footer from '@/layouts/components/Footer.vue'
 // @layouts plugin
 import { VerticalNavLayout } from '@layouts'
-
 const { appRouteTransition } = useThemeConfig()
 const route = useRoute()
 const sessionStore = useSessionStore()

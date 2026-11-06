@@ -67,6 +67,35 @@ export function debounceRefAssign(targetRef, debounceMs = LIST_SEARCH_DEBOUNCE_M
   return assign
 }
 
+/**
+ * Fetch every page of an `apiPaginateResponse` list and merge the rows into one response,
+ * for views that render the whole list without pagination controls.
+ *
+ * @param {(page: number) => Promise<{ data: { data: Array, lastPage?: number } }>} fetchPage
+ */
+export async function fetchAllPages(fetchPage) {
+  const first = await fetchPage(1)
+  const rows = [...(first.data?.data ?? [])]
+  const lastPage = Number(first.data?.lastPage) || 1
+
+  for (let page = 2; page <= lastPage; page++) {
+    const next = await fetchPage(page)
+
+    rows.push(...(next.data?.data ?? []))
+  }
+
+  return {
+    ...first,
+    data: {
+      ...first.data,
+      data: rows,
+      currentPage: 1,
+      lastPage: 1,
+      perPage: Math.max(rows.length, 1),
+    },
+  }
+}
+
 export function resetTablePage(optionsRef) {
   if (!optionsRef?.value)
     return false

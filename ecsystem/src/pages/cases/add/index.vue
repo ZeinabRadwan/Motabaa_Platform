@@ -199,6 +199,7 @@ meta:
   subject: edit_cases
   pageTitleKey: Register Case
   pageSubtitleKey: cases.add_page_subtitle
+  backNavigation: false
 </route>
 
 <style lang="scss">

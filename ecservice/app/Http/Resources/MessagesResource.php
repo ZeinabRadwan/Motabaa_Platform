@@ -22,6 +22,7 @@ class MessagesResource extends JsonResource
             'type' => $this->type,
             'log_work' => $this->log_work,
             'parents_can_see' => $this->parents_can_see,
+            'sender_type' => $this->senderType(),
             'user' => $this->user ? [
                 'id' => $this->user->id,
                 'name' => $this->user->name,
@@ -41,6 +42,7 @@ class MessagesResource extends JsonResource
                 return [
                     'id' => $this->goal->id,
                     'title' => $this->goal->title,
+                    'category' => $this->goal->category,
                 ];
             }),
             'created_at' => $this->created_at,

@@ -66,7 +66,8 @@ $auth-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   display: block;
 }
 
-@media (min-width: 1280px) {
+// Keep in sync with auth-page side layout (min-width: 960px).
+@media (min-width: 960px) {
   .auth-page__background--desktop {
     display: block;
   }

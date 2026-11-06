@@ -67,6 +67,20 @@ export const questionnairesApi = defineStore('questionnaires', {
       })
     },
 
+    previewCopyQuestions(sourceTaskId, data) {
+      return axios.post(`/questionnaires/${sourceTaskId}/copy-questions/preview`, {
+        ...data,
+        center_id: Number(localStorage.getItem('center')),
+      }, { silentForbidden: true })
+    },
+
+    copyQuestions(sourceTaskId, data) {
+      return axios.post(`/questionnaires/${sourceTaskId}/copy-questions`, {
+        ...data,
+        center_id: Number(localStorage.getItem('center')),
+      }, { silentForbidden: true })
+    },
+
     // // 👉 Delete Questionnaire
     deleteQuestionnaire(id) {
       return new Promise((resolve, reject) => {

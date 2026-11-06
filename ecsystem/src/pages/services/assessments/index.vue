@@ -599,7 +599,7 @@ watchAssessmentTableFetch({
               <VBtn v-if="can('edit_treatment-evaluations', 'edit_treatment-evaluations') && goals.length>0 && canEvaluate && periodStatus != 1 && !canDoes('parent')" @click="saveGoals" :disabled="!updatingGoal">
                 {{ $t('Save') }}
               </VBtn>
-              <VBtn v-if="can('edit_treatment-evaluations', 'edit_treatment-evaluations') && goals.length>0 && canEvaluate && periodStatus == 1 && !canDoes('parent')" color="success" @click="printGoals" :loading="loading.period_pdf">
+              <VBtn v-if="goals.length>0 && canEvaluate && !canDoes('parent')" color="success" @click="printGoals" :loading="loading.period_pdf" :disabled="updatingGoal">
                 {{ $t('print_period') }}
               </VBtn>
               <VBtn v-if="can('edit_treatment-evaluations', 'edit_treatment-evaluations') && goals.length>0 && canEvaluate && periodStatus != 1 && !canDoes('parent')" color="success" @click="dialogPeriodAction('finish')" :disabled="updatingGoal">
@@ -810,4 +810,7 @@ watchAssessmentTableFetch({
   meta:
     action: access_treatment-evaluations
     subject: access_treatment-evaluations
+    actionsAny:
+      - access_treatment-evaluations
+      - access_parent-treatment-evaluations
 </route>

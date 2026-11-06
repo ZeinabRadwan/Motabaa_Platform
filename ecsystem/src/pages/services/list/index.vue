@@ -1,5 +1,5 @@
 <script setup>
-import { applyServerTableOptions, watchServerTableFetch } from '@core/utils/tableFetch'
+import { applyServerTableOptions, fetchAllPages, watchServerTableFetch } from '@core/utils/tableFetch'
 import { paginationMeta } from '@/@fake-db/utils'
 import i18n from '@/plugins/i18n/index.js'
 import { useRoute, useRouter } from 'vue-router'
@@ -18,10 +18,25 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
+import { isParentUser } from '@core/utils/staffSessionVisibility'
+import { useParentBeneficiary } from '@/composables/useParentBeneficiary'
+import { casesApi } from '@/plugins/apis/casesReqest'
+import ParentBeneficiaryPicker from '@/views/parent/ParentBeneficiaryPicker.vue'
+import ParentGoalTitleLink from '@/components/parent/ParentGoalTitleLink.vue'
+import ParentGoalSearchField from '@/components/parent/ParentGoalSearchField.vue'
+import { parentServiceTypeOptions, uniqueOptionsByValue } from '@/utils/parentFilterOptions'
+import { filterByAnyWord, goalTitleTexts } from '@/utils/parentGoalSearch'
 
+const isParent = isParentUser()
 
 const route = useRoute()
 const router = useRouter()
+
+// Filters carried back from the parent goal details view; applied once their options load.
+const pendingParentFilters = {
+  serviceType: isParent ? (route.query.service_type ?? null) : null,
+  feild: isParent ? (route.query.feild ?? null) : null,
+}
 const refVForm = ref()
 const userListStore = useUserListStore()
 const assessmentsReqest = assessmentsApi()
@@ -37,6 +52,17 @@ const selectedStatus = ref('active')
 const totalPage = ref(1)
 const totalGoals = ref(0)
 const goals = ref([])
+
+// Parents search the loaded goals of the selected service on the page, by any word of the visible columns.
+const parentSearch = ref('')
+
+const displayedGoals = computed(() => (isParent
+  ? filterByAnyWord(goals.value, parentSearch.value, goal => [
+    ...goalTitleTexts(goal, i18n.global.t),
+    goal.assessment_first_feild?.title,
+  ])
+  : goals.value))
+
 const searchGoals = ref()
 const isDialogVisible = ref(false)
 const search = ref()
@@ -88,6 +114,18 @@ const transferTerms = ref([]);
 const dialogTransferGoalID = ref();
 const transferToTerm = ref();
 
+const parentBeneficiary = ref(null)
+const parentServiceTypeItems = ref([])
+const loadingParentServiceTypes = ref(false)
+
+const parentServiceTypeSelectItems = computed(() =>
+  parentServiceTypeOptions(parentServiceTypeItems.value, i18n.global.t, i18n.global.te))
+
+const { selectBeneficiary, selectedBeneficiaryId, selectedBeneficiary, resolveBeneficiarySelection } = useParentBeneficiary()
+const casesReqest = casesApi()
+const parentContextReady = ref(false)
+const parentNeedsPick = computed(() => isParent && parentContextReady.value && !selectedCase.value)
+
 const options = ref({
   page: 1,
   itemsPerPage: 10,
@@ -97,12 +135,47 @@ const options = ref({
 })
 
 
-onMounted(() => {
+const applyParentCaseFromContext = item => {
+  if (!item?.id)
+    return
+
+  onParentBeneficiarySelect(item)
+}
+
+onMounted(async () => {
+  if (isParent) {
+    options.value.itemsPerPage = 100
+
+    const routeCaseId = route.query.case
+    const { selected } = await resolveBeneficiarySelection({ routeCaseId })
+    parentContextReady.value = true
+
+    if (selected)
+      applyParentCaseFromContext(selected)
+    else if (route.query.term)
+      selectedTerm.value = Number(route.query.term)
+
+    return
+  }
+
   termItems().then(data => {
     itemsTerm.value = data
   })
   fetchFeilds()
-});
+})
+
+watch(selectedBeneficiaryId, (id, previous) => {
+  if (!isParent || !parentContextReady.value || id == null || id === previous)
+    return
+
+  if (selectedBeneficiary.value && Number(selectedBeneficiary.value.id) === Number(id)) {
+    applyParentCaseFromContext(selectedBeneficiary.value)
+
+    return
+  }
+
+  applyParentCaseFromContext({ id })
+})
 
 
 watch(editToDate, query => {
@@ -126,6 +199,16 @@ const casesFilterKey = computed(() => [
 ].join('|'))
 
 watch(selectedScaleType, () => {
+  if (isParent) {
+    selectedFeild.value = null
+    if (selectedScaleType.value && selectedCase.value)
+      fetchFeilds()
+    else
+      itemsFeild.value = []
+
+    return
+  }
+
   fetchFeilds()
   selectedCase.value = null
 })
@@ -136,68 +219,196 @@ watch(selectedTerm, () => {
 
 
 
+const onParentBeneficiarySelect = item => {
+  if (item?.id)
+    selectBeneficiary(item)
+
+  parentBeneficiary.value = selectedBeneficiary.value || item
+  selectedCase.value = item.id
+  selectedScaleType.value = null
+  selectedFeild.value = null
+  itemsFeild.value = []
+  parentServiceTypeItems.value = []
+  goals.value = []
+  totalGoals.value = 0
+  parentSearch.value = ''
+  fetchParentServiceTypes()
+}
+
+const clearParentBeneficiary = () => {
+  parentBeneficiary.value = null
+  selectedCase.value = null
+  selectedScaleType.value = null
+  selectedFeild.value = null
+  itemsFeild.value = []
+  parentServiceTypeItems.value = []
+  goals.value = []
+  totalGoals.value = 0
+  parentSearch.value = ''
+}
+
+const fetchParentServiceTypes = () => {
+  if (!isParent || !selectedCase.value)
+    return
+
+  loadingParentServiceTypes.value = true
+
+  const caseId = selectedCase.value
+
+  goalsReqest.fetchParentTreatmentCategories({ case_id: caseId }).then(response => {
+    if (caseId !== selectedCase.value)
+      return
+
+    parentServiceTypeItems.value = uniqueOptionsByValue(response.data?.data)
+    const wanted = pendingParentFilters.serviceType
+    pendingParentFilters.serviceType = null
+    const restored = wanted != null
+      ? parentServiceTypeItems.value.find(item => String(item.value) === String(wanted))
+      : null
+    if (restored)
+      selectedScaleType.value = restored.value
+    else {
+      pendingParentFilters.feild = null
+      if (parentServiceTypeItems.value.length === 1)
+        selectedScaleType.value = parentServiceTypeItems.value[0].value
+    }
+  }).catch(() => {
+    if (caseId === selectedCase.value)
+      parentServiceTypeItems.value = []
+  }).finally(() => {
+    if (caseId === selectedCase.value)
+      loadingParentServiceTypes.value = false
+  })
+}
+
+const parentGoalDetailsLocation = goal => {
+  if (!selectedCase.value || !can('access_treatment-goals', 'access_treatment-goals'))
+    return null
+
+  const query = {}
+  const term = route.query.term ?? selectedTerm.value
+  if (term != null && term !== '')
+    query.term = String(term)
+  if (selectedScaleType.value)
+    query.service_type = String(selectedScaleType.value)
+  if (selectedFeild.value != null && selectedFeild.value !== '')
+    query.feild = String(selectedFeild.value)
+
+  return {
+    name: 'services-details-case-goal',
+    params: { case: selectedCase.value, goal: goal.id },
+    query,
+  }
+}
+
 // 👉 Fetching users
 const fetchGoals = () => {
+  if (isParent && (!selectedCase.value || !selectedScaleType.value)) {
+    goals.value = []
+    totalGoals.value = 0
+    loading.value.goals = false
+
+    return
+  }
+
   loading.value.goals = true
-  goalsReqest.fetchAll({
-    q: searchQuery.value,
-    status: selectedStatus.value,
-    specialist_id: specialist.value,
+
+  const listParams = {
     case_id: selectedCase.value,
-    term_id: selectedTerm.value,
-    category : selectedScaleType.value,
+    category: selectedScaleType.value,
     feild_id: selectedFeild.value,
-    date_from: selectedFrom.value,
-    date_to: selectedTo.value,
-    sessions_count_min: sessionsCountMin.value,
-    sessions_count_max: sessionsCountMax.value,
     options: options.value,
     page: options.value.page,
+  }
 
-  }).then(response => {
+  // Parents get the whole list (no pagination controls) so the on-page search covers every goal.
+  const request = isParent
+    ? fetchAllPages(page => goalsReqest.fetchAll({ ...listParams, page, options: { ...options.value, page } }))
+    : goalsReqest.fetchAll({
+      q: searchQuery.value,
+      status: selectedStatus.value,
+      specialist_id: specialist.value,
+      term_id: selectedTerm.value,
+      date_from: selectedFrom.value,
+      date_to: selectedTo.value,
+      sessions_count_min: sessionsCountMin.value,
+      sessions_count_max: sessionsCountMax.value,
+      ...listParams,
+    })
+
+  request.then(response => {
+    if (isStaleParentList(listParams))
+      return
+
     goals.value = response.data.data
     totalPage.value = Math.ceil(response.data.total / response.data.perPage)
     totalGoals.value = response.data.total
     options.value.page = response.data.currentPage
     loading.value.goals = false
   }).catch(error => {
+    if (isStaleParentList(listParams))
+      return
+
     loading.value.goals = false
     console.error(error)
   })
 }
 
+// A response for a previously selected child or service type must not overwrite the current list.
+const isStaleParentList = params => isParent
+  && (params.case_id !== selectedCase.value || params.category !== selectedScaleType.value)
+
 const onTableOptions = incoming => applyServerTableOptions(options, incoming)
 
 watchServerTableFetch(fetchGoals, {
-  search: searchQuery,
-  filters: () => [
-    specialist.value,
-    selectedCase.value,
-    selectedStatus.value,
-    selectedTerm.value,
-    selectedFeild.value,
-    selectedScaleType.value,
-    selectedFrom.value,
-    selectedTo.value,
-    sessionsCountMin.value,
-    sessionsCountMax.value,
-  ],
+  search: isParent ? null : searchQuery,
+  filters: () => isParent
+    ? [selectedCase.value, selectedFeild.value, selectedScaleType.value]
+    : [
+      specialist.value,
+      selectedCase.value,
+      selectedStatus.value,
+      selectedTerm.value,
+      selectedFeild.value,
+      selectedScaleType.value,
+      selectedFrom.value,
+      selectedTo.value,
+      sessionsCountMin.value,
+      sessionsCountMax.value,
+    ],
   options,
 })
 
 
 const fetchFeilds = () => {
+    if (isParent && (!selectedCase.value || !selectedScaleType.value)) {
+      itemsFeild.value = []
+
+      return
+    }
+
     loading.value.feilds = true;
     goalsReqest.fetchFilterItems({
-      category : selectedScaleType.value,
+      category: selectedScaleType.value,
+      case_id: isParent ? selectedCase.value : undefined,
     }).then(response => {
         loading.value.feilds = false;
-        itemsFeild.value = response.data.data;
-        itemsFeild.value.push({
-          value: 'without_feild',
-          title: i18n.global.t("without_feild")
-        })
+        itemsFeild.value = isParent ? uniqueOptionsByValue(response.data.data) : (response.data.data ?? []);
+        if (isParent && pendingParentFilters.feild != null) {
+          const wantedFeild = pendingParentFilters.feild
+          pendingParentFilters.feild = null
+          const match = itemsFeild.value.find(item => String(item.value) === String(wantedFeild))
+          if (match)
+            selectedFeild.value = match.value
+        }
+        if (!isParent) {
+          itemsFeild.value.push({
+            value: 'without_feild',
+            title: i18n.global.t("without_feild"),
+          })
+        }
     }).catch(error => {
+        loading.value.feilds = false;
         console.error(error)
     })
 };
@@ -283,8 +494,11 @@ const translatedHeaders = () => {
     headers = headers.filter(header => header.key != 'case')
   }
 
-  if(canDoes('parent')) {
-    headers = headers.filter(header => !['sessions_count', 'status'].includes(header.key))
+  if (isParent) {
+    headers = headers.filter(header => ['behavioral_goal', 'first_feild'].includes(header.key))
+  }
+  else if (canDoes('parent')) {
+    headers = headers.filter(header => !['sessions_count', 'status', 'assessment', 'actions'].includes(header.key))
   }
 
   let translatedHeaders = headers.map(header => ({
@@ -566,13 +780,49 @@ const transferGoal = () => {
 
 <template>
   <section>
-    <VRow>
+    <ParentBeneficiaryPicker
+      v-if="parentNeedsPick"
+      title-i18n-key="parent_treatment_plans.beneficiaries_title"
+      hint-i18n-key="parent_treatment_plans.beneficiaries_hint"
+      aria-i18n-key="parent_treatment_plans.beneficiaries_aria"
+      empty-i18n-key="parent_treatment_plans.beneficiaries_empty"
+      error-i18n-key="dashboard.parent_beneficiaries_error"
+      :auto-select-single="false"
+      @select="onParentBeneficiarySelect"
+    />
+    <div
+      v-else-if="isParent && !parentContextReady"
+      class="pa-6 d-flex justify-center"
+    >
+      <VProgressCircular
+        indeterminate
+        color="primary"
+      />
+    </div>
+    <VRow v-else-if="!isParent || selectedCase">
       <VCol cols="12">
         <VCard>
           <!-- 👉 Filters -->
           <VCardText>
             <VRow>
               <VCol
+                v-if="isParent"
+                cols="12"
+                sm="6"
+              >
+                <AppSelect
+                  v-model="selectedScaleType"
+                  :loading="loadingParentServiceTypes"
+                  :items="parentServiceTypeSelectItems"
+                  item-title="title"
+                  item-value="value"
+                  :label="$t('goals.service_type')"
+                  clearable
+                  clear-icon="tabler-x"
+                />
+              </VCol>
+              <VCol
+                v-if="!isParent"
                 cols="12"
                 sm="4"
               > 
@@ -601,6 +851,7 @@ const transferGoal = () => {
                 />
               </VCol>
               <VCol
+                v-if="!isParent"
                 cols="12"
                 sm="4"
               >
@@ -618,6 +869,7 @@ const transferGoal = () => {
                 />
               </VCol>
               <VCol
+                v-if="!isParent"
                 cols="12"
                 sm="4"
               >
@@ -630,8 +882,9 @@ const transferGoal = () => {
                 />
               </VCol>
               <VCol
+                v-if="!isParent || selectedScaleType"
                 cols="12"
-                sm="4"
+                :sm="isParent ? 6 : 4"
               >
                 <AppSelect
                   v-model="selectedFeild"
@@ -718,11 +971,34 @@ const transferGoal = () => {
                 </AppSelect>
               </VCol>
             </VRow>
+            <p
+              v-if="isParent && parentBeneficiary && !loadingParentServiceTypes && !parentServiceTypeItems.length"
+              class="text-medium-emphasis mb-0 mt-2"
+            >
+              {{ $t('parent_treatment_plans.no_service_types') }}
+            </p>
+            <ParentGoalSearchField
+              v-if="isParent && selectedScaleType && goals.length"
+              v-model="parentSearch"
+              class="mt-2"
+              style="max-inline-size: 32rem;"
+              :total="goals.length"
+              :shown="displayedGoals.length"
+            />
+            <p
+              v-if="isParent && selectedScaleType && !loading.goals && goals.length && !displayedGoals.length"
+              class="text-medium-emphasis mt-3 mb-0"
+            >
+              {{ $t('parent_goal_search.no_results') }}
+            </p>
           </VCardText>
 
           <VDivider />
 
-          <VCardText class="d-flex flex-wrap py-4 gap-4">
+          <VCardText
+            v-if="!isParent"
+            class="d-flex flex-wrap py-4 gap-4"
+          >
             <div class="me-3 d-flex gap-3">
               <AppSelect
                 :model-value="options.itemsPerPage"
@@ -769,17 +1045,26 @@ const transferGoal = () => {
             </div>
           </VCardText>
 
-          <VDivider />
+          <VDivider v-if="!isParent" />
+
+          <p
+            v-if="isParent && selectedScaleType && !loading.goals && !goals.length"
+            class="text-center text-medium-emphasis pa-8"
+          >
+            {{ $t('parent_treatment_plans.empty_plans') }}
+          </p>
 
           <!-- SECTION datatable -->
           <VDataTableServer
+            v-if="!isParent || (selectedScaleType && (displayedGoals.length || loading.goals))"
             v-model:items-per-page="options.itemsPerPage"
             v-model:page="options.page"
-            :items="goals"
+            :items="displayedGoals"
             :loading="loading.goals"
-            :items-length="totalGoals"
+            :items-length="isParent ? displayedGoals.length : totalGoals"
             :headers="translatedHeaders()"
             class="dataTable"
+            :hide-default-footer="isParent"
             @update:options="onTableOptions"
           >
             <template #item.case="{ item }">
@@ -803,12 +1088,18 @@ const transferGoal = () => {
             <template #item.behavioral_goal="{ item }">
               <div class="align-center">
                 <RouterLink
+                  v-if="!isParentUser()"
                   target="_blank"
                   :to="{ name: 'services-sessions-case-term-goal', params: { case: selectedCase, term: selectedTerm, goal: item.raw.id } }"
                   class="font-weight-medium user-list-name"
                 >
                   <span>{{ item.raw.title }}</span> <span v-if="item.raw.standard">{{ $t(item.raw.standard) }}</span> <span v-if="item.raw.generalization">{{ $t(item.raw.generalization) }}</span>
                 </RouterLink>
+                <ParentGoalTitleLink
+                  v-else
+                  :goal="item.raw"
+                  :to="parentGoalDetailsLocation(item.raw)"
+                />
               </div>
             </template>
 
@@ -908,7 +1199,7 @@ const transferGoal = () => {
             <template #item.actions="{ item }">
               
               <IconBtn 
-                v-if="can('access_treatment-goals','access_treatment-goals')" 
+                v-if="!isParentUser() && can('access_treatment-goals','access_treatment-goals')" 
                 :title="$t('View')" 
                 @click="router.push({ name: 'services-sessions-case-term-goal', params: { case: selectedCase, term: selectedTerm, goal: item.raw.id } });"
               >
@@ -972,7 +1263,10 @@ const transferGoal = () => {
             </template>
 
             <!-- pagination -->
-            <template #bottom>
+            <template
+              v-if="!isParent"
+              #bottom
+            >
               <VDivider />
               <div class="d-flex align-center justify-sm-space-between justify-center flex-wrap gap-3 pa-5 pt-3">
                 <p class="text-sm text-disabled mb-0">

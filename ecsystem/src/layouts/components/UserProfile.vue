@@ -50,11 +50,7 @@ const changeCenter = selectedCenter => {
     router.push('/')
 }
 
-const returnToAdmin = async () => {
-  const redirectTo = await returnToAdminAccount(() => userListStore.stopImpersonation())
-  if (redirectTo)
-    await router.replace(redirectTo)
-}
+const returnToAdmin = () => returnToAdminAccount(() => userListStore.stopImpersonation())
 
 const userProfileList = computed(() => [
   ...(sessionStore.impersonating

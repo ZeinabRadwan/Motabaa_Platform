@@ -8,9 +8,8 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore';
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { avatarText } from '@core/utils/formatters';
 import {
-  applyUserSession,
+  impersonateAccount,
   isImpersonating,
-  saveImpersonatorSession,
 } from '@core/utils/impersonation';
 import { can } from '@layouts/plugins/casl';
 import {
@@ -268,27 +267,31 @@ const confirmImpersonate = async () => {
     return
 
   impersonateSaving.value = true
-  try {
-    const response = await userListStore.impersonateUser(impersonateTarget.value.id)
-    if (!response.data?.token || !response.data?.user)
-      throw new Error('invalid_impersonation_response')
 
-    saveImpersonatorSession({ impersonatedUserName: impersonateTarget.value.name })
-    applyUserSession({
-      token: response.data.token,
-      user: response.data.user,
-    })
-    await router.replace('/')
+  const target = impersonateTarget.value
+
+  try {
+    await impersonateAccount(() => userListStore.impersonateUser(target.id), target)
   }
   catch (error) {
     impersonateSaving.value = false
+    const status = error.response?.status
     const apiErrors = error.response?.data?.errors
     const rawMessage = error.response?.data?.message
-    const message = apiErrors
+    let message = apiErrors
       ? Object.values(apiErrors).flat().join('<br />')
-      : (typeof rawMessage === 'string' && rawMessage.length < 200
-        ? rawMessage
-        : i18n.global.t('You cannot impersonate this user.'))
+      : null
+    if (!message) {
+      if (status >= 500)
+        message = i18n.global.t('impersonation_server_error')
+      else if (typeof rawMessage === 'string' && rawMessage.length > 0 && rawMessage !== 'Server Error')
+        message = rawMessage
+      else
+        message = i18n.global.t('You cannot impersonate this user.')
+    }
+    const errorRef = error.response?.data?.error_ref
+    if (errorRef)
+      message = `${message} (${errorRef})`
     snackbarRef.value.exposevisibleSnackbar(message, 'error')
   }
 }

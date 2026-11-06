@@ -29,6 +29,19 @@ class SyncPermissionsCommand extends Command
             $this->info('Center activities migration: roles updated='.$m['roles_updated'].', legacy revoked='.$m['legacy_revoked']);
         }
 
+        if (! empty($result['hr_branch_scope_migration'])) {
+            $this->info('HR all-branches access granted to roles: '.$result['hr_branch_scope_migration']['roles_granted']);
+        }
+
+        if (! empty($result['hr_attendance_config_migration'])) {
+            $this->info('HR attendance configuration permission granted to roles: '.$result['hr_attendance_config_migration']['roles_granted']);
+        }
+
+        if (! empty($result['parent_assessment_migration'])) {
+            $m = $result['parent_assessment_migration'];
+            $this->info('Parent assessment migration: roles granted='.$m['roles_granted'].', users granted='.$m['users_granted']);
+        }
+
         $this->info('Created: '.count($result['created']));
         foreach ($result['created'] as $name) {
             $this->line('  + '.$name);

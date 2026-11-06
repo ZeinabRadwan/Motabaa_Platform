@@ -1,6 +1,7 @@
 <script setup>
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import UserBioPanel from '@/views/apps/user/view/UserBioPanel.vue'
+import UserPhoneNumbers from '@/views/user/UserPhoneNumbers.vue'
 
 const userListStore = useUserListStore()
 const route = useRoute()
@@ -44,6 +45,19 @@ userListStore.fetchUser(Number(route.params.id)).then(response => {
       lg="4"
     >
       <UserBioPanel :user-data="userData" />
+    </VCol>
+
+    <VCol
+      v-if="Array.isArray(userData.phone_numbers)"
+      cols="12"
+      md="7"
+      lg="8"
+    >
+      <UserPhoneNumbers
+        :user-id="userData.id"
+        :initial-numbers="userData.phone_numbers"
+        @changed="data => { if (data?.account_phone) userData.phone = data.account_phone }"
+      />
     </VCol>
 
     <!-- <VCol

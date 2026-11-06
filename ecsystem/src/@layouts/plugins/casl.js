@@ -35,8 +35,33 @@ export const can = (action, subject) => {
  * Based on item's action and subject & Hide group if all of it's children are hidden
  * @param {Object} item navigation object item
  */
+const routeMetaAllowsAccess = route => {
+  const actionsAny = route.meta?.actionsAny
+  if (Array.isArray(actionsAny) && actionsAny.length > 0) {
+    return actionsAny.some(action => {
+      const moduleKey = action.includes('_') ? action.slice(action.indexOf('_') + 1) : action
+      if (ability.can(`admin_${moduleKey}`, `admin_${moduleKey}`))
+        return true
+
+      return ability.can(action, action)
+    })
+  }
+
+  const action = route.meta.action || ''
+  const subject = route.meta.subject || ''
+  if (!action || !subject)
+    return false
+
+  return ability.can(action, subject)
+}
+
 export const canViewNavMenuGroup = item => {
-  const hasAnyVisibleChild = item.children.some(i => can(i.action, i.subject))
+  const hasAnyVisibleChild = item.children.some(i => {
+    if (Array.isArray(i.actionsAny) && i.actionsAny.length)
+      return i.actionsAny.some(action => can(action, action))
+
+    return can(i.action, i.subject)
+  })
 
   // If subject and action is defined in item => Return based on children visibility (Hide group if no child is visible)
   // Else check for ability using provided subject and action along with checking if has any visible child
@@ -70,13 +95,11 @@ export const canNavigate = to => {
       return canAccessCasesList()
     }
 
-    const action = route.meta.action || ''
-    const subject = route.meta.subject || ''
-    if (!action || !subject) {
-      return false
+    if (route.meta.actionsAny || (route.meta.action && route.meta.subject)) {
+      return routeMetaAllowsAccess(route)
     }
 
-    return ability.can(action, subject)
+    return false
   })
 }
 

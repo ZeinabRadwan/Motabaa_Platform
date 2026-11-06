@@ -16,7 +16,10 @@ use App\Models\MediaAttachmentAuditLog;
 use App\Models\System\System;
 use PhpParser\Node\Stmt\TryCatch;
 use App\Models\Log;
+use App\Support\CaseProfileAccess;
+use App\Support\GoalParentVisibility;
 use App\Support\MeetingRoomAccess;
+use App\Support\ProgramSessionAccess;
 use Carbon\Carbon;
 
 class MessageController extends Controller
@@ -34,7 +37,7 @@ class MessageController extends Controller
         $case_id = $request->case_id;
         $with = ['user:id,name,image_path', 'user.roles:id,name,default_name'];
         if($request->case_id != null && $request->case_id != ''){
-            $with[] = 'goal:id,title';
+            $with[] = 'goal:id,title,category';
         }
         if ($request->meeting_room_id) {
             $meetingRoom = MeetingRoom::find($request->meeting_room_id);
@@ -43,6 +46,21 @@ class MessageController extends Controller
                     new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage),
                     MessagesResource::collection(collect())
                 );
+            }
+        }
+
+        if ($request->goal_id) {
+            $goalForAccess = Goal::find($request->goal_id);
+            $denied = ProgramSessionAccess::denyParentProgramSessionManagement($goalForAccess);
+            if ($denied) {
+                return $denied;
+            }
+        }
+
+        if ($request->case_id) {
+            $denied = CaseProfileAccess::denyView($request->case_id, $user);
+            if ($denied) {
+                return $denied;
             }
         }
 
@@ -65,7 +83,7 @@ class MessageController extends Controller
         )
         ->when(
             $parent,
-            fn ($q) => $q->where('parents_can_see', 1)
+            fn ($q) => GoalParentVisibility::applyParentVisibleMessageConstraints($q)
         )
         ->when(
             $request->case_id,
@@ -73,14 +91,22 @@ class MessageController extends Controller
             ->whereHas('goal', function ($query) use ($case_id) {
                 $query->where('goals.case_id', $case_id);
             })
+            ->contribution($request->filled('contribution') ? (string) $request->contribution : null)
         )
         ->orderBy('created_at', 'desc')
+        ->orderBy('id', 'desc')
         ->paginate($perPage);
 
         return apiPaginateResponse($messages, MessagesResource::collection($messages));
     }
 
     public function put(MessageRequest $request, $message = null){
+        if ($request->goal_id) {
+            $denied = ProgramSessionAccess::denyParentProgramSessionManagement(Goal::find($request->goal_id));
+            if ($denied) {
+                return $denied;
+            }
+        }
 
         $meetingRoom = null;
         $input = $request->validated();
@@ -283,6 +309,11 @@ class MessageController extends Controller
 
     public function file(Message $message) {
 
+        $user = auth()->user();
+        if (isParentUser($user) && ! $this->parentCanOpenMessageAttachment($user, $message)) {
+            return response()->json(['errors' => ['error' => [__('validation.parent_goal_details.not_accessible')]]], 403);
+        }
+
         $fileURL = $message->urlFile();
         if($fileURL)
             return apiResponse($fileURL);
@@ -296,5 +327,27 @@ class MessageController extends Controller
             return apiResponse(['file'=> $videoURL, 'is_video'=> true]);
 
         return apiResponse(null);
+    }
+
+    private function parentCanOpenMessageAttachment(User $user, Message $message): bool
+    {
+        if ((int) $message->parents_can_see !== 1 || $message->isSystemMessage()) {
+            return false;
+        }
+
+        if ($message->goal_id) {
+            $goal = Goal::find($message->goal_id);
+
+            return $goal !== null
+                && GoalParentVisibility::parentCanAccessCase($user, (int) $goal->case_id, null);
+        }
+
+        if ($message->meeting_room_id) {
+            $room = MeetingRoom::find($message->meeting_room_id);
+
+            return $room !== null && MeetingRoomAccess::userCanAccess($user, $room);
+        }
+
+        return false;
     }
 }

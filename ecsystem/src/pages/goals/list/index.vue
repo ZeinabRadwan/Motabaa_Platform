@@ -17,11 +17,15 @@ import {
 requiredValidator
 } from '@validators';
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
-
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
-import { sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
+import { isParentUser, sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
+import ParentBeneficiaryPicker from '@/views/parent/ParentBeneficiaryPicker.vue'
+import { openParentIndividualPlan } from '@/composables/useParentEducationalProgramNav'
+import { useParentBeneficiary } from '@/composables/useParentBeneficiary'
+
+const isParent = isParentUser()
 
 const route = useRoute()
 const router = useRouter()
@@ -58,6 +62,16 @@ const editFirstFeild = ref(null);
 const teacherItems = ref([])
 const teacher = ref(returnIdUserIfNotAdmin() ?? null)
 const canEditCustom = ref(false);
+
+const { selectedBeneficiaryId, selectBeneficiary, syncBeneficiaryId, resolveBeneficiarySelection } = useParentBeneficiary()
+
+const parentContextReady = ref(false)
+const parentNeedsPick = computed(() => isParent && parentContextReady.value && !selectedBeneficiaryId.value)
+
+watch(selectedCase, id => {
+  if (canDoes('parent'))
+    syncBeneficiaryId(id)
+})
 
 const parentId = ref(null)
 const rootId = ref(null);
@@ -96,11 +110,42 @@ const options = ref({
   search: undefined,
 })
 
-onMounted(() => {
+const applyParentBeneficiaryContext = async item => {
+  if (!item?.id)
+    return
+
+  selectBeneficiary(item)
+  const result = await openParentIndividualPlan(router, item.id)
+  if (!result.ok)
+    snackbarRef.value?.exposevisibleSnackbar(i18n.global.t('goals.parent_missing_term'), 'warning')
+}
+
+onMounted(async () => {
+  if (canDoes('parent')) {
+    options.value.itemsPerPage = 100
+    const { selected } = await resolveBeneficiarySelection()
+    parentContextReady.value = true
+    if (selected)
+      await applyParentBeneficiaryContext(selected)
+
+    return
+  }
+
   termItems().then(data => {
     itemsTerm.value = data
   })
   fetchFeilds()
+})
+
+watch(selectedBeneficiaryId, async (id, previous) => {
+  if (!isParent || !parentContextReady.value || id == null || id === previous)
+    return
+
+  const caseParam = route.params.case
+  if (caseParam && Number(caseParam) === Number(id))
+    return
+
+  await applyParentBeneficiaryContext({ id })
 })
 
 
@@ -286,7 +331,7 @@ const translatedHeaders = () => {
   }
 
   if(canDoes('parent')) {
-    headers = headers.filter(header => !['sessions_count', 'status'].includes(header.key))
+    headers = headers.filter(header => !['sessions_count', 'status', 'assessment', 'actions'].includes(header.key))
   }
 
   let translatedHeaders = headers.map(header => ({
@@ -545,6 +590,10 @@ const transferGoalDialog = (id, termId) => {
   isDialogTransferGoalVisible.value = true;
 }
 
+const onParentSelectBeneficiary = async item => {
+  await applyParentBeneficiaryContext(item)
+}
+
 const transferGoal = () => {
 
   refVForm.value?.validate().then(({ valid: isValid }) => {
@@ -567,7 +616,26 @@ const transferGoal = () => {
 </script>
 
 <template>
-  <section>
+  <section v-if="isParent">
+    <ParentBeneficiaryPicker
+      v-if="parentNeedsPick"
+      title-i18n-key="goals.parent_plan_picker_title"
+      hint-i18n-key="goals.parent_plan_picker_hint"
+      :auto-select-single="false"
+      @select="onParentSelectBeneficiary"
+    />
+    <div
+      v-else-if="!parentContextReady"
+      class="pa-6 d-flex justify-center"
+    >
+      <VProgressCircular
+        indeterminate
+        color="primary"
+      />
+    </div>
+    <SnackbarComponent ref="snackbarRef" />
+  </section>
+  <section v-else>
     <VRow>
       <VCol cols="12">
         <VCard>
@@ -591,6 +659,7 @@ const transferGoal = () => {
                 />
               </VCol>
               <VCol
+                v-if="!canDoes('parent')"
                 cols="12"
                 sm="4"
               >
@@ -800,11 +869,15 @@ const transferGoal = () => {
             <template #item.behavioral_goal="{ item }">
               <div class="align-center">
                 <RouterLink
+                  v-if="!canDoes('parent')"
                   :to="{ name: 'goals-sessions-case-term-goal', params: { case: item.raw.case_id, term: item.raw.term_id, goal: item.raw.id } }"
                   class="font-weight-medium user-list-name"
                 >
                   <span>{{ item.raw.title }}</span> <span v-if="item.raw.standard">{{ $t(item.raw.standard) }}</span> <span v-if="item.raw.generalization">{{ $t(item.raw.generalization) }}</span>
                 </RouterLink>
+                <span v-else>
+                  <span>{{ item.raw.title }}</span> <span v-if="item.raw.standard">{{ $t(item.raw.standard) }}</span> <span v-if="item.raw.generalization">{{ $t(item.raw.generalization) }}</span>
+                </span>
               </div>
             </template>
 
@@ -904,7 +977,7 @@ const transferGoal = () => {
             <template #item.actions="{ item }">
 
               <IconBtn 
-                v-if="can('access_education-goals','access_education-goals')" 
+                v-if="!isParent && can('access_education-goals','access_education-goals')" 
                 :title="$t('View')" 
                 @click="router.push({ name: 'goals-sessions-case-term-goal', params: { case: item.raw.case_id, term: item.raw.term_id, goal: item.raw.id } });"
               >

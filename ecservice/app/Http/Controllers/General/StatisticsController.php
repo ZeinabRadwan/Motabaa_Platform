@@ -22,6 +22,7 @@ use App\Models\Message;
 use App\Models\Term;
 use Carbon\Carbon;
 use Spatie\Permission\Models\Role;
+use App\Support\ParentCaseAccess;
 use App\Support\ReferenceCache;
 use DB;
 
@@ -255,6 +256,9 @@ class StatisticsController extends Controller
         app()->setLocale('ar');
         $result = (object)[];
         $user = auth()->user();
+        if ($denied = ParentCaseAccess::denyIfParentCannotAccessCase($case, $user)) {
+            return $denied;
+        }
         $visibleTerm = Term::visibleTermId($user, $case->center_id, $request->term_id ?? null);
         if (!$visibleTerm['ok']) {
             return Term::forbiddenResponse();

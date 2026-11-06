@@ -108,6 +108,12 @@ const options = ref({
 })
 
 onMounted(() => {
+  if (isParentUser()) {
+    router.replace({ name: 'independent_goals-list' })
+
+    return
+  }
+
   termItems().then(data => {
     itemsTerm.value = data
   })

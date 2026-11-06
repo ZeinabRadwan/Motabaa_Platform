@@ -308,19 +308,21 @@ class SCase extends Model
             return false;
         }
 
+        // Parent-only accounts are limited to linked children even if their role was granted
+        // case-wide permissions; parent case queries skip the center scope.
+        if (isParentUser($user)) {
+            return static::query()
+                ->where('scases.id', $case->id)
+                ->linkedToParentUser($user->id)
+                ->exists();
+        }
+
         if ($user->can('admin_cases') || Term::canManageAllCenterTerms($user, $case->center_id)) {
             return true;
         }
 
         if (\App\Support\CaseListAccess::canViewAllCenterCases($user)) {
             return $user->isInCenter($case->center_id) || Term::canViewPastTerms($user);
-        }
-
-        if (isParentUser($user)) {
-            return static::query()
-                ->where('scases.id', $case->id)
-                ->linkedToParentUser($user->id)
-                ->exists();
         }
 
         return static::query()

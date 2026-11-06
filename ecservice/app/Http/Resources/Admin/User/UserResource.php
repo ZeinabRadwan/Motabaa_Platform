@@ -7,6 +7,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use App\Models\User;
 use App\Http\Resources\CenterResource;
 use App\Http\Resources\Concerns\ListResourceMode;
+use App\Support\ParentPhoneNumberService;
 
 class UserResource extends JsonResource
 {
@@ -22,7 +23,13 @@ class UserResource extends JsonResource
 
     public static function forSession($user)
     {
-        $user->loadMissing(['roles.permissions', 'permissions', 'centers']);
+        $user->loadMissing(['roles', 'permissions', 'centers.package']);
+        if (isParentUser($user)) {
+            $user->loadMissing('scaseParent');
+            if (User::hasPhoneNumbersTable()) {
+                $user->loadMissing('phoneNumbers');
+            }
+        }
 
         return new static($user, true);
     }
@@ -95,9 +102,9 @@ class UserResource extends JsonResource
             'job_title' => $this->job_title,
             'department' => $this->department,
             'department_label' => $this->department ? (User::departments()[$this->department] ?? $this->department) : null,
-            'work_shift' => $this->work_shift,
-            'work_shift_values' => $this->workShiftValues(),
-            'work_shift_label' => $this->workShiftLabel(),
+            'work_shift' => User::hasWorkShiftColumn() ? $this->work_shift : null,
+            'work_shift_values' => User::hasWorkShiftColumn() ? $this->workShiftValues() : [],
+            'work_shift_label' => User::hasWorkShiftColumn() ? $this->workShiftLabel() : null,
             'contract_type' => $this->contract_type,
             'contract_type_label' => $this->contract_type ? (User::contractTypes()[$this->contract_type] ?? $this->contract_type) : null,
             'hire_date' => $this->hire_date,
@@ -105,7 +112,16 @@ class UserResource extends JsonResource
             'id_expiry_date' => $this->id_expiry_date,
             'annual_leave_entitlement' => $this->annualLeaveEntitlement(),
             'has_password' => $this->password != null,
-            'scaseParent'=> $this->whenLoaded('scaseParent'),
+            'phone_numbers' => $this->when(
+                $this->resource->relationLoaded('phoneNumbers'),
+                fn () => ParentPhoneNumberService::displayList($this->resource)
+            ),
+            'scaseParent' => $this->whenLoaded('scaseParent', function () {
+                return $this->scaseParent->map(fn ($scase) => [
+                    'id' => $scase->id,
+                    'name' => $scase->name,
+                ])->values();
+            }),
             'roles' => collect($this->roles)->map(fn ($role) => [
                 'id' => $role->id,
                 'name' => $role->name,
@@ -115,11 +131,64 @@ class UserResource extends JsonResource
                 $this->includePermissions,
                 fn () => isParentUser($this->resource)
             ),
-            'centers' => CenterResource::collection($this->centers),
-            'permissions' => $this->when($this->includePermissions, fn () => $this->getAllPermissions()),
+            'centers' => $this->sessionCentersPayload(),
+            'permissions' => $this->when(
+                $this->includePermissions,
+                fn () => $this->sessionPermissionsPayload()
+            ),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->deleted_at,
         ];
+    }
+
+    /**
+     * Session center rows (login, profile, impersonation). The SPA's route gate and package-based
+     * menus read status, is_paid and package_id, so those must always be present.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>|\Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     */
+    private function sessionCentersPayload()
+    {
+        if ($this->includePermissions) {
+            return collect($this->centers)->map(fn ($center) => [
+                'id' => $center->id,
+                'title' => $center->getNameAttribute(),
+                'status' => $center->status,
+                'package_id' => $center->package_id,
+                'is_paid' => self::safeIsPaid($center),
+            ])->values();
+        }
+
+        return CenterResource::collection($this->centers);
+    }
+
+    /**
+     * Malformed billing rows must not break login; they are reported and treated as paid
+     * so a data error never locks a whole center out.
+     */
+    private static function safeIsPaid($center): bool
+    {
+        try {
+            return (bool) $center->isPaid();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return true;
+        }
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, array{name: string}>
+     */
+    private function sessionPermissionsPayload()
+    {
+        try {
+            return $this->getAllPermissions()->map(fn ($permission) => [
+                'name' => $permission->name,
+            ])->values();
+        } catch (\Throwable) {
+            return collect();
+        }
     }
 }

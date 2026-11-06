@@ -8,7 +8,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 use App\Models\Concerns\StoresNamedFilePath;
+use App\Models\System\System;
 use App\Services\MediaAttachmentService;
+use Illuminate\Database\Eloquent\Builder;
 
 class Message extends Model
 {
@@ -34,6 +36,14 @@ class Message extends Model
     const SYS_ENDED_SESSION = 'ended_session';
     const SYS_START_NOW_MEETING = 'start_now_meeting';
     const SYS_START_LATER_MEETING = 'start_later_meeting';
+
+    const SENDER_PARENT = 'parent';
+    const SENDER_STAFF = 'staff';
+
+    /** Case profile filters: session activity (and its start/end markers), staff comments, parent contributions. */
+    const CONTRIBUTION_SESSION = 'session';
+    const CONTRIBUTION_STAFF_COMMENT = 'staff_comment';
+    const CONTRIBUTION_PARENT = 'parent';
 
     public function user()
     {
@@ -98,6 +108,68 @@ class Message extends Model
             self::SYS_START_NOW_MEETING,
             self::SYS_START_LATER_MEETING,
         ], true);
+    }
+
+    /**
+     * Parent when every role of the author is the parent role (same rule as `isParentUser`),
+     * staff otherwise; null when the author account no longer exists.
+     */
+    public function senderType(): ?string
+    {
+        $roles = $this->user?->roles;
+        if ($roles === null) {
+            return null;
+        }
+
+        $isParent = $roles->isNotEmpty()
+            && $roles->every(fn ($role) => $role->default_name === System::USER_TYPE_PARENT_ROLE_NAME);
+
+        return $isParent ? self::SENDER_PARENT : self::SENDER_STAFF;
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder  $users
+     */
+    public static function constrainToParentOnlyUsers($users): void
+    {
+        $parentRole = System::USER_TYPE_PARENT_ROLE_NAME;
+
+        $users->whereHas('roles', fn ($roles) => $roles->where('default_name', $parentRole))
+            ->whereDoesntHave('roles', fn ($roles) => $roles->where(function ($other) use ($parentRole) {
+                $other->whereNull('default_name')->orWhere('default_name', '!=', $parentRole);
+            }));
+    }
+
+    public function scopeFromParentUsers(Builder $query): void
+    {
+        $query->whereHas('user', fn ($users) => self::constrainToParentOnlyUsers($users));
+    }
+
+    public function scopeFromStaffUsers(Builder $query): void
+    {
+        $query->whereDoesntHave('user', fn ($users) => self::constrainToParentOnlyUsers($users));
+    }
+
+    public function scopeContribution(Builder $query, ?string $kind): void
+    {
+        if ($kind === self::CONTRIBUTION_SESSION) {
+            $query->where(function ($session) {
+                $session->where('log_work', 1)
+                    ->orWhereIn('type', [self::SYS_STARTED_SESSION, self::SYS_ENDED_SESSION]);
+            });
+        } elseif ($kind === self::CONTRIBUTION_STAFF_COMMENT) {
+            $query->fromStaffUsers()
+                ->where(fn ($comment) => $comment->whereNull('log_work')->orWhere('log_work', '!=', 1))
+                ->where(fn ($comment) => $comment->whereNull('type')->orWhereNotIn('type', [
+                    self::SYS_TYPE,
+                    self::SYS_STARTED_SESSION,
+                    self::SYS_ENDED_SESSION,
+                    self::SYS_START_NOW_MEETING,
+                    self::SYS_START_LATER_MEETING,
+                ]));
+        } elseif ($kind === self::CONTRIBUTION_PARENT) {
+            $query->fromParentUsers();
+        }
     }
 
     public function skipsAttachmentLookup(): bool

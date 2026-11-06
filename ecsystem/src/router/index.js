@@ -3,10 +3,23 @@ import { setupLayouts } from 'virtual:generated-layouts'
 import { createRouter, createWebHistory } from 'vue-router'
 import routes from '~pages'
 import { purgeExpiredSession } from '@core/utils/authStorage'
+import {
+  isParentBlockedIndependentSessionsListRoute,
+  isParentBlockedProgramSessionRoute,
+  isParentCaseProfileRoute,
+  isParentUser,
+  parentCanAccessIndependentAssessment,
+  parentCanAccessRehabAssessment,
+  parentCanAccessTreatmentAssessment,
+} from '@core/utils/staffSessionVisibility'
 import { buildLoginLocation, resolvePostLoginRedirect, routeIsMeetingRoomInvite } from '@core/utils/loginRedirect'
 import { useSessionStore } from '@/stores/useSessionStore'
 
 purgeExpiredSession()
+
+// Parent roles are not guaranteed `show_cases`; the case show API limits parents to linked children.
+const canEnterRoute = (to, isLoggedIn) => canNavigate(to)
+  || (isLoggedIn && isParentUser() && isParentCaseProfileRoute(to.name))
 
 const router = createRouter({
   history: createWebHistory(),
@@ -62,6 +75,35 @@ router.beforeEach(to => {
   if(to.path && to.path == '/close-tab'){
     window.close();
   }
+
+  if (isLoggedIn && isParentUser() && isParentBlockedIndependentSessionsListRoute(to.name)) {
+    return { name: 'independent_goals-list' }
+  }
+
+  if (isLoggedIn && isParentUser()) {
+    const routeName = String(to.name || '').toLowerCase()
+    if (routeName === 'goals-assessments' && !parentCanAccessRehabAssessment()) {
+      return { name: 'not-authorized' }
+    }
+    if (routeName === 'services-assessments' && !parentCanAccessTreatmentAssessment()) {
+      return { name: 'not-authorized' }
+    }
+    if (routeName === 'independent_goals-assessments' && !parentCanAccessIndependentAssessment()) {
+      return { name: 'not-authorized' }
+    }
+  }
+
+  if (isLoggedIn && isParentUser() && isParentBlockedProgramSessionRoute(to.name)) {
+    const routeName = String(to.name || '').toLowerCase()
+    if (routeName.startsWith('goals-sessions')) {
+      return { name: 'goals-list' }
+    }
+    if (routeName.startsWith('services-sessions')) {
+      return { name: 'services-list' }
+    }
+
+    return { name: 'dashboards-parent' }
+  }
   /*
   
     ℹ️ Commented code is legacy code
@@ -83,7 +125,7 @@ router.beforeEach(to => {
     return next()
   
     */
-  if (canNavigate(to)) {
+  if (canEnterRoute(to, isLoggedIn)) {
     if(isLoggedIn) {
       const skipCenterGate = routeIsMeetingRoomInvite(to)
       if (! skipCenterGate && !isUserInActiveCenter && !isUserAdmin && to.name != 'dashboards-centers' && to.name != 'centers-payments-put-center-package') {

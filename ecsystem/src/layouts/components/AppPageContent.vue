@@ -1,8 +1,15 @@
 <script setup>
 import AppBreadcrumb from '@/components/AppBreadcrumb.vue'
 import GeneralPageHeader from '@/components/GeneralPageHeader.vue'
+import ParentLayoutBeneficiaryContext from '@/components/parent/ParentLayoutBeneficiaryContext.vue'
 import SidebarMobileToggle from '@/layouts/components/SidebarMobileToggle.vue'
+import { useParentLayoutNav } from '@/composables/useParentLayoutNav'
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 import { markRaw, provide, shallowRef } from 'vue'
+
+useParentLayoutNav()
+
+const showParentBeneficiaryContext = computed(() => isParentUser())
 
 const headerActionsComponent = shallowRef(null)
 
@@ -22,6 +29,8 @@ provide('unregisterGeneralPageHeaderActions', () => {
       <AppBreadcrumb />
       <VSpacer />
     </div>
+    <ParentLayoutBeneficiaryContext v-if="showParentBeneficiaryContext" />
+
     <div class="app-page-header-region">
       <GeneralPageHeader />
       <div

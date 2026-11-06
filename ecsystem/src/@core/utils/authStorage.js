@@ -35,6 +35,12 @@ export function applyRememberMePreference(enabled, email = '') {
   }
 }
 
+/** Keeps a session-only login alive across a same-tab hard reload (account switch). */
+export function markSessionAliveInTab() {
+  if (localStorage.getItem(SESSION_ONLY_KEY) === '1')
+    sessionStorage.setItem(SESSION_ALIVE_KEY, '1')
+}
+
 export function clearAuthSessionStorage() {
   SESSION_KEYS.forEach(key => localStorage.removeItem(key))
   localStorage.removeItem(SESSION_ONLY_KEY)

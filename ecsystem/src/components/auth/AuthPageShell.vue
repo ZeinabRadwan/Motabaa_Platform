@@ -17,11 +17,14 @@ const props = defineProps({
   },
 })
 
+/** Same width as auth-page.scss desktop background + side-by-side shell layout. */
+const AUTH_DESKTOP_LAYOUT_MQ = '(min-width: 960px)'
+
 /** Lock document scroll only when the viewport is wide and tall enough for the form to sit comfortably. */
 const DESKTOP_LOGIN_LOCK_MQ = '(min-width: 960px) and (min-height: 720px)'
 
 function preloadAuthBackgrounds() {
-  const desktop = window.matchMedia('(min-width: 1280px)').matches
+  const desktop = window.matchMedia(AUTH_DESKTOP_LAYOUT_MQ).matches
   const href = desktop ? BUNDLED_LOGIN_SIDE_IMAGE : BUNDLED_LOGIN_MOBILE_IMAGE
   const existing = document.querySelector(`link[data-auth-bg-preload="${href}"]`)
 

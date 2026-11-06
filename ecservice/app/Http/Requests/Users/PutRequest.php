@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Users;
 
+use App\Support\ParentIdentity;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PutRequest extends FormRequest
@@ -23,12 +24,38 @@ class PutRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
      */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->routeIs('user.create') || ! ParentIdentity::roleIdsIncludeParent($this->input('roles'))) {
+            return;
+        }
+
+        $merge = [];
+        if ($normalized = ParentIdentity::normalizeEmail($this->input('email'))) {
+            $merge['email'] = $normalized;
+        }
+        if ($canonical = ParentIdentity::canonicalPhone($this->input('phone'))) {
+            $merge['phone'] = $canonical;
+        }
+
+        if ($merge !== []) {
+            $this->merge($merge);
+        }
+    }
+
     public function rules(): array
     {
+        $parentCreate = $this->routeIs('user.create')
+            && ParentIdentity::roleIdsIncludeParent($this->input('roles'));
+
         $rules = [
             'name' => 'required|string|max:255',
-            'email' => 'nullable|string|email|max:255|unique:users',
-            'phone' => 'nullable|string|max:20|unique:users',
+            'email' => $parentCreate
+                ? 'nullable|string|email|max:255'
+                : 'nullable|string|email|max:255|unique:users',
+            'phone' => $parentCreate
+                ? 'required|string|max:20'
+                : 'nullable|string|max:20|unique:users',
             'birthdate' => 'nullable|date',
             'id_or_residence_number' => 'nullable|integer',
             'gender' => 'nullable|integer',

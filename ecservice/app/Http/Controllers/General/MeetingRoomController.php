@@ -124,6 +124,8 @@ class MeetingRoomController extends Controller
         }
 
         $input = $request->validated();
+        $requestedActive = array_key_exists('is_active', $input) ? (bool) $input['is_active'] : null;
+        unset($input['is_active']);
         $input['center_id'] = null;
         if ($request->center_id && $user->isInCenter($request->center_id)) {
             $input['center_id'] = $request->center_id;
@@ -136,7 +138,7 @@ class MeetingRoomController extends Controller
         $roomId = (int) $room;
         $isCreate = $roomId <= 0;
         $existing = ! $isCreate
-            ? MeetingRoom::where('center_id', $input['center_id'])->find($roomId)
+            ? MeetingRoom::withTrashed()->where('center_id', $input['center_id'])->find($roomId)
             : null;
         if (! $isCreate && ! $existing) {
             return response()->json(['errors' => ['error' => [__('validation.meeting_rooms.Room not found')]]], 422);
@@ -212,13 +214,22 @@ class MeetingRoomController extends Controller
         $logType = $existing ? 'edit_meeting' : 'add_meeting';
         Log::add($logType, $meeting, $meeting->id, '');
 
+        if ($requestedActive === false && ! $meeting->trashed()) {
+            $meeting->delete();
+            Log::add('delete_meeting', $meeting, $meeting->id, '');
+        } elseif ($requestedActive === true && $meeting->trashed()) {
+            $meeting->restore();
+            Log::add('restore_meeting', $meeting, $meeting->id, '');
+        }
+        $isActive = ! $meeting->trashed();
+
         $savedAudience = $meeting->audience_type ?? MeetingRoom::AUDIENCE_GENERAL;
-        if ($audienceColumnReady && $savedAudience !== MeetingRoom::AUDIENCE_LINK_INVITE) {
+        if ($isActive && $audienceColumnReady && $savedAudience !== MeetingRoom::AUDIENCE_LINK_INVITE) {
             MeetingRoomNotifier::syncForRoom($meeting);
         }
 
-        $responseData = ['room_id' => $meeting->id];
-        if ($audienceColumnReady && $savedAudience === MeetingRoom::AUDIENCE_LINK_INVITE) {
+        $responseData = ['room_id' => $meeting->id, 'is_active' => $isActive];
+        if ($isActive && $audienceColumnReady && $savedAudience === MeetingRoom::AUDIENCE_LINK_INVITE) {
             $plain = MeetingRoomInvitationService::ensureActivePlainToken($meeting);
             if ($plain) {
                 $responseData['invitation_url'] = MeetingRoomInvitationService::buildInvitationUrl($plain);

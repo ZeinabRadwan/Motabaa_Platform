@@ -29,6 +29,9 @@ import { useMessageSendHandler } from '@/composables/useMessageSendHandler'
 import { usePaginatedSessionMessages } from '@/composables/usePaginatedSessionMessages'
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { canRunIndependentSessions, filterIndependentSessionHeaders, isParentUser } from '@core/utils/staffSessionVisibility'
+import ParentPageShell from '@/layouts/components/ParentPageShell.vue'
+import ParentBeneficiarySelector from '@/views/parent/ParentBeneficiarySelector.vue'
+import { openParentIndependentSkills } from '@/composables/useParentIndependentSkillsNav'
 import { useTheme } from 'vuetify'
 
 const route = useRoute()
@@ -177,6 +180,13 @@ watch(
 )
 
 const fetchEvaluationsSteps = () => {
+  if (isParentUser()) {
+    evaluations.value = []
+    loading.value.evaluations = false
+
+    return
+  }
+
   loading.value.evaluations = true
   goalsReqest.fetchEvaluationsSteps({
     q: searchQuery.value,
@@ -405,6 +415,14 @@ const sessionTimeLabel = value => {
   return String(value).slice(0, 5)
 }
 
+const onParentBeneficiaryChange = caseId => {
+  if (caseId == null || caseId === '')
+    return
+  if (Number(caseId) === Number(route.params.case))
+    return
+  openParentIndependentSkills(router, caseId)
+}
+
 </script>
 
 <template>
@@ -414,6 +432,62 @@ const sessionTimeLabel = value => {
     </VAlert>
   </section>
   <section v-else-if="selectedCase && selectedGoal">
+    <template v-if="isParentUser()">
+      <ParentPageShell
+        :title="selectedGoal.title"
+        subtitle-i18n-key="independent.parent_skill_content_subtitle"
+      >
+        <template #beneficiary>
+          <ParentBeneficiarySelector
+            :model-value="Number(route.params.case)"
+            @update:model-value="onParentBeneficiaryChange"
+          />
+        </template>
+
+        <VBtn
+          variant="text"
+          class="mb-2 px-0"
+          :to="{ name: 'independent_goals-list-case-term', params: { case: route.params.case, term: route.params.term } }"
+        >
+          <VIcon
+            icon="tabler-arrow-left"
+            start
+          />
+          {{ $t('independent.parent_back_to_skills') }}
+        </VBtn>
+
+        <div>
+          <Message
+            v-for="message in messages"
+            :key="message.id"
+            :message="message"
+            :can-delete="false"
+            class="mb-4"
+          />
+          <div
+            v-if="hasOlderMessages"
+            class="d-flex justify-center mb-4"
+          >
+            <VBtn
+              variant="tonal"
+              :loading="messagesLoadingMore"
+              @click="loadOlderMessages"
+            >
+              {{ $t('messages.load_older_messages') }}
+            </VBtn>
+          </div>
+          <p
+            v-if="!messages.length && !messagesLoadingMore"
+            class="text-medium-emphasis text-body-2"
+          >
+            {{ $t('independent.parent_no_published_skills') }}
+          </p>
+        </div>
+      </ParentPageShell>
+    </template>
+
+    <template v-else>
+    <div class="staff-independent-session-view">
     <VRow class="mb-4">
       <VCol cols="12">
         <VCard>
@@ -591,7 +665,7 @@ const sessionTimeLabel = value => {
           </VDataTableServer>
           <!-- SECTION -->
     </VCard>
-    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && (canRunIndependentSessions() || isParentUser())" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
+    <MessageSend v-if="selectedGoal != null && selectedGoal != '' && canRunIndependentSessions()" :isMeeting="false" class="mb-4" :errors="errorsMessage" @send-meesage="sendMeesage" :uploadPercentage="uploadPercentage"></MessageSend>
     <div>
       <Message 
         v-for="message in messages" :message="message" :key="message.id" :canDelete="can('admin_independent-sessions','admin_independent-sessions') || isUser(message.user_id)" @delete-message="deleteMessage" class="mb-4"></Message>
@@ -608,6 +682,8 @@ const sessionTimeLabel = value => {
         </VBtn>
       </div>
     </div>
+    </div>
+    </template>
     <VDialog
       persistent
       v-model="isDialogVisible"

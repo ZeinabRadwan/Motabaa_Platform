@@ -165,7 +165,8 @@ const onSubmit = () => {
       userListStore.addUser(formData).then(response => {
         if(response.data['status']){
           if(parent.value){
-            snackbarRef.value.exposevisibleSnackbar(i18n.global.t('parent_created'), 'success');
+            const msgKey = response.data.reused_parent ? 'parent_linked_existing' : 'parent_created'
+            snackbarRef.value.exposevisibleSnackbar(i18n.global.t(msgKey), 'success');
           }else{
             snackbarRef.value.exposevisibleSnackbar(i18n.global.t('user_created'), 'success');
           }

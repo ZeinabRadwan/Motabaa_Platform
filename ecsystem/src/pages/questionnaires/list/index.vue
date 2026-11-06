@@ -10,6 +10,7 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { copyQuestionnaireRespondLink } from '@/utils/questionnaireShare'
 import { downloadPdfFromAxiosResponse } from '@core/utils/exportDownload'
 import QuestionnaireCustomSectionsEditor from '@/components/questionnaires/QuestionnaireCustomSectionsEditor.vue'
+import QuestionnaireCopyQuestionsDialog from '@/components/questionnaires/QuestionnaireCopyQuestionsDialog.vue'
 import { formatQuestionnaireBoundaryDate } from '@/utils/questionnaireDates'
 import { can } from '@layouts/plugins/casl'
 import {
@@ -54,6 +55,17 @@ const allowParentEditAfterSubmit = ref(false)
 const targetAudienceType = ref('parent')
 const targetRoleId = ref(null)
 const platformRoles = ref([])
+const copyQuestionsDialog = ref(false)
+const copyQuestionsDestination = ref(null)
+
+const openCopyQuestionsDialog = (destination = null) => {
+  copyQuestionsDestination.value = destination
+  copyQuestionsDialog.value = true
+}
+
+const onQuestionsCopied = () => {
+  fetchQuestionnaires()
+}
 
 const audienceTypeOptions = computed(() => [
   { value: 'parent', title: i18n.global.t('questionnaires.target_audience_parent') },
@@ -608,6 +620,15 @@ watchServerTableFetch(fetchQuestionnaires, {
               >
                 {{ $t('Add Questionnaire') }}
               </VBtn>
+
+              <VBtn
+                v-if="can('edit_questionnaires', 'edit_questionnaires')"
+                variant="tonal"
+                prepend-icon="tabler-copy"
+                @click="openCopyQuestionsDialog(null)"
+              >
+                {{ $t('questionnaires.copy_questions') }}
+              </VBtn>
             </div>
           </VCardText>
 
@@ -711,6 +732,16 @@ watchServerTableFetch(fetchQuestionnaires, {
                         <VIcon icon="tabler-file-type-pdf" />
                       </template>
                       <VListItemTitle>{{ $t('questionnaires.export_template') }}</VListItemTitle>
+                    </VListItem>
+
+                    <VListItem
+                      v-if="!item.raw.deleted_at && can('edit_questionnaires', 'edit_questionnaires')"
+                      @click="openCopyQuestionsDialog(item.raw)"
+                    >
+                      <template #prepend>
+                        <VIcon icon="tabler-copy" />
+                      </template>
+                      <VListItemTitle>{{ $t('questionnaires.copy_questions_into') }}</VListItemTitle>
                     </VListItem>
 
                     <VListItem 
@@ -1126,6 +1157,12 @@ watchServerTableFetch(fetchQuestionnaires, {
         </div>
       </VCard>
     </VDialog>
+    <QuestionnaireCopyQuestionsDialog
+      v-model="copyQuestionsDialog"
+      :terms="terms"
+      :initial-destination="copyQuestionsDestination"
+      @copied="onQuestionsCopied"
+    />
     <SnackbarComponent ref="snackbarRef" />
   </section>
 </template>

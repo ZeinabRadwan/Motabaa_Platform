@@ -1,78 +1,49 @@
 <script setup>
-import add_case from '@images/svg/add_case.svg'
-import show_cases from '@images/svg/show_cases.svg'
-import questionnaire_icon from '@images/svg/questionnaire_icon.svg'
-import { questionnairesApi } from "@/plugins/apis/questionnairesRequest";
-import { can } from '@layouts/plugins/casl'
-
-const route = useRoute()
-const router = useRouter()
-const questionnaireListStore = questionnairesApi()
-const questionnaireTasks = ref([])
-
-questionnaireListStore.fetchRespondentAvailableTasks().then(response => {
-  questionnaireTasks.value = response.data?.data ?? []
-}).catch(() => {
-  questionnaireTasks.value = []
-})
-
+import DashboardWelcome from '@/views/dashboards/statistics/DashboardWelcome.vue'
+import ParentBeneficiaryCards from '@/views/dashboards/parent/ParentBeneficiaryCards.vue'
+import ParentDashboardInsights from '@/views/dashboards/parent/ParentDashboardInsights.vue'
+import ParentDashboardStats from '@/views/dashboards/parent/ParentDashboardStats.vue'
+import dashboardBg from '@images/dashboard.png'
 </script>
 
 <template>
-  <VRow>
-    <VCol       
-        cols="12"
-        md="12">
-          <VRow>
-            <VCol md="4">
-              <VCard @click="router.push('/parent/center-activities')" class="d-flex " height="250">
-                <v-card-text class="d-flex justify-center align-center">
-                  <div class="align-center text-center">
-                    <VIcon icon="tabler-calendar-event" size="80" color="primary" class="mb-3" />
-                    <div class="align-center"><h3>{{ $t('center_activities.parent_title') }}</h3></div>
-                  </div>
-                </v-card-text>
-              </VCard>
-            </VCol>
-            <VCol md="4">
-              <VCard @click="router.push('/cases/list')" class="d-flex " height="250">
-                <v-card-text class="d-flex justify-center align-center">
-                  <div class="align-center text-center">
-                    <VImg :src="show_cases" width="120" height="120" />
-                    <div class="align-center"><h3>{{ $t('List Cases') }}</h3></div>
-                  </div>
-                </v-card-text>
-              </VCard>
-            </VCol>
-            
-            <VCol
-              v-if="questionnaireTasks.length"
-              md="4"
-            >
-              <VCard
-                class="d-flex"
-                height="250"
-                @click="router.push(questionnaireTasks.length === 1 ? `/questionnaires/questions/${questionnaireTasks[0].id}` : '/questionnaires/respondent')"
-              >
-                <v-card-text class="d-flex justify-center align-center">
-                  <div class="align-center text-center">
-                    <VImg
-                      style="margin-right: 65px"
-                      :src="questionnaire_icon"
-                      width="120"
-                      height="120"
-                    />
-                    <div class="align-center">
-                      <h3>{{ $t('questionnaires.parent_dashboard_questionnaire') }}</h3>
-                    </div>
-                  </div>
-                </v-card-text>
-              </VCard>
-            </VCol>
-          </VRow>
-      </VCol>
-  </VRow>
+  <div
+    class="athar-dashboard-view"
+    :style="{ '--athar-dashboard-bg': `url(${dashboardBg})` }"
+  >
+    <div
+      class="athar-dashboard-view__backdrop"
+      aria-hidden="true"
+    />
+
+    <div class="athar-dashboard">
+      <DashboardWelcome subtitle-key="dashboard.parent_welcome_subtitle" />
+
+      <section class="athar-dashboard__zone">
+        <ParentDashboardStats />
+      </section>
+
+      <section
+        id="parent-dashboard-beneficiaries"
+        class="athar-dashboard__zone"
+      >
+        <ParentBeneficiaryCards />
+      </section>
+
+      <section
+        id="parent-dashboard-insights"
+        class="athar-dashboard__zone"
+      >
+        <ParentDashboardInsights />
+      </section>
+    </div>
+  </div>
 </template>
+
+<style lang="scss">
+@import '@styles/dashboard-page.scss';
+</style>
+
 <route lang="yaml">
   meta:
     action: parent

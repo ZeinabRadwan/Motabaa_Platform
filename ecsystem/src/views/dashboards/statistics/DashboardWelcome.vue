@@ -2,6 +2,13 @@
 import { useSessionStore } from '@/stores/useSessionStore'
 import { resolveUserGivenName } from '@/utils/resolveUserGivenName'
 
+const props = defineProps({
+  subtitleKey: {
+    type: String,
+    default: 'dashboard.welcome_subtitle',
+  },
+})
+
 const sessionStore = useSessionStore()
 
 const givenName = computed(() => resolveUserGivenName(sessionStore.userData))
@@ -16,7 +23,7 @@ const givenName = computed(() => resolveUserGivenName(sessionStore.userData))
       {{ $t('dashboard.welcome_greeting', { name: givenName }) }}
     </h1>
     <p class="athar-dashboard-welcome__subtitle">
-      {{ $t('dashboard.welcome_subtitle') }}
+      {{ $t(subtitleKey) }}
     </p>
   </header>
 </template>

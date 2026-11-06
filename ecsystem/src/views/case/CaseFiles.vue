@@ -158,6 +158,14 @@ watchServerTableFetch(fetchFiles, {
     <VRow>
       <VCol cols="12">
         <VCard>
+          <VCardText class="pb-0">
+            <h5 class="text-h5 mb-1">
+              {{ $t('case_profile.files_title') }}
+            </h5>
+            <p class="text-body-2 text-medium-emphasis mb-0">
+              {{ $t('case_profile.files_subtitle') }}
+            </p>
+          </VCardText>
           <VCardText class="d-flex flex-wrap py-4 gap-4">
             <div class="me-3 d-flex gap-3">
               <AppSelect
@@ -206,6 +214,16 @@ watchServerTableFetch(fetchFiles, {
             :headers="translatedHeaders()"
             @update:options="options = $event"
           >
+            <template #no-data>
+              <div class="py-6 text-center text-medium-emphasis">
+                <VIcon
+                  icon="tabler-file-off"
+                  size="32"
+                  class="text-disabled mb-2"
+                />
+                <div>{{ $t('case_profile.files_empty') }}</div>
+              </div>
+            </template>
             <!-- Name -->
             <template #item.file_name="{ item }">
               <div style="width: 300px;">
@@ -254,7 +272,7 @@ watchServerTableFetch(fetchFiles, {
                       v-bind="slotProps"
                       :icon="false"
                     >
-                      Previous
+                      {{ $t('$vuetify.pagination.ariaLabel.previous') }}
                     </VBtn>
                   </template>
 
@@ -265,7 +283,7 @@ watchServerTableFetch(fetchFiles, {
                       v-bind="slotProps"
                       :icon="false"
                     >
-                      Next
+                      {{ $t('$vuetify.pagination.ariaLabel.next') }}
                     </VBtn>
                   </template>
                 </VPagination>
@@ -328,34 +346,6 @@ watchServerTableFetch(fetchFiles, {
             </VBtn>
           </VCardText>
         </VForm>
-      </VCard>
-    </VDialog>
-
-    <VDialog
-      v-model="isDeleteDialogVisible"
-      persistent
-      class="v-dialog-sm"
-    >
-      <!-- Dialog close btn -->
-      <DialogCloseBtn @click="isDeleteDialogVisible = !isDeleteDialogVisible" />
-      <!-- Dialog Content -->
-      <VCard>
-        <VCardText>
-          {{ $t('files.Are you sure you want to delete this file?') }}
-        </VCardText>
-
-        <VCardText class="d-flex justify-end gap-3 flex-wrap">
-          <VBtn @click="deleteFile">
-            {{ $t('delete') }}
-          </VBtn>
-          <VBtn
-            color="secondary"
-            variant="tonal"
-            @click="isDeleteDialogVisible = false"
-          >
-            {{ $t('Cancel') }}
-          </VBtn>
-        </VCardText>
       </VCard>
     </VDialog>
 

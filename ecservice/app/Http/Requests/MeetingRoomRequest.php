@@ -28,6 +28,7 @@ class MeetingRoomRequest extends FormRequest
             ])],
             'parent_ids' => 'nullable|array',
             'parent_ids.*' => 'integer|exists:users,id',
+            'is_active' => 'sometimes|boolean',
         ];
     }
 

@@ -2,6 +2,7 @@ import {
   buildDynamicTrail,
   getBreadcrumbRegistry,
 } from '@/utils/breadcrumb/buildRegistry'
+import { isParentCaseProfileRoute, isParentUser } from '@core/utils/staffSessionVisibility'
 
 export const DASHBOARD_ROUTE_NAMES = [
   'dashboards-analytics',
@@ -29,6 +30,13 @@ export function resolveBreadcrumbTrail(route, router) {
 
   if (Array.isArray(route.meta?.breadcrumbItems))
     return route.meta.breadcrumbItems
+
+  if (isParentCaseProfileRoute(route.name) && isParentUser()) {
+    return [
+      { titleKey: 'Dashboards', routeName: '__home__' },
+      { titleKey: 'View', routeName: null, isCurrent: true },
+    ]
+  }
 
   const registry = getBreadcrumbRegistry()
   let trail = registry.get(route.name)

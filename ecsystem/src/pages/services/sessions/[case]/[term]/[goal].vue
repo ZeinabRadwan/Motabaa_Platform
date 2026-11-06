@@ -6,7 +6,11 @@ import MessageSend from '@/views/messages/MessageSend.vue';
 import { returnIdUserIfNotAdmin, isUser } from "@core/utils/helper";
 import Message from '@/views/messages/Message.vue';
 import { can, canDoes } from '@layouts/plugins/casl'
-import { canRunTreatmentSessions, isParentUser } from '@core/utils/staffSessionVisibility'
+import {
+  canRunTreatmentSessions,
+  isParentBlockedProgramSessionRoute,
+  isParentUser,
+} from '@core/utils/staffSessionVisibility'
 import {
   scaleTypeFilterItems,
   termItems
@@ -27,6 +31,11 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 
 const route = useRoute()
 const router = useRouter()
+
+if (isParentUser() && isParentBlockedProgramSessionRoute(route.name)) {
+  router.replace({ name: 'dashboards-parent' })
+}
+
 const casesReqest = casesApi()
 const messagesReqest = messagesApi()
 const userListStore = useUserListStore()

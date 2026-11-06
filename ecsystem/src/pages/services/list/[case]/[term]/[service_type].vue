@@ -19,10 +19,17 @@ import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {casesApi} from "@/plugins/apis/casesReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
 import SnackbarComponent from '@core/components/SnackbarCustom.vue';
-
+import { isParentUser } from '@core/utils/staffSessionVisibility'
 
 const route = useRoute()
 const router = useRouter()
+
+if (isParentUser()) {
+  router.replace({
+    name: 'services-list',
+    query: { case: route.params.case },
+  })
+}
 const refVForm = ref()
 const casesReqest = casesApi()
 const userListStore = useUserListStore()
@@ -687,12 +694,16 @@ const transferGoal = () => {
             <template #item.behavioral_goal="{ item }">
               <div class="align-center">
                 <RouterLink
+                  v-if="!isParentUser()"
                   target="_blank"
                   :to="{ name: 'services-sessions-case-term-goal', params: { case: route.params.case, term: route.params.term, goal: item.raw.id } }"
                   class="font-weight-medium user-list-name"
                 >
                   <span>{{ item.raw.title }}</span> <span v-if="item.raw.standard">{{ $t(item.raw.standard) }}</span> <span v-if="item.raw.generalization">{{ $t(item.raw.generalization) }}</span>
                 </RouterLink>
+                <span v-else>
+                  <span>{{ item.raw.title }}</span> <span v-if="item.raw.standard">{{ $t(item.raw.standard) }}</span> <span v-if="item.raw.generalization">{{ $t(item.raw.generalization) }}</span>
+                </span>
               </div>
             </template>
 
@@ -786,7 +797,7 @@ const transferGoal = () => {
             <template #item.actions="{ item }">
               
               <IconBtn 
-                v-if="can('access_treatment-goals','access_treatment-goals')" 
+                v-if="!isParentUser() && can('access_treatment-goals','access_treatment-goals')" 
                 :title="$t('View')" 
                 @click="router.push({ name: 'services-sessions-case-term-goal', params: { case: route.params.case, term: route.params.term, goal: item.raw.id } });"
               >

@@ -27,6 +27,8 @@ use App\Support\QuestionnaireParentTermAccess;
 use App\Support\QuestionnaireSectionStructure;
 use App\Support\QuestionnaireTaskAudienceAccess;
 use App\Support\QuestionnaireTaskNotifier;
+use App\Support\QuestionnaireQuestionCopier;
+use App\Http\Requests\CopyQuestionnaireQuestionsRequest;
 use Spatie\Permission\Models\Role;
 use App\Support\QuestionnaireResponseAnalytics;
 use Carbon\Carbon;
@@ -42,7 +44,8 @@ class QuestionnaireController extends Controller
 
         $perPage = resolvePerPage($request);
 
-        $keywords = mb_ereg_replace(" ", "%", getFTS($request->q));
+        // Titles are stored as typed, so match the raw search text (getFTS letter folding is for search_text columns).
+        $keywords = preg_replace('/\s+/u', '%', addcslashes(trim((string) $request->q), '%_\\'));
 
         $user = auth()->user();
         $center = Term::resolveCenterId($user, $request->center_id);
@@ -50,8 +53,10 @@ class QuestionnaireController extends Controller
         $tasks = QuestionnaireTask::select('questionnaires_tasks.*')
         ->where('questionnaires_tasks.center_id', $center)
         ->when(
-            $request->q,
-            fn ($q) => $q->where('title', 'like',"%{$keywords}%")
+            $keywords !== '',
+            fn ($q) => $q->whereHas('questionnaire', fn ($questionnaire) => $questionnaire
+                ->where('title', 'like', "%{$keywords}%")
+                ->orWhere('title_local', 'like', "%{$keywords}%"))
         )
         ->where(function ($query) use ($request) {
             if($request->from_date && $request->to_date) {
@@ -74,8 +79,20 @@ class QuestionnaireController extends Controller
             fn ($q) => $q->onlyTrashed()
         );
 
-        if (!Term::applyVisibleTerm($tasks, $user, $center, $request->term_id)) {
-            return Term::forbiddenResponse();
+        if ($request->filled('term_id')) {
+            if (!Term::applyVisibleTerm($tasks, $user, $center, $request->term_id)) {
+                return Term::forbiddenResponse();
+            }
+        } elseif (! Term::canViewPastTerms($user)) {
+            // Same rule as show/edit/copy (Term::abortIfInaccessible): role-audience tasks have no term and are
+            // center-wide; parent-audience tasks are listed for every term the user may access, not only the current one.
+            $tasks->where(function ($query) use ($user, $center) {
+                $query->whereNull('questionnaires_tasks.term_id')
+                    ->orWhereIn(
+                        'questionnaires_tasks.term_id',
+                        Term::query()->visibleToUser($user, $center)->where('terms.center_id', $center)->select('terms.id')
+                    );
+            });
         }
 
         $tasks = $tasks->paginate($perPage);
@@ -408,6 +425,276 @@ class QuestionnaireController extends Controller
                 'availability' => $task->availabilityWindow(),
             ],
         ], 200);
+    }
+
+    public function copyQuestionsPreview(CopyQuestionnaireQuestionsRequest $request, $task)
+    {
+        $context = $this->resolveCopyQuestionsContext($request, $task);
+        if ($context instanceof \Illuminate\Http\JsonResponse) {
+            return $context;
+        }
+        [$sourceTask, $questions, $destinationTask, $center] = $context;
+
+        $duplicates = $destinationTask
+            ? array_values(QuestionnaireQuestionCopier::findDuplicates($destinationTask->questionnaire, $questions))
+            : [];
+
+        return apiResponse([
+            'source' => [
+                'task_id' => (int) $sourceTask->id,
+                'questionnaire_id' => (int) $sourceTask->questionnaire_id,
+                'title' => $sourceTask->questionnaire->getNameAttribute(),
+            ],
+            'selected_count' => $questions->count(),
+            'destination' => $destinationTask ? $this->copyQuestionsDestinationSummary($destinationTask, $center) : null,
+            'duplicates' => $duplicates,
+            'duplicate_count' => count($duplicates),
+        ]);
+    }
+
+    public function copyQuestions(CopyQuestionnaireQuestionsRequest $request, $task)
+    {
+        $context = $this->resolveCopyQuestionsContext($request, $task);
+        if ($context instanceof \Illuminate\Http\JsonResponse) {
+            return $context;
+        }
+        [$sourceTask, $questions, $destinationTask, $center] = $context;
+
+        $user = auth()->user();
+        $isNew = $request->isNewDestination();
+        $skipDuplicates = ! $isNew && $request->skipDuplicates();
+        $title = trim((string) $request->input('title', ''));
+        $startsAt = null;
+        $endsAt = null;
+        $audienceType = QuestionnaireTask::AUDIENCE_PARENT;
+
+        if ($isNew) {
+            $startsAt = $this->normalizeTaskBoundaryDate($request->starts_at);
+            $endsAt = $this->normalizeTaskBoundaryDate($request->ends_at);
+            if (! $startsAt || ! $endsAt || $startsAt > $endsAt) {
+                return response()->json(['errors' => ['error' => [__('validation.Start Date after End Date')]]], 422);
+            }
+
+            $audienceType = QuestionnaireTaskAudienceAccess::normalizeAudienceType(
+                $request->input('target_audience_type', QuestionnaireTask::AUDIENCE_PARENT)
+            );
+            [$audienceOk, $audienceError] = QuestionnaireTaskAudienceAccess::validateAudienceInput(
+                $audienceType,
+                $request->term_id,
+                $request->target_role_id,
+                $user,
+                (int) $center
+            );
+            if (! $audienceOk) {
+                return $audienceError;
+            }
+        } elseif ($skipDuplicates) {
+            $duplicates = QuestionnaireQuestionCopier::findDuplicates($destinationTask->questionnaire, $questions);
+            if (count($duplicates) >= $questions->count()) {
+                return response()->json(['errors' => ['error' => [__('tr.questionnaires.copy_all_duplicates')]]], 422);
+            }
+        }
+
+        try {
+            [$targetTask, $result] = DB::transaction(function () use ($request, $isNew, $destinationTask, $questions, $skipDuplicates, $title, $startsAt, $endsAt, $audienceType, $center) {
+                if ($isNew) {
+                    $questionnaire = Questionnaire::create([
+                        'title' => $title,
+                        'title_local' => $title,
+                        'allow_parent_edit_after_submit' => $this->requestAllowsParentEditAfterSubmit($request),
+                    ]);
+
+                    $targetTask = new QuestionnaireTask();
+                    $targetTask->questionnaire_id = $questionnaire->id;
+                    $targetTask->center_id = $center;
+                    $targetTask->starts_at = $startsAt;
+                    $targetTask->ends_at = $endsAt;
+                    $this->applyTaskAudienceFromRequest($targetTask, $request, $audienceType);
+                    $targetTask->save();
+                    $targetTask->setRelation('questionnaire', $questionnaire);
+                } else {
+                    $targetTask = $destinationTask;
+                }
+
+                $result = QuestionnaireQuestionCopier::copy($targetTask->questionnaire, $questions, $skipDuplicates);
+
+                return [$targetTask, $result];
+            });
+        } catch (\Throwable $exception) {
+            Log::error('Questionnaire copy-questions failed', [
+                'source_task_id' => (int) $sourceTask->id,
+                'destination_type' => $request->input('destination_type'),
+                'destination_task_id' => $destinationTask?->id,
+                'question_ids' => $request->questionIds(),
+                'exception' => $exception,
+            ]);
+
+            return response()->json(['errors' => ['error' => [
+                __('tr.questionnaires.copy_failed', ['reference' => $this->copyQuestionsFailureReference($exception)]),
+            ]]], 500);
+        }
+
+        // The copy is committed at this point; a failing log or notification must not turn it into an error.
+        try {
+            ActivityLog::add(
+                'copy_questionnaire_questions',
+                $targetTask,
+                $targetTask->id,
+                sprintf(
+                    'source_task:%d copied:%d skipped:%d',
+                    $sourceTask->id,
+                    count($result['copied_question_ids']),
+                    count($result['skipped_question_ids'])
+                )
+            );
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
+        if ($isNew) {
+            try {
+                QuestionnaireTaskNotifier::syncForTask($targetTask->fresh(['questionnaire']));
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        return response()->json([
+            'message' => __('tr.questionnaires.copy_questions_success', ['count' => count($result['copied_question_ids'])]),
+            'status' => true,
+            'data' => [
+                'task_id' => (int) $targetTask->id,
+                'questionnaire_id' => (int) $targetTask->questionnaire_id,
+                'destination_type' => $isNew ? CopyQuestionnaireQuestionsRequest::DESTINATION_NEW : CopyQuestionnaireQuestionsRequest::DESTINATION_EXISTING,
+                'copied_count' => count($result['copied_question_ids']),
+                'skipped_count' => count($result['skipped_question_ids']),
+                'copied_question_ids' => $result['copied_question_ids'],
+                'skipped_question_ids' => $result['skipped_question_ids'],
+                'is_open' => $targetTask->isOpen(),
+                'availability' => $targetTask->availabilityWindow(),
+            ],
+        ], 200);
+    }
+
+    /**
+     * Short, data-free failure location (e.g. "QueryException HY000/1364 questionnaires.id @ QuestionnaireController.php:486").
+     * Only SQL identifiers (table/column names) are included, never values.
+     */
+    private function copyQuestionsFailureReference(\Throwable $exception): string
+    {
+        $sqlState = '';
+        if ($exception instanceof \Illuminate\Database\QueryException) {
+            $sqlState = ' '.(string) ($exception->errorInfo[0] ?? $exception->getCode());
+            if (! empty($exception->errorInfo[1])) {
+                $sqlState .= '/'.$exception->errorInfo[1];
+            }
+
+            $table = preg_match('/^\s*(?:insert|update)\s+(?:into\s+)?[`"]?(\w+)[`"]?/i', $exception->getSql(), $m) ? $m[1] : '';
+            $column = preg_match("/(?:Field|column) '(\\w+)'/i", (string) ($exception->errorInfo[2] ?? ''), $m) ? $m[1] : '';
+            if ($table !== '' || $column !== '') {
+                $sqlState .= ' '.trim($table.($column !== '' ? '.'.$column : ''), '.');
+            }
+        }
+
+        $file = $exception->getFile();
+        $line = $exception->getLine();
+        $appPath = app_path();
+        foreach (str_starts_with($file, $appPath) ? [] : $exception->getTrace() as $frame) {
+            if (isset($frame['file'], $frame['line']) && str_starts_with($frame['file'], $appPath)) {
+                $file = $frame['file'];
+                $line = $frame['line'];
+                break;
+            }
+        }
+
+        return class_basename($exception).$sqlState.' @ '.basename($file).':'.$line;
+    }
+
+    /**
+     * @return array{0: QuestionnaireTask, 1: \Illuminate\Support\Collection<int, QuestionnaireQuestion>, 2: ?QuestionnaireTask, 3: int}|\Illuminate\Http\JsonResponse
+     */
+    private function resolveCopyQuestionsContext(CopyQuestionnaireQuestionsRequest $request, $sourceTaskId)
+    {
+        $user = auth()->user();
+        $center = Term::resolveCenterId($user, $request->center_id);
+        if (! $center) {
+            return response()->json(['errors' => ['error' => [__("validation.You don't belong to any center")]]], 422);
+        }
+
+        $sourceTask = $this->findCopyQuestionsTask($user, $sourceTaskId, (int) $center);
+        if ($sourceTask instanceof \Illuminate\Http\JsonResponse) {
+            return $sourceTask;
+        }
+
+        $questionIds = $request->questionIds();
+        $questions = QuestionnaireQuestionCopier::orderedSourceQuestions($sourceTask->questionnaire, $questionIds);
+        if ($questions->count() !== count($questionIds)) {
+            return response()->json(['errors' => ['error' => [__('tr.questionnaires.copy_invalid_questions')]]], 422);
+        }
+
+        $destinationTask = null;
+        if (! $request->isNewDestination()) {
+            $destinationTask = $this->findCopyQuestionsTask($user, $request->destination_task_id, (int) $center);
+            if ($destinationTask instanceof \Illuminate\Http\JsonResponse) {
+                return $destinationTask;
+            }
+
+            if ((int) $destinationTask->questionnaire_id === (int) $sourceTask->questionnaire_id) {
+                return response()->json(['errors' => ['error' => [__('tr.questionnaires.copy_same_questionnaire')]]], 422);
+            }
+
+            $usage = QuestionnaireQuestionCopier::templateUsage((int) $destinationTask->questionnaire_id, (int) $center);
+            if ($usage['other_centers'] > 0) {
+                return response()->json(['errors' => ['error' => [__('tr.questionnaires.copy_destination_shared')]]], 422);
+            }
+        }
+
+        return [$sourceTask, $questions, $destinationTask, (int) $center];
+    }
+
+    /**
+     * Same scoping as show/analytics: active (non-deleted) task in the user's center with an accessible term.
+     *
+     * @return QuestionnaireTask|\Illuminate\Http\JsonResponse
+     */
+    private function findCopyQuestionsTask($user, $taskId, int $center)
+    {
+        $task = (int) $taskId > 0 ? QuestionnaireTask::with('questionnaire')->find((int) $taskId) : null;
+        if (! $task || ! $task->questionnaire || (int) $task->center_id !== $center) {
+            return response()->json(['errors' => ['error' => [__('validation.Questionnaire does not exist')]]], 422);
+        }
+
+        $denied = Term::abortIfInaccessible($user, $center, $task->term_id);
+        if ($denied) {
+            return $denied;
+        }
+
+        return $task;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function copyQuestionsDestinationSummary(QuestionnaireTask $task, int $center): array
+    {
+        $usage = QuestionnaireQuestionCopier::templateUsage((int) $task->questionnaire_id, $center);
+        $templateTaskIds = QuestionnaireTask::withTrashed()
+            ->where('questionnaire_id', $task->questionnaire_id)
+            ->pluck('id');
+
+        $hasResponses = QuestionnaireAnswer::whereIn('task_id', $templateTaskIds)->exists()
+            || (Schema::hasTable('questionnaire_task_submissions')
+                && QuestionnaireTaskSubmission::whereIn('task_id', $templateTaskIds)->exists());
+
+        return [
+            'task_id' => (int) $task->id,
+            'questionnaire_id' => (int) $task->questionnaire_id,
+            'title' => $task->questionnaire->getNameAttribute(),
+            'question_count' => QuestionnaireQuestion::where('questionnaire_id', $task->questionnaire_id)->count(),
+            'has_responses' => $hasResponses,
+            'shared_task_count' => $usage['total'],
+            'is_open' => $task->isOpen(),
+        ];
     }
 
     public function delete($id) {

@@ -8,7 +8,6 @@ import { useUserListStore } from '@/views/apps/user/useUserListStore'
 
 const sessionStore = useSessionStore()
 const userListStore = useUserListStore()
-const router = useRouter()
 const returning = ref(false)
 const visible = computed(() => sessionStore.impersonating || !!getImpersonatorSession())
 const impersonatedName = computed(() => {
@@ -22,10 +21,7 @@ const returnToAdmin = async () => {
     return
 
   returning.value = true
-  const redirectTo = await returnToAdminAccount(() => userListStore.stopImpersonation())
-  if (redirectTo)
-    await router.replace(redirectTo)
-  returning.value = false
+  await returnToAdminAccount(() => userListStore.stopImpersonation())
 }
 </script>
 

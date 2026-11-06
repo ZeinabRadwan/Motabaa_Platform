@@ -39,7 +39,7 @@ class CenterResource extends JsonResource
             'city' => $this->city,
             'phone' => $this->phone,
             'package_id' => $this->package_id,
-            'package_name' => $this->package->title,
+            'package_name' => $this->package?->title,
             'commission' => $this->commission,
             'cr_number' => $this->cr_number,
             'vat_number' => $this->vat_number,

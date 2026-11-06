@@ -397,7 +397,7 @@ class Center extends Model
         if(!$this->paid_service)
             return true;
 
-        if($this->package->identifier == 'trial') {
+        if ($this->package && $this->package->identifier == 'trial') {
             if($now->diffInDays($this->created_at) <= 14)
                 return true;
             return false;

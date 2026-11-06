@@ -13,7 +13,11 @@ class ImpersonateRequest extends FormRequest
             return false;
         }
 
-        return isHasRole('admin') && canAny(['admin_users', 'access_centers', 'admin_centers']);
+        if (isHasRole('admin')) {
+            return true;
+        }
+
+        return canAny(['admin_users', 'access_centers', 'admin_centers']);
     }
 
     public function rules(): array

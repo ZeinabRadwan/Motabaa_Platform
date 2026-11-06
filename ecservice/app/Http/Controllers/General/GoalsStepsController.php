@@ -11,6 +11,7 @@ use App\Models\Log;
 use App\Models\Goal;
 use App\Models\SCase;
 use App\Models\Term;
+use App\Support\ProgramSessionAccess;
 
 class GoalsStepsController extends Controller
 {
@@ -19,6 +20,14 @@ class GoalsStepsController extends Controller
         $user = auth()->user();
 
         if (isParentUser($user)) {
+            if ($request->goal_id) {
+                $goal = Goal::find($request->goal_id);
+                $denied = ProgramSessionAccess::denyParentProgramSessionManagement($goal);
+                if ($denied) {
+                    return $denied;
+                }
+            }
+
             return apiPaginateResponse(
                 new \Illuminate\Pagination\LengthAwarePaginator([], 0, max(resolvePerPage($request), 1)),
                 GoalStepsResource::collection(collect())
@@ -59,6 +68,13 @@ class GoalsStepsController extends Controller
     }
 
     public function put(GoalStepsRequest $request, $goal = null){
+        $goalId = $goal > 0 ? (int) $goal : (int) ($request->goal_id ?? 0);
+        if ($goalId > 0) {
+            $denied = ProgramSessionAccess::denyParentProgramSessionManagement(Goal::find($goalId));
+            if ($denied) {
+                return $denied;
+            }
+        }
 
         $inputs = $request->validated();
         
@@ -81,6 +97,10 @@ class GoalsStepsController extends Controller
         $record = GoalsSteps::find($id);
         if (!$record) {
             return response()->json(['message' => 'Record not found', 'status' => false], 404);
+        }
+        $denied = ProgramSessionAccess::denyParentProgramSessionManagement(Goal::find($record->goal_id));
+        if ($denied) {
+            return $denied;
         }
         $record->order = null;
         $record->save();
@@ -109,6 +129,10 @@ class GoalsStepsController extends Controller
         if (!$record) {
             return response()->json(['message' => 'Record not found', 'status' => false], 404);
         }
+        $denied = ProgramSessionAccess::denyParentProgramSessionManagement(Goal::find($record->goal_id));
+        if ($denied) {
+            return $denied;
+        }
 
         $steps = GoalsSteps::where('goal_id', $record->goal_id)->count();
         $record->restore();
@@ -124,6 +148,10 @@ class GoalsStepsController extends Controller
         $record = GoalsSteps::find($step);
         if (!$record) {
             return response()->json(['message' => 'Record not found', 'status' => false], 404);
+        }
+        $denied = ProgramSessionAccess::denyParentProgramSessionManagement(Goal::find($record->goal_id));
+        if ($denied) {
+            return $denied;
         }
 
         $steps = GoalsSteps::where('id', '!=', $step)

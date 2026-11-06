@@ -1,4 +1,5 @@
 <script setup>
+import AppBackButton from '@/components/AppBackButton.vue'
 import { useGeneralPageHeader } from '@/composables/useGeneralPageHeader'
 
 const { visible, pageTitle, pageSubtitle } = useGeneralPageHeader()
@@ -9,6 +10,7 @@ const { visible, pageTitle, pageSubtitle } = useGeneralPageHeader()
     v-if="visible"
     class="general-page-header"
   >
+    <AppBackButton />
     <div class="general-page-header__text">
       <h1 class="general-page-header__title">
         {{ pageTitle }}
@@ -24,5 +26,5 @@ const { visible, pageTitle, pageSubtitle } = useGeneralPageHeader()
 </template>
 
 <style lang="scss">
-@import '@/styles/general-page-header.scss';
+@import '@styles/general-page-header.scss';
 </style>

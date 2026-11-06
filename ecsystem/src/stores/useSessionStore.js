@@ -1,3 +1,4 @@
+import { clearAccountScopedStorage, resetAccountScopedState } from '@core/utils/accountScope'
 import { applyRememberMePreference, clearAuthSessionStorage } from '@core/utils/authStorage'
 import { clearReferenceCache, invalidateReferenceGroups } from '@core/utils/referenceCache'
 import ability, { initialAbility } from '@/plugins/casl/ability'
@@ -114,6 +115,9 @@ export const useSessionStore = defineStore('session', {
       const { userAbilities, userRole } = buildUserAbilities(user)
       const isAdminRole = userRole.find(item => item.action === 'admin')
 
+      resetAccountScopedState()
+      clearAccountScopedStorage()
+
       user.fullName = user.name
       user.role = userRole[0] ? userRole[0].action : 'default'
 
@@ -131,6 +135,7 @@ export const useSessionStore = defineStore('session', {
       if (user.centers && user.centers.length > 0 && !isAdminRole) {
         const preferred = user.centers.find(center => Number(center.status) === 1)
           || user.centers[0]
+
         this.center = String(preferred.id)
         this.centerData = { title: preferred.title, image_path: '' }
       }
@@ -151,6 +156,7 @@ export const useSessionStore = defineStore('session', {
       this.centerData = { title: selectedCenter.title, image_path: imagePath }
       this.persist()
       this.revision += 1
+      resetAccountScopedState()
       invalidateReferenceGroups('terms', 'disabilities', 'services', 'evaluation-methods', 'logs')
     },
     setCenterData(centerData) {
@@ -191,6 +197,8 @@ export const useSessionStore = defineStore('session', {
       localStorage.removeItem('accessToken')
       localStorage.removeItem('userAbilities')
       clearAuthSessionStorage()
+      resetAccountScopedState()
+      clearAccountScopedStorage()
 
       this.syncAbility()
       this.revision += 1

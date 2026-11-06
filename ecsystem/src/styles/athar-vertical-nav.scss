@@ -380,3 +380,10 @@
     --athar-nav-arrow-duration: 0.01ms;
   }
 }
+
+// Mobile drawer: keep Athar sidebar surface (avoid default theme tint on overlay nav)
+.layout-nav-type-vertical.layout-overlay-nav .layout-vertical-nav.overlay-nav {
+  background: var(--athar-nav-bg, #fafbfd) !important;
+  border-inline-end: 1px solid var(--athar-nav-border, #eef2f6);
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12);
+}

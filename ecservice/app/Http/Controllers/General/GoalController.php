@@ -11,6 +11,10 @@ use App\Models\GoalEvaluation;
 use App\Models\GoalEvaluationStep;
 use App\Http\Resources\GoalsResource;
 use App\Http\Requests\GoalRequest;
+use App\Http\Requests\ParentGoalMessageChunkRequest;
+use App\Http\Requests\ParentGoalMessageRequest;
+use App\Support\ParentChunkedUpload;
+use Illuminate\Http\UploadedFile;
 use App\Http\Resources\GoalEvaluationStepResource;
 use App\Models\Assessment;
 use App\Models\Message;
@@ -23,14 +27,29 @@ use App\Models\System\PDF;
 use Carbon\Carbon;
 use App\Models\Log;
 use App\Models\Term;
+use App\Support\ProgramSessionAccess;
 use App\Models\System\System;
+use App\Support\GoalParentVisibility;
+use App\Support\ParentAssessmentAccess;
+use App\Support\ParentGoalDetails;
 
 class GoalController extends Controller
 {
     public function index(Request $request)
     {
         $user = auth()->user();
+        $parentViewer = isParentUser($user);
         $dateNow = Carbon::now()->toDateString();
+
+        $parentAssessmentDenied = ParentAssessmentAccess::denyIfParentGoalListAssessmentRequest($request, $user);
+        if ($parentAssessmentDenied) {
+            return $parentAssessmentDenied;
+        }
+
+        $staffPdfDenied = ParentAssessmentAccess::denyIfStaffPeriodAssessmentPdfBlocked($request, $user);
+        if ($staffPdfDenied) {
+            return $staffPdfDenied;
+        }
 
         $perPage = resolvePerPage($request);
         $feild_id = $request->feild_id;
@@ -49,6 +68,46 @@ class GoalController extends Controller
             $emptyPage = new \Illuminate\Pagination\LengthAwarePaginator([], 0, max($perPage, 1), 1);
 
             return apiPaginateResponse($emptyPage, GoalsResource::listCollection(collect([])));
+        }
+
+        if (
+            $parentViewer
+            && $request->category === 'educational'
+            && ! $request->pdf
+            && ! $request->filled('case_id')
+        ) {
+            $emptyPage = new \Illuminate\Pagination\LengthAwarePaginator([], 0, max($perPage, 1), 1);
+
+            return apiPaginateResponse($emptyPage, GoalsResource::listCollection(collect([])));
+        }
+
+        if (
+            $parentViewer
+            && GoalParentVisibility::isTreatmentCategory($request->category)
+            && ! $request->pdf
+            && ! $request->filled('case_id')
+        ) {
+            $emptyPage = new \Illuminate\Pagination\LengthAwarePaginator([], 0, max($perPage, 1), 1);
+
+            return apiPaginateResponse($emptyPage, GoalsResource::listCollection(collect([])));
+        }
+
+        if (
+            $parentViewer
+            && GoalParentVisibility::isTreatmentCategory($request->category)
+            && $request->filled('case_id')
+            && ! GoalParentVisibility::parentCanAccessCase($user, (int) $request->case_id, $center ? (int) $center : null)
+        ) {
+            return Term::forbiddenResponse();
+        }
+
+        if (
+            $parentViewer
+            && $request->category === 'independent'
+            && $request->filled('case_id')
+            && ! GoalParentVisibility::parentCanAccessCase($user, (int) $request->case_id, $center ? (int) $center : null)
+        ) {
+            return Term::forbiddenResponse();
         }
 
         // Listing goals must not widen what this user can see, even when a case_id is sent.
@@ -192,11 +251,11 @@ class GoalController extends Controller
             ->addSelect('goal_evaluations.value as evaluation_value')
         )
         ->when(
-            $request->status &&  $request->status == 'all',
+            ! $parentViewer && $request->status &&  $request->status == 'all',
             fn ($q) => $q->withTrashed()
         )
         ->when(
-            $request->status &&  $request->status == 'inactive',
+            ! $parentViewer && $request->status &&  $request->status == 'inactive',
             fn ($q) => $q->onlyTrashed()
         );
 
@@ -371,6 +430,32 @@ class GoalController extends Controller
         return apiPaginateResponse($goals, GoalsResource::listCollection($goals));
     }
 
+    public function parentTreatmentCategories(Request $request)
+    {
+        $user = auth()->user();
+        if (! isParentUser($user)) {
+            return Term::forbiddenResponse();
+        }
+
+        $caseId = (int) $request->case_id;
+        if ($caseId <= 0) {
+            return success([]);
+        }
+
+        $center = Term::resolveCenterId($user, $request->center_id);
+        if (! GoalParentVisibility::parentCanAccessCase($user, $caseId, $center ? (int) $center : null)) {
+            return Term::forbiddenResponse();
+        }
+
+        $items = GoalParentVisibility::parentTreatmentCategoryOptions(
+            $user,
+            (int) $center,
+            $caseId
+        );
+
+        return success($items);
+    }
+
     public function show(Request $request, Goal $goal){
 
         $user = auth()->user();
@@ -398,6 +483,274 @@ class GoalController extends Controller
         }
 
         return apiResponse(new GoalsResource($goal));
+    }
+
+    /**
+     * @return array{0: Goal|null, 1: string|null}
+     */
+    private function resolveParentGoal(Request $request, $goalId): array
+    {
+        $user = auth()->user();
+        $goal = Goal::with(['case:id,name,center_id', 'assesment.parent'])
+            ->withCount([
+                'messages as started_sessions_count' => function ($query) {
+                    $query->where('type', Message::SYS_STARTED_SESSION);
+                },
+            ])
+            ->find((int) $goalId);
+
+        $center = Term::resolveCenterId($user, $request->center_id);
+        $reason = ParentGoalDetails::denyReason(
+            $user,
+            $goal,
+            $request->filled('case_id') ? (int) $request->case_id : null,
+            $request->filled('section') ? (string) $request->section : null,
+            $center ? (int) $center : null
+        );
+
+        return [$goal, $reason];
+    }
+
+    public function parentDetails(Request $request, $goal)
+    {
+        [$goal, $reason] = $this->resolveParentGoal($request, $goal);
+        if ($reason !== null) {
+            return ParentGoalDetails::deniedResponse($reason);
+        }
+
+        $page = ParentGoalDetails::mediaQuery($goal)->paginate(ParentGoalDetails::MEDIA_PER_PAGE);
+        $media = $page->getCollection()
+            ->map(fn (Message $message) => ParentGoalDetails::mediaItem($message))
+            ->filter()
+            ->values();
+
+        return apiResponse([
+            'goal' => ParentGoalDetails::goalPayload($goal),
+            'media' => $media,
+            'media_page' => [
+                'current' => $page->currentPage(),
+                'last' => $page->lastPage(),
+                'total' => $page->total(),
+            ],
+            'upload_rules' => ParentGoalMessageRequest::clientRules(),
+            'upload_chunk_bytes' => ParentChunkedUpload::CHUNK_BYTES,
+        ]);
+    }
+
+    public function parentAddMessage(ParentGoalMessageRequest $request, $goal)
+    {
+        [$goal, $reason] = $this->resolveParentGoal($request, $goal);
+        if ($reason !== null) {
+            return ParentGoalDetails::deniedResponse($reason);
+        }
+
+        $field = $request->attachmentField();
+        [$response] = $this->storeParentMessage($goal, $field, $request->file($field), (string) $request->input('content', ''));
+
+        return $response;
+    }
+
+    /**
+     * Receives one chunk of a large parent upload. Every chunk re-runs the parent goal
+     * authorization; the last one reassembles the file, validates it with the same rules
+     * as parentAddMessage and stores it through the same path.
+     */
+    public function parentAddMessageChunk(ParentGoalMessageChunkRequest $request, $goal)
+    {
+        [$goal, $reason] = $this->resolveParentGoal($request, $goal);
+        if ($reason !== null) {
+            return ParentGoalDetails::deniedResponse($reason);
+        }
+
+        $userId = (int) auth()->id();
+        $upload = new ParentChunkedUpload($userId, (string) $request->input('upload_id'));
+        $expected = $request->uploadMeta((int) $goal->id);
+
+        $completed = $upload->completion();
+        if ($completed !== null) {
+            return $this->completedChunkUploadResponse($completed, $expected);
+        }
+
+        $meta = $upload->meta();
+        if ($meta === null) {
+            if ((int) $request->input('chunk_index') !== 0) {
+                return $this->chunkUploadError('upload_expired', 410);
+            }
+            ParentChunkedUpload::pruneStale();
+            if (ParentChunkedUpload::activeUploadCount($userId) >= ParentChunkedUpload::MAX_ACTIVE_PER_USER) {
+                ParentChunkedUpload::discardIdle($userId);
+            }
+            if (ParentChunkedUpload::activeUploadCount($userId) >= ParentChunkedUpload::MAX_ACTIVE_PER_USER) {
+                return $this->chunkUploadError('too_many_uploads', 429);
+            }
+            $upload->begin($expected + ['user_id' => $userId, 'started_at' => now()->toIso8601String()]);
+        } elseif (array_intersect_key($meta, $expected) != $expected) {
+            return $this->chunkUploadError('chunk_invalid', 422);
+        } elseif ($upload->isFinalizing()) {
+            return $this->chunkUploadError('upload_finalizing', 423);
+        }
+
+        try {
+            $upload->storeChunk((int) $request->input('chunk_index'), $request->file('chunk'));
+        } catch (\Throwable $e) {
+            \Log::error('Parent goal chunk store failed', [
+                'goal_id' => $goal->id,
+                'user_id' => $userId,
+                'chunk_index' => (int) $request->input('chunk_index'),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->chunkUploadError('storage_failed', 500);
+        }
+
+        if (! $upload->hasAllChunks($expected['total_chunks'])) {
+            return apiResponse(['complete' => false, 'chunk_index' => (int) $request->input('chunk_index')]);
+        }
+
+        $response = $upload->withFinalizeLock(fn () => $this->finalizeChunkedUpload($upload, $goal, $expected, (string) $request->input('content', '')));
+
+        return $response ?? $this->chunkUploadError('upload_finalizing', 423);
+    }
+
+    /**
+     * @param  array<string, mixed>  $expected
+     */
+    private function finalizeChunkedUpload(ParentChunkedUpload $upload, Goal $goal, array $expected, string $content)
+    {
+        $completed = $upload->completion();
+        if ($completed !== null) {
+            return $this->completedChunkUploadResponse($completed, $expected);
+        }
+
+        // The proxy may drop the client connection (524) while a large file is still being
+        // stored; the retried last chunk then picks up the completion marker.
+        ignore_user_abort(true);
+
+        try {
+            @set_time_limit(600);
+            $path = $upload->assemble($expected['total_chunks']);
+        } catch (\Throwable $e) {
+            \Log::error('Parent goal chunk assembly failed', [
+                'goal_id' => $goal->id,
+                'user_id' => auth()->id(),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+            $upload->discard();
+
+            return $this->chunkUploadError('storage_failed', 500);
+        }
+
+        if (filesize($path) !== $expected['total_size']) {
+            $upload->discard();
+
+            return $this->chunkUploadError('chunk_invalid', 422);
+        }
+
+        $field = $expected['field'];
+        $file = new UploadedFile($path, $expected['file_name'], null, UPLOAD_ERR_OK, true);
+        $validator = ParentGoalMessageRequest::validatorFor($field, $file, $content);
+        if ($validator->fails()) {
+            $upload->discard();
+
+            return response()->json(['message' => $validator->errors()->first(), 'errors' => $validator->errors()], 422);
+        }
+
+        [$response, $message] = $this->storeParentMessage($goal, $field, $file, $content);
+        if ($message === null) {
+            $upload->discard();
+        } else {
+            $upload->markCompleted(['goal_id' => (int) $goal->id, 'message_id' => (int) $message->id]);
+        }
+
+        return $response;
+    }
+
+    /**
+     * @param  array<string, mixed>  $completed
+     * @param  array<string, mixed>  $expected
+     */
+    private function completedChunkUploadResponse(array $completed, array $expected)
+    {
+        $message = (int) ($completed['goal_id'] ?? 0) === (int) $expected['goal_id']
+            ? Message::with(['user:id,name', 'user.roles:id,name,default_name'])
+                ->where('goal_id', $expected['goal_id'])
+                ->where('user_id', auth()->id())
+                ->find((int) ($completed['message_id'] ?? 0))
+            : null;
+
+        if ($message === null) {
+            return $this->chunkUploadError('upload_expired', 410);
+        }
+
+        return apiResponse(['media' => ParentGoalDetails::mediaItem($message)]);
+    }
+
+    private function chunkUploadError(string $reason, int $status)
+    {
+        return response()->json([
+            'errors' => ['file' => [__("validation.parent_goal_details.{$reason}")]],
+            'reason' => $reason,
+        ], $status);
+    }
+
+    /**
+     * @return array{0: \Illuminate\Http\JsonResponse, 1: Message|null}
+     */
+    private function storeParentMessage(Goal $goal, string $field, UploadedFile $file, string $content): array
+    {
+        $message = new Message([
+            'goal_id' => $goal->id,
+            'user_id' => auth()->id(),
+            'content' => trim($content),
+            'log_work' => 0,
+            'parents_can_see' => 1,
+        ]);
+        $message->forceFill(['image_path' => '', 'file_path' => '', 'video_path' => '']);
+        $message->save();
+
+        $auditContext = [
+            'center_id' => (int) $goal->case->center_id ?: null,
+            'user_id' => auth()->id(),
+        ];
+
+        try {
+            @set_time_limit(600);
+            $message->saveFile($file, $field, $auditContext);
+        } catch (\Throwable $e) {
+            \Log::error('Parent goal message upload failed', [
+                'message_id' => $message->id,
+                'goal_id' => $goal->id,
+                'case_id' => $goal->case_id,
+                'user_id' => auth()->id(),
+                'field' => $field,
+                'size' => $file?->getSize(),
+                'mime' => $file?->getMimeType(),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
+            try {
+                $message->deleteFolder($auditContext);
+            } catch (\Throwable $cleanupError) {
+            }
+            $message->delete();
+
+            return [response()->json([
+                'errors' => [$field => [__('validation.parent_goal_details.storage_failed')]],
+                'reason' => 'storage_failed',
+            ], 500), null];
+        }
+
+        Log::add('parent_goal_message', $message, $message->id, json_encode([
+            'goal_id' => $goal->id,
+            'case_id' => $goal->case_id,
+            'attachment' => $field,
+        ]));
+
+        $message->refresh()->load(['user:id,name', 'user.roles:id,name,default_name']);
+
+        return [apiResponse(['media' => ParentGoalDetails::mediaItem($message)]), $message];
     }
 
     public function put(GoalRequest $request, $goal = null){
@@ -467,6 +820,11 @@ class GoalController extends Controller
             return $denied;
         }
 
+        $parentAssessmentDenied = ParentAssessmentAccess::denyIfParentCategoryAssessmentsBlocked($request->category, $user);
+        if ($parentAssessmentDenied) {
+            return $parentAssessmentDenied;
+        }
+
         $sCaseGoalStatus = null;
         if($request->case_id && $request->term_id && $request->category && $request->period>=0) {
             $sCaseGoalStatus = SCaseGoalStatus::where('case_id', $request->case_id)
@@ -481,6 +839,10 @@ class GoalController extends Controller
     public function periodAction(Request $request){
 
         $user = auth()->user();
+        if (isParentUser($user)) {
+            return Term::forbiddenResponse();
+        }
+
         $center = Term::resolveCenterId($user, $request->center_id);
         $denied = Term::abortIfInaccessible($user, $center, $request->term_id);
         if ($denied) {
@@ -550,6 +912,10 @@ class GoalController extends Controller
     }
 
     public function start_session(Request $request, Goal $goal){
+        $denied = ProgramSessionAccess::denyParentProgramSessionManagement($goal);
+        if ($denied) {
+            return $denied;
+        }
         $denied = Term::abortIfInaccessible(auth()->user(), optional($goal->case)->center_id, $goal->term_id);
         if ($denied) {
             return $denied;
@@ -572,6 +938,10 @@ class GoalController extends Controller
     }
 
     public function end_session(Request $request, Goal $goal){
+        $denied = ProgramSessionAccess::denyParentProgramSessionManagement($goal);
+        if ($denied) {
+            return $denied;
+        }
         $denied = Term::abortIfInaccessible(auth()->user(), optional($goal->case)->center_id, $goal->term_id);
         if ($denied) {
             return $denied;
@@ -966,6 +1336,22 @@ class GoalController extends Controller
             return Term::forbiddenResponse();
         }
 
+        if (isParentUser($user)) {
+            if (
+                GoalParentVisibility::isTreatmentCategory($request->category)
+                && ! $request->filled('case_id')
+            ) {
+                return success([]);
+            }
+
+            if (
+                GoalParentVisibility::isTreatmentCategory($request->category)
+                && ! GoalParentVisibility::parentCanAccessCase($user, (int) $request->case_id, $center ? (int) $center : null)
+            ) {
+                return Term::forbiddenResponse();
+            }
+        }
+
         $parentsIds = $goals->distinct()->pluck('assessments.parents_ids');
 
         $feilds = [];
@@ -993,6 +1379,10 @@ class GoalController extends Controller
     public function update_evaluation(Request $request){
 
         $user = auth()->user();
+        if (isParentUser($user)) {
+            return Term::forbiddenResponse();
+        }
+
         foreach ($request->input('evaluation_goals') as $evaluationGoals) {
             $goal = Goal::find($evaluationGoals['goal_id']);
             $denied = Term::abortIfInaccessible($user, optional($goal?->case)->center_id, optional($goal)->term_id);
@@ -1063,6 +1453,15 @@ class GoalController extends Controller
     }
 
     public function evaluations(Request $request){
+
+        if (isParentUser(auth()->user())) {
+            $perPage = max(resolvePerPage($request), 1);
+
+            return apiPaginateResponse(
+                new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage),
+                GoalEvaluationStepResource::collection(collect())
+            );
+        }
 
         $perPage = resolvePerPage($request);
         if ($perPage < 1) {

@@ -21,7 +21,11 @@ import SnackbarComponent from '@core/components/SnackbarCustom.vue';
 import { useUserListStore } from '@/views/apps/user/useUserListStore'
 import {goalsApi} from "@/plugins/apis/goalsReqest"
 import {termsApi} from "@/plugins/apis/termsRequest"
-import { sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
+import { isParentUser, sessionTeacherFilterId } from '@core/utils/staffSessionVisibility'
+import ParentPageShell from '@/layouts/components/ParentPageShell.vue'
+import ParentBeneficiaryPicker from '@/views/parent/ParentBeneficiaryPicker.vue'
+import { openParentIndependentSkills } from '@/composables/useParentIndependentSkillsNav'
+import { useParentBeneficiary } from '@/composables/useParentBeneficiary'
 
 const route = useRoute()
 const router = useRouter()
@@ -89,6 +93,25 @@ const transferTerms = ref([]);
 const dialogTransferGoalID = ref();
 const transferToTerm = ref();
 
+const { selectedBeneficiaryId, selectBeneficiary, resolveBeneficiarySelection } = useParentBeneficiary()
+
+const parentContextReady = ref(false)
+const parentNeedsPick = computed(() => isParentUser() && parentContextReady.value && !selectedBeneficiaryId.value)
+
+const applyParentBeneficiaryContext = async item => {
+  if (!item?.id)
+    return
+
+  selectBeneficiary(item)
+  const result = await openParentIndependentSkills(router, item.id)
+  if (!result.ok)
+    snackbarRef.value?.exposevisibleSnackbar(i18n.global.t('goals.parent_missing_term'), 'warning')
+}
+
+const onParentPickBeneficiary = async item => {
+  await applyParentBeneficiaryContext(item)
+}
+
 const options = ref({
   page: 1,
   itemsPerPage: 10,
@@ -97,11 +120,31 @@ const options = ref({
   search: undefined,
 })
 
-onMounted(() => {
+onMounted(async () => {
+  if (isParentUser()) {
+    const { selected } = await resolveBeneficiarySelection()
+    parentContextReady.value = true
+    if (selected)
+      await applyParentBeneficiaryContext(selected)
+
+    return
+  }
+
   termItems().then(data => {
     itemsTerm.value = data
   })
   fetchFeilds()
+})
+
+watch(selectedBeneficiaryId, async (id, previous) => {
+  if (!isParentUser() || !parentContextReady.value || id == null || id === previous)
+    return
+
+  const caseParam = route.params.case
+  if (caseParam && Number(caseParam) === Number(id))
+    return
+
+  await applyParentBeneficiaryContext({ id })
 })
 
 
@@ -577,7 +620,31 @@ const transferGoal = () => {
 </script>
 
 <template>
-  <section>
+  <section v-if="isParentUser()">
+    <ParentPageShell
+      title-i18n-key="independent.parent_page_title"
+      subtitle-i18n-key="independent.parent_page_subtitle"
+    >
+      <ParentBeneficiaryPicker
+        v-if="parentNeedsPick"
+        title-i18n-key="independent.parent_pick_beneficiary_title"
+        hint-i18n-key="independent.parent_pick_beneficiary_hint"
+        :selected-id="selectedBeneficiaryId"
+        :auto-select-single="false"
+        @select="onParentPickBeneficiary"
+      />
+      <div
+        v-else-if="!parentContextReady"
+        class="d-flex justify-center pa-6"
+      >
+        <VProgressCircular
+          indeterminate
+          color="primary"
+        />
+      </div>
+    </ParentPageShell>
+  </section>
+  <section v-else>
     <VRow>
       <VCol cols="12">
         <VCard>

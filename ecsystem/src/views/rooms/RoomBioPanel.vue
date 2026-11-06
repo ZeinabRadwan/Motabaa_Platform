@@ -33,6 +33,7 @@ const isDialogVisibleDate = ref(false)
 const editDialog = ref(false)
 const saveLoading = ref(false)
 const editTitle = ref('')
+const editActive = ref(true)
 const editAudienceType = ref('general')
 const lastInvitationUrl = ref('')
 const {
@@ -208,6 +209,7 @@ const copyLink = () => {
 
 const openEditDialog = () => {
   editTitle.value = props.roomData.title
+  editActive.value = !deletedRoom.value
   editAudienceType.value = normalizeAudienceType(props.roomData.audience_type)
   editParentIds.value = Array.isArray(props.roomData.assigned_parent_ids)
     ? [...props.roomData.assigned_parent_ids]
@@ -231,10 +233,12 @@ const saveEdit = () => {
     title: editTitle.value.trim(),
     audience_type: editAudienceType.value,
     parent_ids: isParentSpecific.value ? editParentIds.value : [],
+    is_active: editActive.value,
   }
 
   roomsReqest.put(payload, String(props.roomData.id)).then(response => {
     snackbarRef.value.exposevisibleSnackbar(i18n.global.t('saved_successfully'), 'success');
+    deletedRoom.value = !editActive.value
     const invitationUrl = response.data?.data?.invitation_url
     if (invitationUrl)
       lastInvitationUrl.value = invitationUrl
@@ -502,6 +506,18 @@ if (props.roomData.user && !props.roomData.user.picture) {
                 v-model="editTitle"
                 :label="$t('rooms.room_name')"
               />
+            </VCol>
+            <VCol cols="12">
+              <VSwitch
+                v-model="editActive"
+                color="success"
+                inset
+                hide-details
+                :label="editActive ? $t('rooms.room_active') : $t('rooms.room_inactive')"
+              />
+              <p class="text-medium-emphasis text-body-2 mt-1 mb-0">
+                {{ editActive ? $t('rooms.room_active_hint') : $t('rooms.room_inactive_hint') }}
+              </p>
             </VCol>
             <VCol cols="12">
               <MeetingRoomAccessFields
